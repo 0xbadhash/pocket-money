@@ -1,3 +1,25 @@
-export default function FundsManagementView() {
-  return "FundsManagementView";
-}
+// parent_app/ui/FundsManagementView.tsx
+import CurrentBalanceDisplay from './funds_management_components/CurrentBalanceDisplay';
+import AddFundsForm from './funds_management_components/AddFundsForm';
+import RecentFundActivity from './funds_management_components/RecentFundActivity';
+
+const FundsManagementView = () => {
+  return (
+    <div className="funds-management-view">
+      <header className="view-header"> {/* Re-using .view-header class for consistency */}
+        <h1>Funds Management</h1>
+      </header>
+      <section className="current-balance-section">
+        <CurrentBalanceDisplay />
+      </section>
+      <section className="add-funds-section">
+        <AddFundsForm />
+      </section>
+      <section className="fund-activity-section">
+        <RecentFundActivity />
+      </section>
+    </div>
+  );
+};
+
+export default FundsManagementView;
