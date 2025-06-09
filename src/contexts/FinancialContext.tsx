@@ -1,17 +1,18 @@
 // src/contexts/FinancialContext.tsx
 import React, { createContext, useState, ReactNode, useContext } from 'react';
+import { UserContext } from './UserContext'; // Ensure this path is correct.
 
 // Define shapes for our financial data
-export interface Transaction { // Exporting for potential use in other files
+export interface Transaction {
   id: string;
   date: string;
   description: string;
-  amount: number; // Positive for income, negative for expenses
+  amount: number;
   category: string;
-  kidId?: string; // Optional kidId field
+  kidId?: string;
 }
 
-export interface FinancialData { // Exporting for potential use
+export interface FinancialData {
   currentBalance: number;
   transactions: Transaction[];
 }
@@ -19,9 +20,9 @@ export interface FinancialData { // Exporting for potential use
 // Define the shape of the context value
 interface FinancialContextType {
   financialData: FinancialData;
-  addFunds: (amount: number, description?: string, kidId?: string) => void; // Updated signature
+  addFunds: (amount: number, source: string, kidId?: string, fullDescription?: string) => Promise<{ success: boolean; error?: string; transaction?: Transaction }>;
   addTransaction: (transaction: Omit<Transaction, 'id' | 'date'>) => void;
-  addKidReward: (kidId: string, rewardAmount: number, choreTitle: string) => void; // <-- New function in type
+  addKidReward: (kidId: string, rewardAmount: number, choreTitle: string) => void;
 }
 
 // Create the context
@@ -42,6 +43,7 @@ interface FinancialProviderProps {
 }
 
 export const FinancialProvider: React.FC<FinancialProviderProps> = ({ children }) => {
+  const userContext = useContext(UserContext);
   const [financialData, setFinancialData] = useState<FinancialData>({
     currentBalance: 100.00,
     transactions: [
@@ -53,30 +55,67 @@ export const FinancialProvider: React.FC<FinancialProviderProps> = ({ children }
     ],
   });
 
-  const addFunds = (amount: number, description: string = 'Funds Added', kidId?: string) => {
+  const addFunds = async (amount: number, source: string, kidId?: string, fullDescription?: string): Promise<{ success: boolean; error?: string; transaction?: Transaction }> => {
     if (amount <= 0) {
       console.warn('Add funds amount must be positive.');
-      return;
+      return { success: false, error: 'Amount must be positive' };
     }
-    const newTransaction: Transaction = {
-      id: `t${Date.now()}`,
-      date: new Date().toISOString().split('T')[0],
-      description: description,
-      amount: amount,
-      category: 'Income',
-      kidId: kidId, // Include kidId if provided
-    };
-    setFinancialData((prevData) => ({
-      currentBalance: prevData.currentBalance + amount,
-      transactions: [newTransaction, ...prevData.transactions],
-    }));
+
+    const authToken = userContext?.user?.token || 'mockAuthToken123';
+
+    try {
+      const response = await fetch('/api/funds/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          amount,
+          source,
+          kidId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Failed to add funds. Server returned an error.' }));
+        console.error('Failed to add funds API error:', response.status, errorData);
+        return { success: false, error: errorData.message || `Failed to add funds. Status: ${response.status}` };
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.transaction) {
+        const newTransaction: Transaction = {
+          id: result.transaction.id,
+          date: result.transaction.date ? new Date(result.transaction.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          description: fullDescription || result.transaction.description || 'Funds added', // Ensure description is always a string
+          amount: result.transaction.amount,
+          category: result.transaction.category || 'Income',
+          kidId: result.transaction.kidId,
+        };
+
+        setFinancialData((prevData) => ({
+          currentBalance: result.newBalance !== undefined ? result.newBalance : prevData.currentBalance + newTransaction.amount,
+          transactions: [newTransaction, ...prevData.transactions],
+        }));
+        return { success: true, transaction: newTransaction };
+      } else {
+        console.error('Add funds API call did not return a successful transaction object:', result);
+        return { success: false, error: result.message || 'Invalid response data from server.' };
+      }
+    } catch (error) {
+      console.error('Error calling addFunds API:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Network error or server is unreachable.';
+      return { success: false, error: errorMessage };
+    }
   };
 
   const addTransaction = (transactionDetails: Omit<Transaction, 'id' | 'date'>) => {
     const newTransaction: Transaction = {
       id: `t${Date.now()}`,
       date: new Date().toISOString().split('T')[0],
-      ...transactionDetails, // kidId will be included if present in transactionDetails
+      ...transactionDetails,
     };
     setFinancialData((prevData) => ({
       currentBalance: prevData.currentBalance + newTransaction.amount,
@@ -90,10 +129,10 @@ export const FinancialProvider: React.FC<FinancialProviderProps> = ({ children }
       return;
     }
     const newTransaction: Transaction = {
-      id: `t${Date.now()}_reward`, // Make ID slightly more unique for debugging
+      id: `t${Date.now()}_reward`,
       date: new Date().toISOString().split('T')[0],
       description: `Reward for: ${choreTitle}`,
-      amount: rewardAmount, // Positive amount
+      amount: rewardAmount,
       category: 'Chore Reward',
       kidId: kidId,
     };
@@ -101,11 +140,11 @@ export const FinancialProvider: React.FC<FinancialProviderProps> = ({ children }
       currentBalance: prevData.currentBalance + rewardAmount,
       transactions: [newTransaction, ...prevData.transactions],
     }));
-    console.log(`Added reward: $${rewardAmount} for ${kidId} for chore: ${choreTitle}`); // For debugging
+    console.log(`Added reward: $${rewardAmount} for ${kidId} for chore: ${choreTitle}`);
   };
 
   return (
-    <FinancialContext.Provider value={{ financialData, addFunds, addTransaction, addKidReward }}> {/* <-- Add to provider value */}
+    <FinancialContext.Provider value={{ financialData, addFunds, addTransaction, addKidReward }}>
       {children}
     </FinancialContext.Provider>
   );
