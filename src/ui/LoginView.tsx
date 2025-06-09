@@ -1,14 +1,50 @@
 // src/ui/LoginView.tsx
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
+import { loginUser } from '../api/apiService'; // Adjusted path assuming apiService is in src/api
+import { UserContext } from '../contexts/UserContext'; // Import UserContext
 
 const LoginView: React.FC = () => {
+  const userContext = useContext(UserContext); // Use the context
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  // Temporary state to show login success
+  const [loginSuccessMessage, setLoginSuccessMessage] = useState<string | null>(null);
 
-  const handleLogin = () => {
-    // Placeholder for custom login logic
-    console.log('Login attempt with:', { email, password });
-    alert('Custom login functionality is not implemented yet.');
+
+  const handleLogin = async () => {
+    setError(null);
+    setLoginSuccessMessage(null);
+    if (!email || !password) {
+      setError("Email and password are required.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await loginUser(email, password);
+      console.log('Login successful:', response.data.user);
+      console.log('Received token:', response.data.token);
+
+      // Use loginContext to update global state
+      if (userContext) {
+        userContext.loginContext(response.data.user, response.data.token);
+      }
+
+      setLoginSuccessMessage(`Login successful! Welcome ${response.data.user.name}. You are now logged in.`);
+      // Clear form or redirect user
+      setEmail('');
+      setPassword('');
+    } catch (err: any) {
+      if (err.error && err.error.message) {
+        setError(err.error.message);
+      } else {
+        setError('An unexpected error occurred during login.');
+      }
+      console.error('Login error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoogleLogin = () => {
@@ -21,6 +57,9 @@ const LoginView: React.FC = () => {
     <div style={{ maxWidth: '400px', margin: '50px auto', padding: '20px', border: '1px solid #ccc', borderRadius: '8px', fontFamily: 'Arial, sans-serif' }}>
       <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>Login</h2>
 
+      {error && <p style={{ color: 'red', textAlign: 'center' }}>{error}</p>}
+      {loginSuccessMessage && <p style={{ color: 'green', textAlign: 'center' }}>{loginSuccessMessage}</p>}
+
       {/* Custom Login Form */}
       <div style={{ marginBottom: '15px' }}>
         <label htmlFor="email" style={{ display: 'block', marginBottom: '5px' }}>Email</label>
@@ -31,6 +70,7 @@ const LoginView: React.FC = () => {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Enter your email"
           style={{ width: '100%', padding: '10px', boxSizing: 'border-box', borderRadius: '4px', border: '1px solid #ddd' }}
+          disabled={loading}
         />
       </div>
       <div style={{ marginBottom: '20px' }}>
@@ -42,6 +82,7 @@ const LoginView: React.FC = () => {
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Enter your password"
           style={{ width: '100%', padding: '10px', boxSizing: 'border-box', borderRadius: '4px', border: '1px solid #ddd' }}
+          disabled={loading}
         />
       </div>
       <button
@@ -49,16 +90,17 @@ const LoginView: React.FC = () => {
         style={{
           width: '100%',
           padding: '12px',
-          backgroundColor: '#007bff',
+          backgroundColor: loading ? '#ccc' : '#007bff',
           color: 'white',
           border: 'none',
           borderRadius: '4px',
-          cursor: 'pointer',
+          cursor: loading ? 'not-allowed' : 'pointer',
           fontSize: '16px',
           marginBottom: '10px'
         }}
+        disabled={loading}
       >
-        Login
+        {loading ? 'Logging in...' : 'Login'}
       </button>
 
       {/* Separator */}
@@ -74,18 +116,18 @@ const LoginView: React.FC = () => {
         style={{
           width: '100%',
           padding: '12px',
-          backgroundColor: '#db4437', // Google's red color
+          backgroundColor: '#db4437',
           color: 'white',
           border: 'none',
           borderRadius: '4px',
-          cursor: 'pointer',
+          cursor: loading ? 'not-allowed' : 'pointer',
           fontSize: '16px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center'
         }}
+        disabled={loading}
       >
-        {/* Basic Google G Icon (SVG or Font Icon could be used here for better visuals) */}
         <span style={{ marginRight: '10px', fontWeight: 'bold' }}>G</span>
         Login with Google
       </button>

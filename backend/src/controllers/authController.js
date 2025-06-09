@@ -71,7 +71,29 @@ const loginUser = async (req, res) => {
   }
 };
 
+const getAllUsers = async (req, res) => {
+  try {
+    // TODO: Add authentication and authorization check here to ensure only admins can access
+    // For now, it's open for demonstration with the mock backend.
+    // if (!req.user || req.user.role !== 'admin') {
+    //   return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Access denied. Admin role required.' }});
+    // }
+
+    const users = await userModel.findAllUsers();
+    res.status(200).json({
+      data: {
+        users: users,
+        count: users.length,
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching all users:', error);
+    res.status(500).json({ error: { code: 'INTERNAL_SERVER_ERROR', message: 'An unexpected error occurred while fetching users.' } });
+  }
+};
+
 module.exports = {
   registerParent,
-  loginUser, // Add loginUser here
+  loginUser,
+  getAllUsers, // Add new function here
 };

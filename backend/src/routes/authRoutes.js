@@ -10,4 +10,7 @@ router.post('/register/parent', authController.registerParent);
 // POST /api/v1/auth/login
 router.post('/login', authController.loginUser); // Add login route
 
+// GET /api/v1/auth/users (for admin purposes)
+router.get('/users', authController.getAllUsers);
+
 module.exports = router;

@@ -1,48 +1,60 @@
 // src/ui/AdminDashboardView.tsx
 import React, { useState, useEffect } from 'react';
-import { AppUser, UserRole, ParentUser, KidUser, AdminUser } from '../types'; // Assuming types are updated
-
-// Mock data for demonstration
-const mockUsers: AppUser[] = [
-  { id: 'admin1', name: 'Super Admin', email: 'admin@example.com', role: UserRole.ADMIN, createdAt: new Date(), updatedAt: new Date() },
-  { id: 'parent1', name: 'Parent One', email: 'parent1@example.com', role: UserRole.PARENT, kids: [], createdAt: new Date(), updatedAt: new Date() },
-  { id: 'kid1', name: 'Kid Alpha', email: 'kida@example.com', role: UserRole.KID, age: 10, parentAccountId: 'parent1', createdAt: new Date(), updatedAt: new Date() },
-  { id: 'parent2', name: 'Parent Two', email: 'parent2@example.com', role: UserRole.PARENT, kids: [], createdAt: new Date(), updatedAt: new Date() },
-  { id: 'kid2', name: 'Kid Beta', email: 'kidb@example.com', role: UserRole.KID, age: 8, parentAccountId: 'parent2', createdAt: new Date(), updatedAt: new Date() },
-];
-
-// Assign kids to parents for mock data
-(mockUsers[1] as ParentUser).kids.push(mockUsers[2] as KidUser);
-(mockUsers[3] as ParentUser).kids.push(mockUsers[4] as KidUser);
-
+import { AppUser, UserRole, ParentUser, KidUser } from '../types';
+import { getAllUsers } from '../api/apiService'; // Import the API service
+import { useUser } from '../contexts/UserContext'; // To get authToken
 
 const AdminDashboardView: React.FC = () => {
+  const { authToken } = useUser(); // Get authToken from context
   const [users, setUsers] = useState<AppUser[]>([]);
   const [filterRole, setFilterRole] = useState<UserRole | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // In a real app, fetch users from an API
-    setUsers(mockUsers);
-  }, []);
+    const fetchUsers = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // Pass authToken to getAllUsers.
+        // The backend /auth/users endpoint is currently not protected,
+        // but we pass the token for future compatibility.
+        const response = await getAllUsers(authToken);
+        setUsers(response.data.users);
+      } catch (err: any) {
+        if (err.error && err.error.message) {
+          setError(err.error.message);
+        } else {
+          setError('Failed to fetch users. Ensure the backend server is running and accessible.');
+        }
+        console.error("Error fetching users:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Only fetch users if an authToken is present (or if backend didn't require it for this specific call)
+    // For this mock backend, the /auth/users is open, but in real app, it would be protected.
+    // If the token is required by the backend, and it's null, getAllUsers will reject.
+    // We could also add an explicit check here: if (!authToken) { setError("Not authenticated"); setLoading(false); return; }
+    fetchUsers();
+  }, [authToken]); // Re-fetch if authToken changes
 
   const handleViewDetails = (user: AppUser) => {
     alert(`Viewing details for ${user.name} (ID: ${user.id}). Actual implementation needed.`);
-    // Placeholder: In a real app, navigate to a user detail page or show a modal
   };
 
   const handleSuspendAccount = (user: AppUser) => {
-    if (user.role === UserRole.ADMIN && users.filter(u => u.role === UserRole.ADMIN).length <= 1) {
-        alert("Cannot suspend the only admin account.");
-        return;
-    }
     alert(`Suspending account for ${user.name} (ID: ${user.id}). Actual implementation needed.`);
-    // Placeholder: In a real app, call an API to change account status
   };
 
   const filteredUsers = users
     .filter(user => filterRole === 'all' || user.role === filterRole)
-    .filter(user => user.name.toLowerCase().includes(searchTerm.toLowerCase()) || user.email.toLowerCase().includes(searchTerm.toLowerCase()));
+    .filter(user =>
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
 
   const tableHeaderStyle: React.CSSProperties = {
     backgroundColor: '#f0f0f0',
@@ -64,22 +76,30 @@ const AdminDashboardView: React.FC = () => {
     cursor: 'pointer',
   };
 
+  if (loading) {
+    return <div style={{ padding: '20px', textAlign: 'center' }}>Loading users...</div>;
+  }
+
+  if (error) {
+    return <div style={{ padding: '20px', textAlign: 'center', color: 'red' }}>Error: {error}</div>;
+  }
+
   return (
     <div style={{ padding: '20px' }}>
       <h1>Admin Dashboard</h1>
 
-      <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
+      <div style={{ marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
         <input
           type="text"
           placeholder="Search by name or email..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ padding: '8px', width: '300px' }}
+          style={{ padding: '8px', minWidth: '250px', flexGrow: 1 }}
         />
         <select
           value={filterRole}
           onChange={(e) => setFilterRole(e.target.value as UserRole | 'all')}
-          style={{ padding: '8px' }}
+          style={{ padding: '8px', minWidth: '150px' }}
         >
           <option value="all">All Roles</option>
           <option value={UserRole.PARENT}>Parents</option>
@@ -88,38 +108,43 @@ const AdminDashboardView: React.FC = () => {
         </select>
       </div>
 
-      <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #ddd' }}>
-        <thead>
-          <tr>
-            <th style={tableHeaderStyle}>Name</th>
-            <th style={tableHeaderStyle}>Email</th>
-            <th style={tableHeaderStyle}>Role</th>
-            <th style={tableHeaderStyle}>Details</th>
-            <th style={tableHeaderStyle}>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredUsers.map(user => (
-            <tr key={user.id}>
-              <td style={tableCellStyle}>{user.name}</td>
-              <td style={tableCellStyle}>{user.email}</td>
-              <td style={tableCellStyle}>{user.role}</td>
-              <td style={tableCellStyle}>
-                {user.role === UserRole.PARENT && `Kids: ${(user as ParentUser).kids.length}`}
-                {user.role === UserRole.KID && `Age: ${(user as KidUser).age}, Parent ID: ${(user as KidUser).parentAccountId}`}
-              </td>
-              <td style={tableCellStyle}>
-                <button onClick={() => handleViewDetails(user)} style={buttonStyle}>View Details</button>
-                <button onClick={() => handleSuspendAccount(user)} style={{...buttonStyle, backgroundColor: '#ffdddd'}}>
-                  Suspend
-                </button>
-                {/* Add more actions as needed, e.g., Edit, Delete, Reset Password */}
-              </td>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #ddd', minWidth: '600px' }}>
+          <thead>
+            <tr>
+              <th style={tableHeaderStyle}>Name</th>
+              <th style={tableHeaderStyle}>Email</th>
+              <th style={tableHeaderStyle}>Role</th>
+              <th style={tableHeaderStyle}>Details</th>
+              <th style={tableHeaderStyle}>Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-      {filteredUsers.length === 0 && <p style={{textAlign: 'center', marginTop: '20px'}}>No users found.</p>}
+          </thead>
+          <tbody>
+            {filteredUsers.length > 0 ? filteredUsers.map(user => (
+              <tr key={user.id}>
+                <td style={tableCellStyle}>{user.name}</td>
+                <td style={tableCellStyle}>{user.email || 'N/A'}</td> {/* Display N/A if email is undefined */}
+                <td style={tableCellStyle}>{user.role}</td>
+                <td style={tableCellStyle}>
+                  {user.role === UserRole.PARENT && `Kids: ${(user as ParentUser).kids?.length || 0}`}
+                  {/* For KidUser, ensure parentAccountId and age are typically present based on your types */}
+                  {user.role === UserRole.KID && `Age: ${(user as KidUser).age !== undefined ? (user as KidUser).age : 'N/A'}, Parent: ${(user as KidUser).parentAccountId ? (user as KidUser).parentAccountId.substring(0,6) + '...' : 'N/A'}`}
+                </td>
+                <td style={tableCellStyle}>
+                  <button onClick={() => handleViewDetails(user)} style={buttonStyle}>Details</button>
+                  <button onClick={() => handleSuspendAccount(user)} style={{...buttonStyle, backgroundColor: '#ffdddd'}}>
+                    Suspend
+                  </button>
+                </td>
+              </tr>
+            )) : (
+              <tr>
+                <td colSpan={5} style={{...tableCellStyle, textAlign: 'center'}}>No users found matching your criteria.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

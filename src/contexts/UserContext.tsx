@@ -1,19 +1,14 @@
 // src/contexts/UserContext.tsx
-import React, { createContext, useState, useEffect, ReactNode } from 'react';
-import type { Kid } from '../types'; // Import Kid type
-
-// Define the shape of the user data
-interface User {
-  name: string;
-  email: string;
-  kids: Kid[]; // Add kids array
-  // Add other user-specific fields here if needed later
-}
+import React, { createContext, useState, useEffect, ReactNode, useContext } from 'react';
+import type { AppUser, ParentUser } from '../types'; // Using AppUser for currentUser
 
 // Define the shape of the context value
 interface UserContextType {
-  user: User | null;
-  loading: boolean;
+  currentUser: AppUser | null;
+  authToken: string | null;
+  loading: boolean; // Indicates if context is busy with an async auth operation or initial load
+  loginContext: (userData: AppUser, token: string) => void;
+  logoutContext: () => void;
 }
 
 export const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -23,29 +18,68 @@ interface UserProviderProps {
 }
 
 export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true); // True while checking localStorage
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setUser({
-        name: 'Parent User (Fetched)',
-        email: 'parent.user.fetched@example.com',
-        kids: [ // Add mock kids data
-          { id: 'kid_a', name: 'Alex', age: 10 },
-          { id: 'kid_b', name: 'Bailey', age: 8 },
-          { id: 'kid_c', name: 'Casey', age: 12 },
-        ],
-      });
-      setLoading(false);
-    }, 1500);
+    // Try to load token and user from localStorage on initial mount
+    const storedToken = localStorage.getItem('authToken');
+    const storedUser = localStorage.getItem('currentUser');
 
-    return () => clearTimeout(timer);
+    if (storedToken && storedUser) {
+      try {
+        const parsedUser: AppUser = JSON.parse(storedUser);
+        setAuthToken(storedToken);
+        setCurrentUser(parsedUser);
+      } catch (error) {
+        console.error("Error parsing stored user data:", error);
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('currentUser');
+      }
+    }
+    setLoading(false); // Done with initial load attempt
   }, []);
 
+  const loginContext = (userData: AppUser, token: string) => {
+    setCurrentUser(userData);
+    setAuthToken(token);
+    localStorage.setItem('authToken', token);
+    localStorage.setItem('currentUser', JSON.stringify(userData));
+    setLoading(false); // Explicitly set loading to false after login
+  };
+
+  const logoutContext = () => {
+    setCurrentUser(null);
+    setAuthToken(null);
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('currentUser');
+    setLoading(false); // Explicitly set loading to false after logout
+  };
+
+  // This effect can be used to update loading state based on currentUser and authToken presence if needed,
+  // but for login/logout, it's handled directly.
+  // useEffect(() => {
+  //   // If not loading from localStorage and no user/token, set loading to false.
+  //   // If there is a user/token, it implies loading is complete or auth state is set.
+  //   if (!localStorage.getItem('authToken') && !currentUser) {
+  //       setLoading(false);
+  //   }
+  // }, [currentUser, authToken]);
+
+
   return (
-    <UserContext.Provider value={{ user, loading }}>
+    <UserContext.Provider value={{ currentUser, authToken, loading, loginContext, logoutContext }}>
       {children}
     </UserContext.Provider>
   );
+};
+
+// Custom hook to use the UserContext
+export const useUser = (): UserContextType => {
+  const context = useContext(UserContext);
+  if (context === undefined) {
+    throw new Error('useUser must be used within a UserProvider');
+  }
+  return context;
 };
