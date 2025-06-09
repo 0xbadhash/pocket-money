@@ -21,6 +21,7 @@ interface FinancialContextType {
   financialData: FinancialData;
   addFunds: (amount: number, description?: string, kidId?: string) => void; // Updated signature
   addTransaction: (transaction: Omit<Transaction, 'id' | 'date'>) => void;
+  addKidReward: (kidId: string, rewardAmount: number, choreTitle: string) => void; // <-- New function in type
 }
 
 // Create the context
@@ -83,8 +84,28 @@ export const FinancialProvider: React.FC<FinancialProviderProps> = ({ children }
     }));
   };
 
+  const addKidReward = (kidId: string, rewardAmount: number, choreTitle: string) => {
+    if (rewardAmount <= 0) {
+      console.warn('Kid reward amount must be positive.');
+      return;
+    }
+    const newTransaction: Transaction = {
+      id: `t${Date.now()}_reward`, // Make ID slightly more unique for debugging
+      date: new Date().toISOString().split('T')[0],
+      description: `Reward for: ${choreTitle}`,
+      amount: rewardAmount, // Positive amount
+      category: 'Chore Reward',
+      kidId: kidId,
+    };
+    setFinancialData((prevData) => ({
+      currentBalance: prevData.currentBalance + rewardAmount,
+      transactions: [newTransaction, ...prevData.transactions],
+    }));
+    console.log(`Added reward: $${rewardAmount} for ${kidId} for chore: ${choreTitle}`); // For debugging
+  };
+
   return (
-    <FinancialContext.Provider value={{ financialData, addFunds, addTransaction }}>
+    <FinancialContext.Provider value={{ financialData, addFunds, addTransaction, addKidReward }}> {/* <-- Add to provider value */}
       {children}
     </FinancialContext.Provider>
   );

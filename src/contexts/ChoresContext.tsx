@@ -1,6 +1,7 @@
 // src/contexts/ChoresContext.tsx
 import React, { createContext, useState, ReactNode, useContext } from 'react';
 import type { Chore } from '../types'; // Import Chore type
+import { useFinancialContext } from '../contexts/FinancialContext'; // <-- New Import
 
 // Define the shape of the context value
 interface ChoresContextType {
@@ -35,6 +36,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     { id: 'c3', title: 'Do Homework', assignedKidId: 'kid_a', isComplete: false },
     { id: 'c4', title: 'Take out trash', description: 'Before Tuesday morning', rewardAmount: 1, isComplete: false}
   ]);
+  const { addKidReward } = useFinancialContext(); // <-- Consume FinancialContext
 
   const addChore = (choreData: Omit<Chore, 'id' | 'isComplete'>) => {
     const newChore: Chore = {
@@ -46,6 +48,20 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
   };
 
   const toggleChoreComplete = (choreId: string) => {
+    // Find the chore first to check its properties before toggling
+    const choreToToggle = chores.find(chore => chore.id === choreId);
+
+    if (choreToToggle) {
+      // Check if we are marking it as complete and if it qualifies for a reward
+      if (!choreToToggle.isComplete && choreToToggle.assignedKidId && choreToToggle.rewardAmount && choreToToggle.rewardAmount > 0) {
+        addKidReward(choreToToggle.assignedKidId, choreToToggle.rewardAmount, choreToToggle.title);
+      }
+    } else {
+      console.warn(`Chore with ID ${choreId} not found for toggling.`);
+      // Optionally, you could stop here if the chore isn't found,
+      // but the map below will simply not find it and do nothing, which is also fine.
+    }
+
     setChores(prevChores =>
       prevChores.map(chore =>
         chore.id === choreId ? { ...chore, isComplete: !chore.isComplete } : chore
