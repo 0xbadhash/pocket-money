@@ -423,3 +423,21 @@ body {
 .detailed-transaction-list tr:hover {
   background-color: #f5f5f5;
 }
+
+/* Styles for Link components styled as buttons */
+.button-link-styled {
+  display: inline-block;
+  padding: 8px 12px; /* Slightly smaller than form buttons */
+  background-color: #6200ee; /* Example: Material primary */
+  color: white !important; /* Ensure text is white, important to override default link color */
+  text-decoration: none;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 0.85em;
+  border: 1px solid transparent; /* For alignment with actual buttons if any */
+}
+
+.button-link-styled:hover {
+  background-color: #3700b3; /* Darker shade */
+  text-decoration: none;
+}

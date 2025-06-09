@@ -6,6 +6,7 @@ import SettingsView from './ui/SettingsView';
 import ActivityMonitoringView from './ui/ActivityMonitoringView';
 import { UserProvider } from './contexts/UserContext';
 import { FinancialProvider } from './contexts/FinancialContext';
+import KidDetailView from './ui/KidDetailView'; // <-- New Import
 
 function App() {
   return (
@@ -36,7 +37,8 @@ function App() {
               <Route path="/" element={<DashboardView />} />
               <Route path="/funds" element={<FundsManagementView />} />
               <Route path="/settings" element={<SettingsView />} />
-              <Route path="/activity" element={<ActivityMonitoringView />} />
+  <Route path="/activity" element={<ActivityMonitoringView />} />
+  <Route path="/kid/:kidId" element={<KidDetailView />} /> {/* <-- New Route */}
               <Route path="*" element={<DashboardView />} /> {/* Default route */}
             </Routes>
           </div>

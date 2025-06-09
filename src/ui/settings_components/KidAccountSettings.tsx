@@ -1,5 +1,6 @@
 // src/ui/settings_components/KidAccountSettings.tsx
 import React, { useContext } from 'react'; // Import useContext
+import { Link } from 'react-router-dom'; // <-- New Import
 import { UserContext } from '../../contexts/UserContext'; // Adjust path as needed
 
 const KidAccountSettings = () => {
@@ -35,7 +36,10 @@ const KidAccountSettings = () => {
       {user.kids.map(kid => (
         <div className="settings-item" key={kid.id}>
           <span>{kid.name} (Age: {kid.age || 'N/A'})</span>
-          <button disabled>View Details</button> {/* Placeholder for future action */}
+          {/* Replace button with Link */}
+          <Link to={`/kid/${kid.id}`} className="button-link-styled">
+            View Details
+          </Link>
         </div>
       ))}
       <div className="settings-item" style={{ marginTop: '10px' }}>
