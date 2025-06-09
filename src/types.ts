@@ -22,7 +22,14 @@ export interface KidUser extends BaseUser {
   role: UserRole.KID;
   age: number;
   parentAccountId: string; // Link to the parent user
-  // Other kid-specific fields
+  // Merged from main: Optional object for spending limits
+  spendingLimits?: {
+    daily?: number;
+    weekly?: number;
+    monthly?: number;
+    perTransaction?: number;
+  };
+  blockedCategories?: string[]; // Merged from main: Optional array of blocked category names/IDs
 }
 
 export interface ParentUser extends BaseUser {
@@ -41,6 +48,9 @@ export interface AdminUser extends BaseUser {
   // permissions: string[];
 }
 
+// It might be useful to have a union type for any user
+export type AppUser = ParentUser | KidUser | AdminUser;
+
 // The existing Chore interface
 export interface Chore {
   id: string;
@@ -55,14 +65,37 @@ export interface Chore {
   recurrenceEndDate?: string | null;
 }
 
-// It might be useful to have a union type for any user
-export type AppUser = ParentUser | KidUser | AdminUser;
+// Kanban-specific types - Merged from main
+export type KanbanPeriod = 'daily' | 'weekly' | 'monthly';
 
-// Deprecate the old Kid interface if KidUser replaces its use cases.
-// For now, we'll keep it to avoid breaking existing UserContext,
-// but ideally, UserContext would use KidUser.
+export interface KanbanColumn {
+  id: string; // e.g., 'monday', 'week-1', 'todo'
+  title: string; // e.g., 'Monday', 'Week 1', 'To Do'
+  chores: Chore[];
+}
+
+export interface KidKanbanConfig {
+  kidId: string;
+  selectedPeriod: KanbanPeriod;
+  columns: KanbanColumn[];
+}
+
+// Deprecate the old Kid interface. KidUser replaces its use cases.
+// This is kept for now to avoid breaking existing UserContext until fully migrated.
+// Ideally, UserContext should use KidUser.
+// Once UserContext and other related components are fully updated to use KidUser,
+// this 'Kid' interface can be safely removed.
 export interface Kid {
   id: string;
   name: string;
   age?: number;
+  // Note: If you still need spendingLimits/blockedCategories directly on 'Kid',
+  // ensure they are compatible with KidUser's definition.
+  spendingLimits?: {
+    daily?: number;
+    weekly?: number;
+    monthly?: number;
+    perTransaction?: number;
+  };
+  blockedCategories?: string[];
 }
