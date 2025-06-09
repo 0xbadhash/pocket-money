@@ -7,6 +7,13 @@ export interface Kid {
   id: string;
   name: string;
   age?: number;
+  spendingLimits?: { // Optional object for spending limits
+    daily?: number;
+    weekly?: number;
+    monthly?: number;
+    perTransaction?: number;
+  };
+  blockedCategories?: string[]; // Optional array of blocked category names/IDs
   // Add other kid-specific fields here if needed later
 }
 
