@@ -1,10 +1,10 @@
 // src/ui/ActivityMonitoringView.tsx
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react'; // Import useMemo
 import ActivityFilters from './activity_monitoring_components/ActivityFilters';
 import ActivityChart from './activity_monitoring_components/ActivityChart';
 import DetailedTransactionList from './activity_monitoring_components/DetailedTransactionList';
-import { useFinancialContext } from '../contexts/FinancialContext'; // Import Transaction type
-import type { Transaction } from '../types'; // Import Transaction type from centralized types
+import { useFinancialContext } from '../contexts/FinancialContext';
+import type { Transaction } from '../types';
 
 // Define the shape of the filter criteria
 export interface FilterCriteria {
@@ -29,6 +29,19 @@ const ActivityMonitoringView = () => {
     setActiveFilters(filters);
   };
 
+  // Derive unique categories for filter dropdown
+  const uniqueCategories = useMemo(() => {
+    const categories = new Set<string>();
+    financialData.transactions.forEach(tx => {
+      if (tx.category && tx.category.trim() !== '') { // Ensure category is not null/empty
+        categories.add(tx.category);
+      }
+    });
+    return Array.from(categories).sort();
+  }, [financialData.transactions]);
+
+  // console.log('Unique Categories:', uniqueCategories); // For debugging
+
   // Filter transactions based on activeFilters
   let transactionsToDisplay: Transaction[] = financialData.transactions;
 
@@ -48,10 +61,6 @@ const ActivityMonitoringView = () => {
     );
   }
   if (activeFilters.endDate) {
-    // To include the end date, we should compare against the end of that day
-    // or ensure the date comparison is inclusive. new Date(str) creates date at midnight.
-    // For simplicity, if tx.date is '2023-11-15' and endDate is '2023-11-15',
-    // new Date('2023-11-15') >= new Date('2023-11-15') is true.
     transactionsToDisplay = transactionsToDisplay.filter(
       (tx) => new Date(tx.date) <= new Date(activeFilters.endDate)
     );
@@ -63,10 +72,10 @@ const ActivityMonitoringView = () => {
         <h1>Activity Monitoring</h1>
       </header>
       <section className="activity-controls">
-        <ActivityFilters onApplyFilters={handleApplyFiltersUpdate} />
+        {/* We will pass uniqueCategories and handleApplyFiltersUpdate to ActivityFilters later */}
+        <ActivityFilters onApplyFilters={handleApplyFiltersUpdate} availableCategories={uniqueCategories} />
       </section>
       <section className="activity-summary-visuals">
-        {/* This might also use filtered transactions later */}
         <ActivityChart transactionsForChart={transactionsToDisplay} />
       </section>
       <section className="activity-detailed-list">
