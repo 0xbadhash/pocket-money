@@ -1,10 +1,19 @@
-// /tmp/vite_init_area/temp_pocket_money_app/src/ui/dashboard_components/TotalFundsSummary.tsx
+// src/ui/dashboard_components/TotalFundsSummary.tsx
+import React from 'react';
+import { useFinancialContext } from '../../contexts/FinancialContext'; // Adjust path as needed
+
 const TotalFundsSummary = () => {
+  const { financialData } = useFinancialContext(); // Consume context
+
+  const formattedBalance = `$${financialData.currentBalance.toFixed(2)}`;
+
   return (
     <div className="total-funds-summary">
       <h2>Total Funds</h2>
-      <p>Available: $0.00</p> {/* Placeholder value */}
+      {/* Display balance from context */}
+      <p>Available: {formattedBalance}</p>
     </div>
   );
 };
+
 export default TotalFundsSummary;

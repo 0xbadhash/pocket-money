@@ -1,7 +1,7 @@
 // src/components/AddChoreForm.tsx
 import React, { useState } from 'react';
-import { useChores } from '../contexts/ChoresContext'; // Adjust path if necessary
-import { RecurrenceSetting } from '../types'; // Adjust path if necessary
+import { useChores } from '../contexts/ChoresContext';
+import { RecurrenceSetting } from '../types'; // This type definition is from 'feature/recurring-chores'
 
 const daysOfWeek = [
   { label: 'Sunday', value: 0 }, { label: 'Monday', value: 1 },
@@ -15,6 +15,7 @@ export const AddChoreForm: React.FC = () => {
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState(''); // YYYY-MM-DD
 
+  // Recurrence states from 'feature/recurring-chores'
   const [recurrenceType, setRecurrenceType] = useState<string>('none'); // 'none', 'daily', 'weekly', 'monthly', 'specificDays'
   const [weeklyDay, setWeeklyDay] = useState<number>(0); // 0 for Sunday
   const [monthlyDay, setMonthlyDay] = useState<number>(1); // Day of month
@@ -58,8 +59,8 @@ export const AddChoreForm: React.FC = () => {
             // If input was empty or only invalid chars, treat as 'none' effectively, or handle as error.
             // For this form, if specificDays is selected but no valid days given, maybe default to null or error.
             // Let's require valid days if type is specificDays and input is not empty.
-             alert('Please enter valid days for specific days recurrence or select "None".');
-             return;
+              alert('Please enter valid days for specific days recurrence or select "None".');
+              return;
         }
         break;
       case 'none':
@@ -80,7 +81,7 @@ export const AddChoreForm: React.FC = () => {
         return;
     }
 
-
+    // `addChore` from ChoresContext now expects `name`, `description`, `recurrenceSetting`, and `dueDate`
     addChore(name, description, recurrenceSetting, dueDate);
 
     // Reset form
@@ -101,7 +102,7 @@ export const AddChoreForm: React.FC = () => {
       </div>
       <div>
         <label htmlFor="choreDescription">Description:</label>
-        <textarea id="choreDescription" value={description} onChange={(e) => setDescription(e.target.value)} style={{ width: '100%', padding: '8px', marginBottom: '10px', minHeight: '60px' }} />
+        <textarea id="choreDescription" value={description} onChange={(e) => setDescription(e.target.valu/e)} style={{ width: '100%', padding: '8px', marginBottom: '10px', minHeight: '60px' }} />
       </div>
       <div>
         <label htmlFor="dueDate">Due Date:</label>
