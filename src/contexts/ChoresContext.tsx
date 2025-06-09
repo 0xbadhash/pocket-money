@@ -1,78 +1,80 @@
 // src/contexts/ChoresContext.tsx
-import React, { createContext, useState, useContext, ReactNode } from 'react';
-import { Chore, Recurrence } from '../types'; // Adjust path as necessary
-import { v4 as uuidv4 } from 'uuid'; // Import uuid for generating unique IDs
+import React, { createContext, useState, ReactNode, useContext } from 'react';
+import type { Chore } from '../types'; // Import Chore type
+import { useFinancialContext } from '../contexts/FinancialContext'; // <-- New Import
 
+// Define the shape of the context value
 interface ChoresContextType {
   chores: Chore[];
-  addChore: (name: string, description: string, recurrence: Recurrence) => void;
-  toggleChore: (id: string) => void;
+  addChore: (choreData: Omit<Chore, 'id' | 'isComplete'>) => void;
+  toggleChoreComplete: (choreId: string) => void;
+  getChoresForKid: (kidId: string) => Chore[]; // Added as per plan
 }
 
-const ChoresContext = createContext<ChoresContextType | undefined>(undefined);
+// Create the context
+export const ChoresContext = createContext<ChoresContextType | undefined>(undefined);
 
-export const useChores = (): ChoresContextType => {
+// Custom hook for easier context consumption
+export const useChoresContext = () => {
   const context = useContext(ChoresContext);
-  if (!context) {
-    throw new Error('useChores must be used within a ChoresProvider');
+  if (context === undefined) {
+    throw new Error('useChoresContext must be used within a ChoresProvider');
   }
   return context;
 };
 
+// Create a ChoresProvider component
 interface ChoresProviderProps {
   children: ReactNode;
 }
 
 export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
-  const [chores, setChores] = useState<Chore[]>([]);
+  const [chores, setChores] = useState<Chore[]>([
+    // Initial mock chores
+    { id: 'c1', title: 'Clean Room', assignedKidId: 'kid_a', dueDate: '2023-12-15', rewardAmount: 5, isComplete: false },
+    { id: 'c2', title: 'Walk the Dog', assignedKidId: 'kid_b', dueDate: '2023-12-10', rewardAmount: 3, isComplete: true },
+    { id: 'c3', title: 'Do Homework', assignedKidId: 'kid_a', isComplete: false },
+    { id: 'c4', title: 'Take out trash', description: 'Before Tuesday morning', rewardAmount: 1, isComplete: false}
+  ]);
+  const { addKidReward } = useFinancialContext(); // <-- Consume FinancialContext
 
-  const addChore = (name: string, description: string, recurrence: Recurrence) => {
+  const addChore = (choreData: Omit<Chore, 'id' | 'isComplete'>) => {
     const newChore: Chore = {
-      id: uuidv4(),
-      name,
-      description,
-      isComplete: false,
-      recurrence,
-      // dueDate: undefined, // Set dueDate logic if needed, e.g., based on recurrence
+      id: `c${Date.now()}`, // Simple unique ID
+      isComplete: false, // New chores are incomplete by default
+      ...choreData,
     };
-    setChores(prevChores => [...prevChores, newChore]);
+    setChores(prevChores => [newChore, ...prevChores]); // Add to top
   };
 
-  const toggleChore = (id: string) => {
-    setChores(prevChores => {
-      let choreToReschedule: Chore | null = null;
+  const toggleChoreComplete = (choreId: string) => {
+    // Find the chore first to check its properties before toggling
+    const choreToToggle = chores.find(chore => chore.id === choreId);
 
-      const updatedChores = prevChores.map(chore => {
-        if (chore.id === id) {
-          const newStatus = !chore.isComplete;
-          if (newStatus && chore.recurrence) { // Chore is marked complete and is recurring
-            // Prepare to reschedule this chore
-            choreToReschedule = { ...chore }; // Clone the chore
-          }
-          return { ...chore, isComplete: newStatus };
-        }
-        return chore;
-      });
-
-      if (choreToReschedule) {
-        // Create a new instance for the next occurrence
-        const nextInstance: Chore = {
-          ...choreToReschedule,
-          id: uuidv4(), // New ID for the new instance
-          isComplete: false, // Reset completion status
-          // Optional: Adjust dueDate for the next instance if implementing date logic
-          // For now, it just re-adds with a new ID and incomplete status
-        };
-        // Add the new instance to the list
-        return [...updatedChores, nextInstance];
+    if (choreToToggle) {
+      // Check if we are marking it as complete and if it qualifies for a reward
+      if (!choreToToggle.isComplete && choreToToggle.assignedKidId && choreToToggle.rewardAmount && choreToToggle.rewardAmount > 0) {
+        addKidReward(choreToToggle.assignedKidId, choreToToggle.rewardAmount, choreToToggle.title);
       }
+    } else {
+      console.warn(`Chore with ID ${choreId} not found for toggling.`);
+      // Optionally, you could stop here if the chore isn't found,
+      // but the map below will simply not find it and do nothing, which is also fine.
+    }
 
-      return updatedChores;
-    });
+    setChores(prevChores =>
+      prevChores.map(chore =>
+        chore.id === choreId ? { ...chore, isComplete: !chore.isComplete } : chore
+      )
+    );
+  };
+
+  const getChoresForKid = (kidId: string): Chore[] => {
+    return chores.filter(chore => chore.assignedKidId === kidId);
   };
 
   return (
-    <ChoresContext.Provider value={{ chores, addChore, toggleChore }}>
+    <ChoresContext.Provider value={{ chores, addChore, toggleChoreComplete, getChoresForKid }}>
       {children}
     </ChoresContext.Provider>
   );
