@@ -7,6 +7,7 @@ import SettingsView from './ui/SettingsView';
 import ActivityMonitoringView from './ui/ActivityMonitoringView';
 import KidDetailView from './ui/KidDetailView';
 import ChoreManagementView from './ui/ChoreManagementView';
+import KanbanView from './ui/KanbanView';
 import { UserProvider } from './contexts/UserContext';
 import { FinancialProvider } from './contexts/FinancialContext';
 import { ChoresProvider } from './contexts/ChoresContext';
@@ -43,6 +44,7 @@ function App() {
                   <li><Link to="/settings">Settings</Link></li>
                   <li><Link to="/activity">Activity Monitoring</Link></li>
                   <li><Link to="/chores">Chores</Link></li>
+                  <li><Link to="/kanban">Kanban Board</Link></li>
                 </ul>
                 <button
                   onClick={toggleTheme}
@@ -61,6 +63,7 @@ function App() {
                 <Route path="/activity" element={<ActivityMonitoringView />} />
                 <Route path="/kid/:kidId" element={<KidDetailView />} />
                 <Route path="/chores" element={<ChoreManagementView />} />
+                <Route path="/kanban" element={<KanbanView />} />
                 <Route path="*" element={<DashboardView />} />
               </Routes>
             </div>
