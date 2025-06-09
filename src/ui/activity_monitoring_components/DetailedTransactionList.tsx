@@ -1,19 +1,27 @@
 // src/ui/activity_monitoring_components/DetailedTransactionList.tsx
-import React from 'react';
-// Assuming Transaction type might be needed if not implicitly inferred or defined globally
-// We might need to import/define the Transaction type here if it's not available globally
-// For now, let's assume it's implicitly available or we define it ad-hoc if issues arise.
-// A better approach would be to have shared types.
-import type { Transaction } from '../../types'; // Import shared Transaction type
+import React, { useContext } from 'react'; // Import useContext
+import type { Transaction } from '../../types';
+import { UserContext } from '../../contexts/UserContext'; // Import UserContext
 
 interface DetailedTransactionListProps {
   transactionsToDisplay: Transaction[];
 }
 
 const DetailedTransactionList: React.FC<DetailedTransactionListProps> = ({ transactionsToDisplay }) => {
+  const userContext = useContext(UserContext); // Consume UserContext
+  const kids = userContext?.user?.kids || [];
+
+  const getKidNameForTable = (kidId: string | undefined): string => {
+    if (!kidId) return 'General';
+    const kid = kids.find(k => k.id === kidId);
+    return kid ? kid.name : `ID: ${kidId}`; // Fallback if kid not found
+  };
+
   return (
     <div className="detailed-transaction-list">
       <h4>Detailed Transactions</h4>
+      {/* Optionally show loading state for kids if userContext.loading */}
+      {userContext?.loading && transactionsToDisplay.length > 0 && <p>Loading kid names...</p>}
       {transactionsToDisplay.length === 0 ? (
         <p>No transactions found for the selected criteria.</p>
       ) : (
@@ -21,6 +29,7 @@ const DetailedTransactionList: React.FC<DetailedTransactionListProps> = ({ trans
           <thead>
             <tr>
               <th>Date</th>
+              <th>Kid</th> {/* Re-enable Kid column */}
               <th>Description</th>
               <th>Category</th>
               <th>Amount</th>
@@ -30,6 +39,7 @@ const DetailedTransactionList: React.FC<DetailedTransactionListProps> = ({ trans
             {transactionsToDisplay.map((tx) => (
               <tr key={tx.id}>
                 <td>{tx.date}</td>
+                <td>{getKidNameForTable(tx.kidId)}</td> {/* Display kid name */}
                 <td>{tx.description}</td>
                 <td>{tx.category}</td>
                 <td style={{ color: tx.amount < 0 ? 'red' : 'green' }}>

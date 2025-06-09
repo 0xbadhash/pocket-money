@@ -9,3 +9,13 @@ export interface Kid {
   age?: number;
   // Add other kid-specific fields here if needed later
 }
+
+export interface Chore {
+  id: string;
+  title: string;
+  description?: string;
+  assignedKidId?: string;
+  dueDate?: string;
+  rewardAmount?: number;
+  isComplete: boolean;
+}

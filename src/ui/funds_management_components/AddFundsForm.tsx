@@ -1,35 +1,42 @@
 // src/ui/funds_management_components/AddFundsForm.tsx
-import React, { useState } from 'react';
-// Remove useContext from here if it was imported before, we'll use our custom hook
-import { useFinancialContext } from '../../contexts/FinancialContext'; // <-- Import custom hook
+import React, { useState, useContext } from 'react'; // Added useContext
+import { useFinancialContext } from '../../contexts/FinancialContext';
+import { UserContext } from '../../contexts/UserContext'; // Import UserContext
 
 const AddFundsForm = () => {
   const [amount, setAmount] = useState('');
   const [source, setSource] = useState('bank_account_1');
-  const { addFunds } = useFinancialContext(); // <-- Consume context
+  const [selectedKidId, setSelectedKidId] = useState(''); // State for selected kid, '' for General
+
+  const { addFunds } = useFinancialContext();
+  const userContext = useContext(UserContext); // Consume UserContext
+  const kids = userContext?.user?.kids || [];
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const numericAmount = parseFloat(amount); // Convert amount to number
+    const numericAmount = parseFloat(amount);
 
     if (isNaN(numericAmount) || numericAmount <= 0) {
       alert('Please enter a valid positive amount.');
       return;
     }
 
-    // Call addFunds from context
-    addFunds(numericAmount, `Deposit from ${source}`);
+    // We'll pass selectedKidId to addFunds in a later step
+    const kidName = selectedKidId ? kids.find(k => k.id === selectedKidId)?.name : 'General Funds';
+    addFunds(numericAmount, `Deposit from ${source} for ${kidName}`, selectedKidId || undefined);
 
-    console.log(`Funds added: $${numericAmount} from ${source}`);
-    alert(`Successfully added $${numericAmount} from ${source}`);
-    setAmount(''); // Reset amount after submission
-    // setSource('bank_account_1'); // Optionally reset source
+
+    console.log(`Funds added: $${numericAmount} from ${source} for ${kidName}`);
+    alert(`Successfully added $${numericAmount} from ${source} for ${kidName}`);
+    setAmount('');
+    // setSelectedKidId(''); // Optionally reset kid selection
   };
 
   return (
     <div className="add-funds-form">
       <h2>Add Funds</h2>
       <form onSubmit={handleSubmit}>
+        {/* Amount Input */}
         <div>
           <label htmlFor="amount">Amount:</label>
           <input
@@ -39,9 +46,11 @@ const AddFundsForm = () => {
             placeholder="0.00"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            step="0.01" // Allow decimal input
+            step="0.01"
           />
         </div>
+
+        {/* Source Select */}
         <div>
           <label htmlFor="source">Source:</label>
           <select
@@ -54,6 +63,26 @@ const AddFundsForm = () => {
             <option value="bank_account_2">Savings Account ****5678</option>
           </select>
         </div>
+
+        {/* Kid Select (New) */}
+        <div>
+          <label htmlFor="kidTarget">For:</label>
+          <select
+            id="kidTarget"
+            name="kidTarget"
+            value={selectedKidId}
+            onChange={(e) => setSelectedKidId(e.target.value)}
+            disabled={userContext?.loading || kids.length === 0}
+          >
+            <option value="">General Family Funds</option> {/* Default/General option */}
+            {kids.map(kid => (
+              <option key={kid.id} value={kid.id}>
+                {kid.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <button type="submit">Add Funds</button>
       </form>
     </div>
