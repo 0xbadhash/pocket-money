@@ -1,19 +1,29 @@
 // src/ui/funds_management_components/AddFundsForm.tsx
-import React, { useState } from 'react'; // Import useState
+import React, { useState } from 'react';
+// Remove useContext from here if it was imported before, we'll use our custom hook
+import { useFinancialContext } from '../../contexts/FinancialContext'; // <-- Import custom hook
 
 const AddFundsForm = () => {
-  const [amount, setAmount] = useState(''); // State for amount input
-  const [source, setSource] = useState('bank_account_1'); // State for source select, default to first option
+  const [amount, setAmount] = useState('');
+  const [source, setSource] = useState('bank_account_1');
+  const { addFunds } = useFinancialContext(); // <-- Consume context
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); // Prevent default form submission
-    console.log('Attempting to add funds:');
-    console.log('Amount:', amount);
-    console.log('Source:', source);
-    // Here you would typically dispatch an action or call an API
-    // For now, just log and maybe reset the form
-    alert(`Funds to add: $${amount} from ${source}`);
+    event.preventDefault();
+    const numericAmount = parseFloat(amount); // Convert amount to number
+
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      alert('Please enter a valid positive amount.');
+      return;
+    }
+
+    // Call addFunds from context
+    addFunds(numericAmount, `Deposit from ${source}`);
+
+    console.log(`Funds added: $${numericAmount} from ${source}`);
+    alert(`Successfully added $${numericAmount} from ${source}`);
     setAmount(''); // Reset amount after submission
+    // setSource('bank_account_1'); // Optionally reset source
   };
 
   return (
@@ -27,8 +37,9 @@ const AddFundsForm = () => {
             id="amount"
             name="amount"
             placeholder="0.00"
-            value={amount} // Controlled component: value linked to state
-            onChange={(e) => setAmount(e.target.value)} // Update state on change
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            step="0.01" // Allow decimal input
           />
         </div>
         <div>
@@ -36,12 +47,11 @@ const AddFundsForm = () => {
           <select
             id="source"
             name="source"
-            value={source} // Controlled component: value linked to state
-            onChange={(e) => setSource(e.target.value)} // Update state on change
+            value={source}
+            onChange={(e) => setSource(e.target.value)}
           >
             <option value="bank_account_1">Bank Account ****1234</option>
             <option value="bank_account_2">Savings Account ****5678</option>
-            {/* More options can be added later */}
           </select>
         </div>
         <button type="submit">Add Funds</button>

@@ -1,43 +1,41 @@
 // src/contexts/UserContext.tsx
-import React, { createContext, useState, ReactNode } from 'react';
+import React, { createContext, useState, useEffect, ReactNode } from 'react'; // Added useEffect
 
-// Define the shape of the user data
 interface User {
   name: string;
   email: string;
-  // Add other user-specific fields here if needed later
 }
 
-// Define the shape of the context value
 interface UserContextType {
   user: User | null;
-  // We can add functions to update user later, e.g., login, logout
-  // login: (userData: User) => void;
-  // logout: () => void;
+  loading: boolean; // Add a loading state
 }
 
-// Create the context with a default value
 export const UserContext = createContext<UserContextType | undefined>(undefined);
 
-// Create a UserProvider component
 interface UserProviderProps {
   children: ReactNode;
 }
 
 export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
-  // For now, we'll use mock user data.
-  // Later, this could come from an API call, localStorage, etc.
-  const [user, setUser] = useState<User | null>({
-    name: 'Parent User',
-    email: 'parent.user@example.com',
-  });
+  const [user, setUser] = useState<User | null>(null); // Initialize user as null
+  const [loading, setLoading] = useState(true); // Initialize loading as true
 
-  // Example login/logout functions if we were to implement them
-  // const login = (userData: User) => setUser(userData);
-  // const logout = () => setUser(null);
+  useEffect(() => {
+    // Simulate API call
+    const timer = setTimeout(() => {
+      setUser({
+        name: 'Parent User (Fetched)', // Indicate data is "fetched"
+        email: 'parent.user.fetched@example.com',
+      });
+      setLoading(false); // Set loading to false after data is "fetched"
+    }, 1500); // Simulate 1.5 seconds delay
+
+    return () => clearTimeout(timer); // Cleanup timer on unmount
+  }, []); // Empty dependency array means this effect runs once on mount
 
   return (
-    <UserContext.Provider value={{ user /*, login, logout */ }}>
+    <UserContext.Provider value={{ user, loading }}>
       {children}
     </UserContext.Provider>
   );
