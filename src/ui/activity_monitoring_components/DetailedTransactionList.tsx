@@ -4,15 +4,7 @@ import React from 'react';
 // We might need to import/define the Transaction type here if it's not available globally
 // For now, let's assume it's implicitly available or we define it ad-hoc if issues arise.
 // A better approach would be to have shared types.
-
-interface Transaction { // Temporary: Define here if not imported from a shared types file
-  id: string;
-  date: string;
-  description: string;
-  amount: number;
-  category: string;
-  // kid?: string; // Add if kid info becomes part of the transaction later
-}
+import type { Transaction } from '../../types'; // Import shared Transaction type
 
 interface DetailedTransactionListProps {
   transactionsToDisplay: Transaction[];

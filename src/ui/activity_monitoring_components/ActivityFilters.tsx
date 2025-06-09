@@ -1,9 +1,10 @@
 // src/ui/activity_monitoring_components/ActivityFilters.tsx
-import React, { useState } from 'react';
-import type { FilterCriteria } from '../ActivityMonitoringView'; // Import the type
+import React, { useState, useContext } from 'react'; // Import useContext
+import type { FilterCriteria } from '../ActivityMonitoringView';
+import { UserContext } from '../../contexts/UserContext'; // Import UserContext
 
 interface ActivityFiltersProps {
-  onApplyFilters: (filters: FilterCriteria) => void; // Define the prop
+  onApplyFilters: (filters: FilterCriteria) => void;
 }
 
 const ActivityFilters: React.FC<ActivityFiltersProps> = ({ onApplyFilters }) => {
@@ -12,8 +13,10 @@ const ActivityFilters: React.FC<ActivityFiltersProps> = ({ onApplyFilters }) => 
   const [endDate, setEndDate] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
 
-  const handleApplyFiltersInternal = () => { // Renamed to avoid confusion if we lift this whole func later
-    // Call the callback prop with the current filter values
+  const userContext = useContext(UserContext); // Consume UserContext
+  const kids = userContext?.user?.kids || []; // Get kids array, default to empty if not available
+
+  const handleApplyFiltersInternal = () => {
     onApplyFilters({
       kid: selectedKid,
       category: selectedCategory,
@@ -33,12 +36,17 @@ const ActivityFilters: React.FC<ActivityFiltersProps> = ({ onApplyFilters }) => 
             name="kidSelect"
             value={selectedKid}
             onChange={(e) => setSelectedKid(e.target.value)}
+            disabled={userContext?.loading} // Disable while loading user/kid data
           >
             <option value="all">All Kids</option>
-            <option value="kid_a">Kid A</option>
-            <option value="kid_b">Kid B</option>
+            {kids.map(kid => (
+              <option key={kid.id} value={kid.id}>
+                {kid.name}
+              </option>
+            ))}
           </select>
         </div>
+        {/* ... rest of the form elements (date pickers, category select) ... */}
         <div>
           <label htmlFor="dateStart">Start Date:</label>
           <input
