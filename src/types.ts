@@ -22,3 +22,18 @@ export interface Chore {
   recurrenceDay?: number | null;
   recurrenceEndDate?: string | null;
 }
+
+// Kanban-specific types
+export type KanbanPeriod = 'daily' | 'weekly' | 'monthly';
+
+export interface KanbanColumn {
+  id: string; // e.g., 'monday', 'week-1', 'todo'
+  title: string; // e.g., 'Monday', 'Week 1', 'To Do'
+  chores: Chore[];
+}
+
+export interface KidKanbanConfig {
+  kidId: string;
+  selectedPeriod: KanbanPeriod;
+  columns: KanbanColumn[];
+}
