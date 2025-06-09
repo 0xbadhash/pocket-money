@@ -441,3 +441,142 @@ body {
   background-color: #3700b3; /* Darker shade */
   text-decoration: none;
 }
+
+/* Styles for Chore Management Feature */
+
+/* ChoreManagementView uses .view-header (already styled) and inline padding */
+
+.add-chore-section,
+.chore-list-section {
+  background-color: #f9f9f9; /* Light background for sections */
+  padding: 16px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.add-chore-section h2,
+.chore-list-section h2 {
+  font-size: 1.3em;
+  color: #333;
+  margin-top: 0;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 8px;
+}
+
+/* Styles for AddChoreForm component */
+.add-chore-form div {
+  margin-bottom: 12px;
+}
+
+.add-chore-form label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  font-size: 0.9em;
+}
+
+.add-chore-form input[type="text"],
+.add-chore-form input[type="date"],
+.add-chore-form input[type="number"],
+.add-chore-form textarea,
+.add-chore-form select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+  font-size: 1em;
+}
+
+.add-chore-form textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.add-chore-form button[type="submit"] {
+  background-color: #4caf50; /* Green for add actions */
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1em;
+  text-transform: uppercase;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+}
+
+.add-chore-form button[type="submit"]:hover {
+  background-color: #388e3c;
+}
+
+/* Styles for ChoreList component and Chore Items */
+.chore-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); /* Responsive grid */
+  gap: 16px;
+}
+
+.chore-item {
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  padding: 16px;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+}
+
+.chore-item h3 {
+  font-size: 1.15em;
+  color: #6200ee; /* Primary color for title */
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.chore-item .chore-description {
+  font-size: 0.9em;
+  color: #555;
+  margin-bottom: 10px;
+  flex-grow: 1; /* Allows description to take space */
+}
+
+.chore-item p {
+  font-size: 0.9em;
+  margin: 4px 0;
+  color: #333;
+}
+
+.chore-item p strong { /* For labels like "Assigned to:" */
+  color: #111;
+}
+
+
+.chore-item button {
+  background-color: #03a9f4; /* Light blue for toggle button */
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85em;
+  margin-top: 10px;
+  align-self: flex-start; /* Button doesn't stretch full width */
+  transition: background-color 0.3s ease;
+}
+
+.chore-item button:hover {
+  background-color: #0288d1;
+}
+
+.chore-item.complete {
+  background-color: #e8f5e9; /* Light green for completed chores */
+  border-left: 5px solid #4caf50; /* Green accent */
+}
+
+.chore-item.complete h3 {
+  text-decoration: line-through;
+  color: #555;
+}

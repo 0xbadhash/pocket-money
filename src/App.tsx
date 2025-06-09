@@ -6,7 +6,7 @@ import SettingsView from './ui/SettingsView';
 import ActivityMonitoringView from './ui/ActivityMonitoringView';
 import KidDetailView from './ui/KidDetailView';
 // ChoreManagementView will be created later, so import might be commented out or added when available
-// import ChoreManagementView from './ui/ChoreManagementView';
+import ChoreManagementView from './ui/ChoreManagementView';
 import { UserProvider } from './contexts/UserContext';
 import { FinancialProvider } from './contexts/FinancialContext';
 import { ChoresProvider } from './contexts/ChoresContext'; // <-- New Import
@@ -24,7 +24,7 @@ function App() {
                   <li><Link to="/funds">Funds Management</Link></li>
                   <li><Link to="/settings">Settings</Link></li>
                   <li><Link to="/activity">Activity Monitoring</Link></li>
-                  {/* Link for Chores will be added later */}
+                  <li><Link to="/chores">Chores</Link></li> {/* <-- New Link */}
                 </ul>
               </nav>
               <hr />
@@ -34,7 +34,7 @@ function App() {
                 <Route path="/settings" element={<SettingsView />} />
                 <Route path="/activity" element={<ActivityMonitoringView />} />
                 <Route path="/kid/:kidId" element={<KidDetailView />} />
-                {/* Route for Chores will be added later */}
+                <Route path="/chores" element={<ChoreManagementView />} /> {/* <-- New Route */}
                 <Route path="*" element={<DashboardView />} />
               </Routes>
             </div>

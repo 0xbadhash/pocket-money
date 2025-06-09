@@ -1,10 +1,18 @@
 // src/ui/ChoreManagementView.tsx
-import React from 'react';
-// Placeholders for sub-components to be created later
-// import AddChoreForm from './chore_components/AddChoreForm';
-// import ChoreList from './chore_components/ChoreList';
+import React from 'react'; // useContext might be needed if fetching kids here
+import AddChoreForm from './chore_components/AddChoreForm'; // Import AddChoreForm
+import ChoreList from './chore_components/ChoreList';       // Import ChoreList
+import { useChoresContext } from '../../contexts/ChoresContext'; // Import useChoresContext
+// import { UserContext } from '../../contexts/UserContext'; // Only if passing kids explicitly
 
 const ChoreManagementView = () => {
+  const { chores } = useChoresContext(); // Get chores from context
+  // const userContext = useContext(UserContext); // Example if passing kids as prop
+  // const kids = userContext?.user?.kids || [];
+
+  // For now, display all chores. Filtering can be added later.
+  const choresToDisplay = chores;
+
   return (
     <div className="chore-management-view" style={{ padding: '16px' }}>
       <header className="view-header">
@@ -13,15 +21,13 @@ const ChoreManagementView = () => {
 
       <section className="add-chore-section" style={{ marginBottom: '20px' }}>
         <h2>Assign New Chore</h2>
-        {/* Placeholder for AddChoreForm component */}
-        <p>[Add Chore Form Placeholder]</p>
+        <AddChoreForm /> {/* Render AddChoreForm */}
       </section>
 
       <section className="chore-list-section">
         <h2>Chore List</h2>
-        {/* Placeholder for ChoreList component */}
-        {/* Could also have filters here later, e.g., by kid, by completion status */}
-        <p>[Chore List Placeholder]</p>
+        {/* Render ChoreList, passing chores from context */}
+        <ChoreList choresToDisplay={choresToDisplay} /* kids={kids} // If passing kids explicitly */ />
       </section>
     </div>
   );
