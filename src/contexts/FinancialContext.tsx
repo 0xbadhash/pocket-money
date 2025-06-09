@@ -2,15 +2,16 @@
 import React, { createContext, useState, ReactNode, useContext } from 'react';
 
 // Define shapes for our financial data
-interface Transaction {
+export interface Transaction { // Exporting for potential use in other files
   id: string;
   date: string;
   description: string;
   amount: number; // Positive for income, negative for expenses
   category: string;
+  kidId?: string; // Optional kidId field
 }
 
-interface FinancialData {
+export interface FinancialData { // Exporting for potential use
   currentBalance: number;
   transactions: Transaction[];
 }
@@ -18,14 +19,14 @@ interface FinancialData {
 // Define the shape of the context value
 interface FinancialContextType {
   financialData: FinancialData;
-  addFunds: (amount: number, description?: string) => void;
-  addTransaction: (transaction: Omit<Transaction, 'id' | 'date'>) => void; // Allow adding transaction without pre-set id/date
+  addFunds: (amount: number, description?: string, kidId?: string) => void; // Updated signature
+  addTransaction: (transaction: Omit<Transaction, 'id' | 'date'>) => void;
 }
 
 // Create the context
 export const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
 
-// Custom hook for easier context consumption (optional but good practice)
+// Custom hook for easier context consumption
 export const useFinancialContext = () => {
   const context = useContext(FinancialContext);
   if (context === undefined) {
@@ -41,29 +42,32 @@ interface FinancialProviderProps {
 
 export const FinancialProvider: React.FC<FinancialProviderProps> = ({ children }) => {
   const [financialData, setFinancialData] = useState<FinancialData>({
-    currentBalance: 100.00, // Initial mock balance
+    currentBalance: 100.00,
     transactions: [
       { id: 't1', date: '2023-10-20', description: 'Initial Balance', amount: 100.00, category: 'Initial Funds' },
-      { id: 't2', date: '2023-10-22', description: 'Pocket Money Received', amount: 20.00, category: 'Allowance' },
-      { id: 't3', date: '2023-10-25', description: 'Book Store', amount: -15.00, category: 'Books' },
+      { id: 't2', date: '2023-10-22', description: 'Pocket Money Received', amount: 20.00, category: 'Allowance', kidId: 'kid_a' },
+      { id: 't3', date: '2023-10-25', description: 'Book Store', amount: -15.00, category: 'Books', kidId: 'kid_a' },
+      { id: 't4', date: '2023-11-01', description: 'Video Game Purchase', amount: -25.00, category: 'Games', kidId: 'kid_b' },
+      { id: 't5', date: '2023-11-05', description: 'Birthday Money', amount: 50.00, category: 'Income', kidId: 'kid_b' },
     ],
   });
 
-  const addFunds = (amount: number, description: string = 'Funds Added') => {
+  const addFunds = (amount: number, description: string = 'Funds Added', kidId?: string) => {
     if (amount <= 0) {
       console.warn('Add funds amount must be positive.');
       return;
     }
     const newTransaction: Transaction = {
-      id: `t${Date.now()}`, // Simple unique ID
-      date: new Date().toISOString().split('T')[0], // Today's date
+      id: `t${Date.now()}`,
+      date: new Date().toISOString().split('T')[0],
       description: description,
       amount: amount,
-      category: 'Income', // Or a more specific category if provided
+      category: 'Income',
+      kidId: kidId, // Include kidId if provided
     };
     setFinancialData((prevData) => ({
       currentBalance: prevData.currentBalance + amount,
-      transactions: [newTransaction, ...prevData.transactions], // Add to top
+      transactions: [newTransaction, ...prevData.transactions],
     }));
   };
 
@@ -71,18 +75,13 @@ export const FinancialProvider: React.FC<FinancialProviderProps> = ({ children }
     const newTransaction: Transaction = {
       id: `t${Date.now()}`,
       date: new Date().toISOString().split('T')[0],
-      ...transactionDetails,
+      ...transactionDetails, // kidId will be included if present in transactionDetails
     };
     setFinancialData((prevData) => ({
-      // Adjust balance only if it's not an income/expense that should also call addFunds or similar
-      // For simplicity here, we assume addTransaction is for general logging,
-      // and balance impacting transactions (like adding funds) are handled by specific functions.
-      // Or, more robustly:
       currentBalance: prevData.currentBalance + newTransaction.amount,
       transactions: [newTransaction, ...prevData.transactions],
     }));
   };
-
 
   return (
     <FinancialContext.Provider value={{ financialData, addFunds, addTransaction }}>
