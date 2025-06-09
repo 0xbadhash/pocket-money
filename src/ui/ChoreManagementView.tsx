@@ -2,7 +2,7 @@
 import React from 'react'; // useContext might be needed if fetching kids here
 import AddChoreForm from './chore_components/AddChoreForm'; // Import AddChoreForm
 import ChoreList from './chore_components/ChoreList';       // Import ChoreList
-import { useChoresContext } from '../../contexts/ChoresContext'; // Import useChoresContext
+import { useChoresContext } from '../contexts/ChoresContext'; // Import useChoresContext
 // import { UserContext } from '../../contexts/UserContext'; // Only if passing kids explicitly
 
 const ChoreManagementView = () => {
