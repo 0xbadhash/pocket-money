@@ -2,34 +2,40 @@
 
 /* Light Theme (Default) */
 :root {
-  --primary-color: #009688; /* Teal 500 */
-  --primary-color-dark: #00796B; /* Teal 700 (for hover/active) */
-  --primary-color-light: #B2DFDB; /* Teal 100 (for lighter backgrounds/accents) */
+  /* Primary GoHenry Blue */
+  --primary-color: #00BCD4; /* GoHenry Blue */
+  --primary-color-dark: #00ACC1; /* Darker Cyan */
+  --primary-color-light: #B2EBF2; /* Lighter Cyan */
 
-  --secondary-color-positive: #4CAF50; /* Green 500 */
-  --secondary-color-positive-dark: #388E3C; /* Green 700 */
+  /* Secondary GoHenry Green */
+  --secondary-color-positive: #8BC34A; /* GoHenry Green */
+  --secondary-color-positive-dark: #7CB342; /* Darker Lively Green */
 
-  --secondary-color-attention: #FFC107; /* Amber 500 */
-  --secondary-color-attention-dark: #FFA000; /* Amber 700 */
+  /* Attention (Keep existing or update if GoHenry has a specific one) */
+  --secondary-color-attention: #FFC107; /* Amber 500 - Kept from previous */
+  --secondary-color-attention-dark: #FFA000; /* Amber 700 - Kept */
 
-  --accent-color-playful: #9C27B0; /* Purple 500 */
-  --accent-color-playful-dark: #7B1FA2; /* Purple 700 */
+  /* Accent (Keep existing or update if GoHenry has a specific one) */
+  --accent-color-playful: #9C27B0; /* Purple 500 - Kept (can be for kid-specific highlights later) */
+  --accent-color-playful-dark: #7B1FA2; /* Purple 700 - Kept */
 
-  --background-color: #F5F5F5; /* Light Grey for main background */
-  --surface-color: #FFFFFF; /* White for cards, sections, inputs */
-  --surface-color-hover: #EEEEEE; /* Light Grey for hover on surfaces */
-  --border-color: #E0E0E0; /* Light Grey for borders */
+  /* Backgrounds & Surfaces */
+  --background-color: #FAFAFA; /* GoHenry Light Grey */
+  --surface-color: #FFFFFF;   /* GoHenry White for cards/sections */
+  --surface-color-hover: #F0F0F0; /* Slightly darker than #FAFAFA for hover */
+  --border-color: #E0E0E0;     /* Standard Light Grey for borders */
 
-  --text-color-primary: #212121; /* Near Black */
-  --text-color-secondary: #757575; /* Medium Grey */
-  --text-color-on-primary: #FFFFFF; /* White text on primary color */
-  --text-color-on-secondary-positive: #FFFFFF; /* White text on positive green */
-  --text-color-on-accent: #FFFFFF; /* White text on playful accent */
+  /* Text Colors */
+  --text-color-primary: #424242;    /* GoHenry Dark Grey */
+  --text-color-secondary: #757575;  /* Standard Medium Grey for secondary text */
+  --text-color-on-primary: #FFFFFF; /* White text on GoHenry Blue */
+  --text-color-on-secondary-positive: #FFFFFF; /* White text on GoHenry Green (check contrast, could be dark) */
+  --text-color-on-accent: #FFFFFF;  /* White text on playful accent */
   --text-color-link: var(--primary-color);
   --text-color-link-hover: var(--primary-color-dark);
 
   /* Typography */
-  --font-family-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   --font-family-monospace: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
   --font-size-base: 1rem; /* Typically 16px */
@@ -76,30 +82,36 @@
 
 /* Dark Theme */
 [data-theme="dark"] {
-  --primary-color: #4DB6AC; /* Teal 300 */
-  --primary-color-dark: #26A69A; /* Teal 400 */
-  --primary-color-light: #00796B; /* Teal 700 (used as a darker base for dark theme light variant) */
+  /* Primary GoHenry Blue - Dark Theme Adaptation */
+  --primary-color: #4DD0E1; /* Lighter Cyan (Material Cyan 300) */
+  --primary-color-dark: #26C6DA; /* Slightly darker Cyan (Material Cyan 400) for interaction */
+  --primary-color-light: #80DEEA; /* Even lighter Cyan (Material Cyan 200) for subtle backgrounds if needed */
 
-  --secondary-color-positive: #81C784; /* Green 300 */
-  --secondary-color-positive-dark: #66BB6A; /* Green 400 */
+  /* Secondary GoHenry Green - Dark Theme Adaptation */
+  --secondary-color-positive: #AED581; /* Lighter Green (Material Light Green 300) */
+  --secondary-color-positive-dark: #9CCC65; /* Slightly darker Light Green (Material Light Green 400) */
 
-  --secondary-color-attention: #FFD54F; /* Amber 300 */
-  --secondary-color-attention-dark: #FFCA28; /* Amber 400 */
+  /* Attention (Keep existing dark theme versions or adapt if GoHenry has specific dark ones) */
+  --secondary-color-attention: #FFD54F; /* Amber 300 - Kept from previous dark theme */
+  --secondary-color-attention-dark: #FFCA28; /* Amber 400 - Kept */
 
-  --accent-color-playful: #BA68C8; /* Purple 300 */
-  --accent-color-playful-dark: #AB47BC; /* Purple 400 */
+  /* Accent (Keep existing dark theme versions or adapt) */
+  --accent-color-playful: #CE93D8; /* Lighter Purple (Material Purple 200) */
+  --accent-color-playful-dark: #BA68C8; /* Material Purple 300 */
 
+  /* Backgrounds & Surfaces - Dark Theme */
   --background-color: #121212; /* Very Dark Grey/Black */
-  --surface-color: #1E1E1E; /* Dark Grey for cards, sections */
-  --surface-color-hover: #2C2C2C; /* Slightly lighter grey for hover on surfaces */
-  --border-color: #424242; /* Medium Dark Grey for borders */
+  --surface-color: #1E1E1E;    /* Dark Grey for cards, sections */
+  --surface-color-hover: #2C2C2C; /* Slightly lighter grey for hover */
+  --border-color: #424242;      /* Medium Dark Grey for borders (matches light theme primary text) */
 
-  --text-color-primary: #E0E0E0; /* Light Grey */
-  --text-color-secondary: #BDBDBD; /* Medium Light Grey */
-  --text-color-on-primary: #000000; /* Black text on dark theme primary (adjust if contrast is poor) */
-  --text-color-on-secondary-positive: #000000; /* Black text on dark theme positive green */
-  --text-color-on-accent: #000000; /* Black text on dark theme playful accent */
-  --text-color-link: var(--primary-color);
+  /* Text Colors - Dark Theme */
+  --text-color-primary: #E0E0E0;    /* Light Grey for primary text */
+  --text-color-secondary: #BDBDBD;  /* Medium Light Grey for secondary text */
+  --text-color-on-primary: #000000; /* Black text on the light Cyan primary */
+  --text-color-on-secondary-positive: #000000; /* Black text on the light Green positive */
+  --text-color-on-accent: #000000;  /* Black text on the light Purple accent */
+  --text-color-link: var(--primary-color); /* Uses the dark theme's primary color */
   --text-color-link-hover: var(--primary-color-dark);
 }
 
@@ -641,4 +653,22 @@ h6 { font-size: var(--font-size-lg); font-weight: var(--font-weight-medium); }
 .chore-item.complete h3 {
   text-decoration: line-through;
   color: var(--text-color-secondary); /* Was #555 */
+}
+
+/* Theme Toggle Button */
+.theme-toggle-button {
+  background-color: var(--surface-color);
+  color: var(--text-color-primary);
+  border: var(--border-width) solid var(--primary-color);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  transition: var(--transition-base);
+}
+
+.theme-toggle-button:hover {
+  background-color: var(--surface-color-hover);
+  border-color: var(--primary-color-dark);
 }

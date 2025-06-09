@@ -46,14 +46,7 @@ function App() {
                 </ul>
                 <button
                   onClick={toggleTheme}
-                  style={{
-                    padding: 'var(--spacing-xs) var(--spacing-sm)', /* Using CSS var */
-                    cursor: 'pointer',
-                    backgroundColor: 'var(--primary-color)', /* Using CSS var */
-                    color: 'var(--text-color-on-primary)', /* Using CSS var */
-                    border: 'none',
-                    borderRadius: 'var(--border-radius-md)' /* Using CSS var */
-                  }}
+                  className="theme-toggle-button"
                 >
                   Switch to {theme === 'light' ? 'Dark' : 'Light'} Mode
                 </button>
