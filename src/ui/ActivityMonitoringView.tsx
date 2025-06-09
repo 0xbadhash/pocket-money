@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import ActivityFilters from './activity_monitoring_components/ActivityFilters';
 import ActivityChart from './activity_monitoring_components/ActivityChart';
 import DetailedTransactionList from './activity_monitoring_components/DetailedTransactionList';
-import { useFinancialContext, Transaction } from '../contexts/FinancialContext'; // Import Transaction type
+import { useFinancialContext } from '../contexts/FinancialContext'; // Import Transaction type
+import type { Transaction } from '../types'; // Import Transaction type from centralized types
 
 // Define the shape of the filter criteria
 export interface FilterCriteria {
