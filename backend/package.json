@@ -1,0 +1,16 @@
+{
+  "name": "kid-finance-app-backend",
+  "version": "0.1.0",
+  "description": "Backend for the Kid Finance App",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {},
+  "author": "AI Developer",
+  "license": "ISC"
+}
