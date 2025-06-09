@@ -22,14 +22,13 @@ export interface KidUser extends BaseUser {
   role: UserRole.KID;
   age: number;
   parentAccountId: string; // Link to the parent user
-  // Merged from main: Optional object for spending limits
-  spendingLimits?: {
+  spendingLimits?: { // Optional object for spending limits
     daily?: number;
     weekly?: number;
     monthly?: number;
     perTransaction?: number;
   };
-  blockedCategories?: string[]; // Merged from main: Optional array of blocked category names/IDs
+  blockedCategories?: string[]; // Optional array of blocked category names/IDs
 }
 
 export interface ParentUser extends BaseUser {
@@ -51,19 +50,33 @@ export interface AdminUser extends BaseUser {
 // It might be useful to have a union type for any user
 export type AppUser = ParentUser | KidUser | AdminUser;
 
-// The existing Chore interface
+---
+
+## Chore and Recurrence Types
+
+// Defines the structure for recurrence settings - Integrated from feature/recurring-chores
+export type RecurrenceSetting =
+  | { type: 'daily' }
+  | { type: 'weekly'; dayOfWeek: number } // 0 for Sunday, 6 for Saturday
+  | { type: 'monthly'; dayOfMonth: number } // 1 to 31
+  | { type: 'specificDays'; days: number[] } // Array of dayOfWeek
+  | null; // For non-recurring chores
+
+// The Chore interface - Merged to include detailed recurrence and reward fields
 export interface Chore {
-  id: string;
-  title: string;
-  description?: string;
-  assignedKidId?: string; // Should correspond to KidUser.id
-  dueDate?: string;
-  rewardAmount?: number;
-  isComplete: boolean;
-  recurrenceType?: 'daily' | 'weekly' | 'monthly' | null;
-  recurrenceDay?: number | null;
-  recurrenceEndDate?: string | null;
+  id: string; // Unique identifier for each chore instance
+  title: string; // Renamed from 'name' to 'title' to align with main
+  description?: string; // Made optional to align with main
+  assignedKidId?: string; // Should correspond to KidUser.id - from main
+  dueDate: string; // ISO date string (e.g., "2023-10-27") - from feature/recurring-chores
+  rewardAmount?: number; // From main
+  isComplete: boolean; // From both, boolean
+  recurrence: RecurrenceSetting; // Uses the new RecurrenceSetting type from feature/recurring-chores
 }
+
+---
+
+## Kanban Types
 
 // Kanban-specific types - Merged from main
 export type KanbanPeriod = 'daily' | 'weekly' | 'monthly';
@@ -80,6 +93,10 @@ export interface KidKanbanConfig {
   columns: KanbanColumn[];
 }
 
+---
+
+## Deprecated Kid Interface
+
 // Deprecate the old Kid interface. KidUser replaces its use cases.
 // This is kept for now to avoid breaking existing UserContext until fully migrated.
 // Ideally, UserContext should use KidUser.
@@ -89,8 +106,6 @@ export interface Kid {
   id: string;
   name: string;
   age?: number;
-  // Note: If you still need spendingLimits/blockedCategories directly on 'Kid',
-  // ensure they are compatible with KidUser's definition.
   spendingLimits?: {
     daily?: number;
     weekly?: number;
