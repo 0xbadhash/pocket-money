@@ -1,13 +1,30 @@
-// /tmp/vite_init_area/temp_pocket_money_app/src/ui/settings_components/ProfileSettings.tsx
+// src/ui/settings_components/ProfileSettings.tsx
+import React, { useContext } from 'react'; // Import useContext
+import { UserContext } from '../../contexts/UserContext'; // Adjust path as needed
+
 const ProfileSettings = () => {
+  const userContext = useContext(UserContext);
+
+  // Handle the case where context might be undefined (though our UserProvider sets a default user)
+  if (!userContext || !userContext.user) {
+    return (
+      <div className="settings-section">
+        <h2>Profile Management</h2>
+        <p>Loading user data or user not logged in...</p>
+      </div>
+    );
+  }
+
+  const { user } = userContext;
+
   return (
     <div className="settings-section">
       <h2>Profile Management</h2>
       <div className="settings-item">
-        <label>Name:</label> <span>Parent User Name (from Google Account)</span>
+        <label>Name:</label> <span>{user.name}</span> {/* Display user name from context */}
       </div>
       <div className="settings-item">
-        <label>Email:</label> <span>parent.email@example.com (from Google Account)</span>
+        <label>Email:</label> <span>{user.email}</span> {/* Display user email from context */}
       </div>
       <div className="settings-item">
         <button disabled>Change Password (via Google Account)</button>
@@ -15,4 +32,5 @@ const ProfileSettings = () => {
     </div>
   );
 };
+
 export default ProfileSettings;
