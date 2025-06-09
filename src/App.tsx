@@ -3,12 +3,14 @@ import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import DashboardView from './ui/DashboardView';
 import FundsManagementView from './ui/FundsManagementView';
 import SettingsView from './ui/SettingsView';
+import { ChoresProvider } from './contexts/ChoresContext'; // Import ChoresProvider
 // We'll import styles globally in main.tsx, but if App.css specific styles were needed:
 // import './App.css'; // Assuming Vite's default App.css is present or created
 
 function App() {
   return (
-    <BrowserRouter>
+    <ChoresProvider> {/* Wrap the application with ChoresProvider */}
+      <BrowserRouter>
       <div>
         <nav style={{ marginBottom: '20px', background: '#eee', padding: '10px' }}>
           <ul style={{ listStyleType: 'none', padding: 0, margin: 0, display: 'flex', gap: '15px' }}>
@@ -35,6 +37,7 @@ function App() {
         </Routes>
       </div>
     </BrowserRouter>
+    </ChoresProvider>
   );
 }
 
