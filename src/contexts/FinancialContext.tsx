@@ -1,6 +1,6 @@
 // src/contexts/FinancialContext.tsx
 import React, { createContext, useState, ReactNode, useContext } from 'react';
-import { UserContext } from './UserContext'; // Ensure this path is correct.
+import { UserContext } from './UserContext';
 
 // Define shapes for our financial data
 export interface Transaction {
@@ -17,18 +17,22 @@ export interface FinancialData {
   transactions: Transaction[];
 }
 
+// Define the structured error type
+export interface ApiError {
+  code: string;
+  message: string; // This would be the backend's raw message or a dev-friendly one
+}
+
 // Define the shape of the context value
 interface FinancialContextType {
   financialData: FinancialData;
-  addFunds: (amount: number, source: string, kidId?: string, fullDescription?: string) => Promise<{ success: boolean; error?: string; transaction?: Transaction }>;
+  addFunds: (amount: number, source: string, kidId?: string, fullDescription?: string) => Promise<{ success: boolean; error?: ApiError; transaction?: Transaction }>;
   addTransaction: (transaction: Omit<Transaction, 'id' | 'date'>) => void;
   addKidReward: (kidId: string, rewardAmount: number, choreTitle: string) => void;
 }
 
-// Create the context
 export const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
 
-// Custom hook for easier context consumption
 export const useFinancialContext = () => {
   const context = useContext(FinancialContext);
   if (context === undefined) {
@@ -37,7 +41,6 @@ export const useFinancialContext = () => {
   return context;
 };
 
-// Create a FinancialProvider component
 interface FinancialProviderProps {
   children: ReactNode;
 }
@@ -55,10 +58,11 @@ export const FinancialProvider: React.FC<FinancialProviderProps> = ({ children }
     ],
   });
 
-  const addFunds = async (amount: number, source: string, kidId?: string, fullDescription?: string): Promise<{ success: boolean; error?: string; transaction?: Transaction }> => {
+  const addFunds = async (amount: number, source: string, kidId?: string, fullDescription?: string): Promise<{ success: boolean; error?: ApiError; transaction?: Transaction }> => {
     if (amount <= 0) {
       console.warn('Add funds amount must be positive.');
-      return { success: false, error: 'Amount must be positive' };
+      // Return structure consistent with API error
+      return { success: false, error: { code: 'LOCAL_VALIDATION_INVALID_AMOUNT', message: 'Amount must be positive' } };
     }
 
     const authToken = userContext?.user?.token || 'mockAuthToken123';
@@ -78,9 +82,14 @@ export const FinancialProvider: React.FC<FinancialProviderProps> = ({ children }
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to add funds. Server returned an error.' }));
-        console.error('Failed to add funds API error:', response.status, errorData);
-        return { success: false, error: errorData.message || `Failed to add funds. Status: ${response.status}` };
+        const errorResponse = await response.json().catch(() => null); // Try to parse JSON error
+        console.error('Failed to add funds API error:', response.status, errorResponse);
+        if (errorResponse && errorResponse.error && errorResponse.error.code) {
+          // We have a structured error from the API (as defined in mock)
+          return { success: false, error: { code: errorResponse.error.code, message: errorResponse.error.message || 'Server error occurred.' } };
+        }
+        // Fallback for non-structured errors or if JSON parsing failed
+        return { success: false, error: { code: `HTTP_ERROR_${response.status}`, message: `Failed to add funds. Status: ${response.status}` } };
       }
 
       const result = await response.json();
@@ -89,7 +98,7 @@ export const FinancialProvider: React.FC<FinancialProviderProps> = ({ children }
         const newTransaction: Transaction = {
           id: result.transaction.id,
           date: result.transaction.date ? new Date(result.transaction.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-          description: fullDescription || result.transaction.description || 'Funds added', // Ensure description is always a string
+          description: fullDescription || result.transaction.description || 'Funds added',
           amount: result.transaction.amount,
           category: result.transaction.category || 'Income',
           kidId: result.transaction.kidId,
@@ -101,17 +110,23 @@ export const FinancialProvider: React.FC<FinancialProviderProps> = ({ children }
         }));
         return { success: true, transaction: newTransaction };
       } else {
+        // API call was "ok" (e.g. 200) but success:false in body, or transaction missing
         console.error('Add funds API call did not return a successful transaction object:', result);
-        return { success: false, error: result.message || 'Invalid response data from server.' };
+        if (result.error && result.error.code) {
+             return { success: false, error: { code: result.error.code, message: result.error.message || 'Invalid data from server.' } };
+        }
+        return { success: false, error: { code: 'INVALID_SERVER_RESPONSE', message: result.message || 'Invalid response data from server.' } };
       }
     } catch (error) {
-      console.error('Error calling addFunds API:', error);
+      console.error('Error calling addFunds API (network or unhandled):', error);
       const errorMessage = error instanceof Error ? error.message : 'Network error or server is unreachable.';
-      return { success: false, error: errorMessage };
+      // For network errors or other unexpected issues, use a generic local code
+      return { success: false, error: { code: 'NETWORK_ERROR', message: errorMessage } };
     }
   };
 
   const addTransaction = (transactionDetails: Omit<Transaction, 'id' | 'date'>) => {
+    // ... (implementation remains the same)
     const newTransaction: Transaction = {
       id: `t${Date.now()}`,
       date: new Date().toISOString().split('T')[0],
@@ -124,6 +139,7 @@ export const FinancialProvider: React.FC<FinancialProviderProps> = ({ children }
   };
 
   const addKidReward = (kidId: string, rewardAmount: number, choreTitle: string) => {
+    // ... (implementation remains the same)
     if (rewardAmount <= 0) {
       console.warn('Kid reward amount must be positive.');
       return;

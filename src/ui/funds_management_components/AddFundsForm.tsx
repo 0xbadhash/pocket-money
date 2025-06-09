@@ -2,10 +2,12 @@
 import React, { useState, useContext } from 'react';
 import { useFinancialContext } from '../../contexts/FinancialContext';
 import { UserContext } from '../../contexts/UserContext';
+// Make sure ApiError is imported or defined if it's used explicitly for typing 'result.error'
+// However, TypeScript can infer it from the return type of addFunds.
 
 const AddFundsForm = () => {
   const [amount, setAmount] = useState('');
-  const [source, setSource] = useState('bank_account_1'); // Default source
+  const [source, setSource] = useState('bank_account_1');
   const [selectedKidId, setSelectedKidId] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -15,38 +17,79 @@ const AddFundsForm = () => {
   const userContext = useContext(UserContext);
   const kids = userContext?.user?.kids || [];
 
+  const getFriendlyErrorMessage = (errorCode?: string, defaultMessage?: string): string => {
+    if (!errorCode) {
+      return defaultMessage || 'An unexpected error occurred. Please try again.';
+    }
+    switch (errorCode) {
+      case 'INSUFFICIENT_FUNDS':
+        return 'The selected payment source has insufficient funds. Please try another source or a smaller amount.';
+      case 'PAYMENT_METHOD_INVALID':
+        return 'The selected payment method is invalid or could not be verified. Please check the details or try another method.';
+      case 'PAYMENT_METHOD_DECLINED':
+        return 'The payment was declined by the provider. Please try another payment method or contact your bank.';
+      case 'ACCOUNT_LIMIT_EXCEEDED':
+        return 'The transaction amount exceeds the allowed limit for this payment source or your account.';
+      case 'TRANSACTION_LIMIT_EXCEEDED':
+        return 'You have reached your daily/weekly transaction limit for adding funds.';
+      case 'INVALID_KID_ID':
+        return 'The selected recipient (kid) is not valid. Please refresh and try again.';
+      case 'USER_NOT_AUTHORIZED':
+        return 'You are not authorized to perform this action.';
+      case 'SERVICE_UNAVAILABLE':
+        return 'The payment service is temporarily unavailable. Please try again later.';
+      case 'GENERAL_SERVER_ERROR':
+        return 'An unexpected error occurred on our end. Please try again in a few moments.';
+      case 'NETWORK_ERROR':
+        return 'A network error occurred. Please check your connection and try again.';
+      case 'LOCAL_VALIDATION_INVALID_AMOUNT': // From FinancialContext local validation
+         return 'Please enter a valid positive amount.';
+      case 'HTTP_ERROR_400': // Example generic HTTP error
+      case 'HTTP_ERROR_500':
+        return 'An error occurred while processing your request. Please try again later.';
+      default:
+        // Use the message from the error object if available and code is unknown, else generic.
+        return defaultMessage || `An unknown error occurred (Code: ${errorCode}). Please try again.`;
+    }
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setError(null); // Clear previous errors
-    setSuccessMessage(null); // Clear previous success messages
+    setError(null);
+    setSuccessMessage(null);
     const numericAmount = parseFloat(amount);
 
-    if (isNaN(numericAmount) || numericAmount <= 0) {
-      setError('Please enter a valid positive amount.');
-      return;
+    // Client-side validation for amount format (FinancialContext does value validation)
+    if (isNaN(numericAmount)) {
+        setError('Please enter a valid number for the amount.');
+        return;
     }
+    // FinancialContext's addFunds will handle the positive amount check and return LOCAL_VALIDATION_INVALID_AMOUNT
 
     setIsLoading(true);
 
     const kidName = selectedKidId ? kids.find(k => k.id === selectedKidId)?.name : 'General Family Funds';
-    // The 'source' state variable (e.g., 'bank_account_1') is passed directly as the source to addFunds.
-    // The 'fullDescription' is for display purposes in the transaction list.
     const fullDescription = `Deposit from ${source} to ${kidName}`;
 
     try {
-      // Use the new signature: addFunds(amount, source, kidId, fullDescription)
+      // addFunds now returns Promise<{ success: boolean; error?: ApiError; transaction?: Transaction }>
       const result = await addFunds(numericAmount, source, selectedKidId || undefined, fullDescription);
 
       if (result.success && result.transaction) {
         setSuccessMessage(`Successfully added $${result.transaction.amount} for ${kidName}. Transaction ID: ${result.transaction.id}`);
-        setAmount(''); // Clear amount after successful submission
-        // setSelectedKidId(''); // Optionally reset kid selection
+        setAmount('');
+      } else if (result.error) {
+        // Use the helper function to get a friendly message based on the error code
+        setError(getFriendlyErrorMessage(result.error.code, result.error.message));
       } else {
-        setError(result.error || 'Failed to add funds. Please try again.');
+        // Fallback if result is not success and no error object is present (shouldn't happen with new FinancialContext)
+        setError('Failed to add funds due to an unknown error. Please try again.');
       }
-    } catch (apiError: any) {
-      console.error("Add funds component error:", apiError);
-      setError(apiError.message || 'An unexpected error occurred.');
+    } catch (unexpectedError: any) {
+      // This catch block is for truly unexpected errors during the handleSubmit execution itself,
+      // as addFunds is designed to catch its own errors and return them in the result object.
+      console.error("Critical error in AddFundsForm handleSubmit:", unexpectedError);
+      setError(getFriendlyErrorMessage('UNEXPECTED_ERROR', 'A critical unexpected error occurred.'));
     } finally {
       setIsLoading(false);
     }
@@ -68,8 +111,8 @@ const AddFundsForm = () => {
             value={amount}
             onChange={(e) => {
               setAmount(e.target.value);
-              setError(null); // Clear error when amount changes
-              setSuccessMessage(null); // Clear success message
+              setError(null);
+              setSuccessMessage(null);
             }}
             step="0.01"
             disabled={isLoading}
@@ -84,14 +127,14 @@ const AddFundsForm = () => {
             value={source}
             onChange={(e) => {
               setSource(e.target.value);
-              setError(null); // Clear error when source changes
+              setError(null);
               setSuccessMessage(null);
             }}
             disabled={isLoading}
           >
             <option value="bank_account_1">Bank Account ****1234</option>
             <option value="bank_account_2">Savings Account ****5678</option>
-            {/* In a real app, these sources might come from user's payment methods */}
+            <option value="expired_card">Expired Card (for testing errors)</option>
           </select>
         </div>
 
@@ -103,7 +146,7 @@ const AddFundsForm = () => {
             value={selectedKidId}
             onChange={(e) => {
               setSelectedKidId(e.target.value);
-              setError(null); // Clear error when kid target changes
+              setError(null);
               setSuccessMessage(null);
             }}
             disabled={userContext?.loading || kids.length === 0 || isLoading}
@@ -114,6 +157,7 @@ const AddFundsForm = () => {
                 {kid.name}
               </option>
             ))}
+            <option value="kid_nonexistent">Non Existent Kid (for testing errors)</option>
           </select>
         </div>
 
