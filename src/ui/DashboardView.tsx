@@ -1,11 +1,10 @@
 // src/ui/DashboardView.tsx
 import React, { useState, useEffect } from 'react';
 import { useUser } from '../contexts/UserContext';
-import { useChoresContext } from '../contexts/ChoresContext'; // CHANGED: Use new context hook
-import { UserRole, ParentUser as ParentUserType, KidUser, ChoreDefinition, ChoreInstance } from '../types'; // Renamed ParentUser, added ChoreDefinition, ChoreInstance
-import { AddChoreForm } from '../components/AddChoreForm'; // Use the updated AddChoreForm
-// import { EditChoreForm } from '../components/EditChoreForm'; // Will need to be updated to use ChoreDefinition/Instance
-import { Link } from 'react-router-dom'; // Added for navigation with react-router-dom
+import { useChoresContext } from '../contexts/ChoresContext';
+import { UserRole, ParentUser as ParentUserType, KidUser, ChoreDefinition, ChoreInstance } from '../types';
+import { AddChoreForm } from '../components/AddChoreForm';
+import { Link } from 'react-router-dom';
 
 // Helper to format recurrence for display (adapted to ChoreDefinition structure)
 const formatChoreDefinitionRecurrence = (choreDef: ChoreDefinition): string => {
@@ -19,10 +18,9 @@ const formatChoreDefinitionRecurrence = (choreDef: ChoreDefinition): string => {
   }
 };
 
-const DashboardView: React.FC = () => { // Removed DashboardViewProps as onNavigate is handled by router
+const DashboardView: React.FC = () => {
   const { currentUser } = useUser();
-  const { choresDefinitions, toggleChoreInstanceComplete, deleteChoreDefinition } = useChoresContext(); // CHANGED: Use choreDefinitions, toggleChoreInstanceComplete, deleteChoreDefinition
-  // const [editingChore, setEditingChore] = useState<ChoreDefinition | null>(null); // State for editing if you re-implement EditChoreForm for definitions
+  const { choresDefinitions, toggleChoreInstanceComplete, deleteChoreDefinition } = useChoresContext(); // Using choreDefinitions and deleteChoreDefinition
 
   const containerStyle: React.CSSProperties = {
     padding: '20px',
@@ -78,10 +76,6 @@ const DashboardView: React.FC = () => { // Removed DashboardViewProps as onNavig
 
   const parentUser = currentUser.role === UserRole.PARENT ? (currentUser as ParentUserType) : null;
 
-  // Assuming you'd display ChoreInstances on the Dashboard, but for simplicity,
-  // let's show ChoreDefinitions for management here as it's a common pattern.
-  // In a full Kanban view, you'd generate and display instances.
-
   return (
     <div style={containerStyle}>
       <h1 style={headerStyle}>Dashboard</h1>
@@ -126,11 +120,11 @@ const DashboardView: React.FC = () => { // Removed DashboardViewProps as onNavig
         </div>
       )}
 
-      {/* Chore Management Section (from the other branch) */}
+      {/* Chore Management Section */}
       <div style={sectionStyle}>
-        <h2>Chore Definitions</h2> {/* Changed heading to reflect definitions */}
+        <h2>Chore Definitions</h2>
+        {/* The EditChoreForm placeholder is commented out as it needs to be updated for ChoreDefinition */}
         {/*
-          // Re-implement if you create an EditChoreForm for ChoreDefinition
           {editingChore && (
             <div style={{ position: 'fixed', top: '0', left: '0', right: '0', bottom: '0', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
               <div style={{ padding: '20px', background: 'white', borderRadius: '5px', minWidth: '300px', maxWidth: '500px' }}>
@@ -149,25 +143,23 @@ const DashboardView: React.FC = () => { // Removed DashboardViewProps as onNavig
           <p>No chore definitions yet. Add some!</p>
         ) : (
           <ul style={{ listStyleType: 'none', padding: 0 }}>
-            {choresDefinitions.map(choreDef => ( // Iterate over ChoreDefinitions
+            {choresDefinitions.map(choreDef => (
               <li key={choreDef.id} style={{ marginBottom: '15px', padding: '15px', border: '1px solid #eee', borderRadius: '5px', backgroundColor: choreDef.isComplete ? '#e6ffe6' : '#fff' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <h4 style={{ margin: '0', flexGrow: 1 }}>{choreDef.title}</h4> {/* Use choreDef.title */}
-                  {/* Completion checkbox for a definition might mean "archive" or "deactivate" */}
-                  {/* For now, removing direct checkbox here, as it's more relevant for instances */}
-                  {/* If you want to show "active/inactive" status, you can do that instead */}
+                  <h4 style={{ margin: '0', flexGrow: 1 }}>{choreDef.title}</h4>
                 </div>
                 <p style={{ margin: '0 0 5px 0', fontSize: '0.9em', color: '#555' }}>{choreDef.description}</p>
                 <p style={{ margin: '0 0 5px 0', fontSize: '0.8em', color: '#777' }}>
                   Start/Due Date: {choreDef.dueDate ? new Date(choreDef.dueDate + 'T00:00:00').toLocaleDateString() : 'N/A'}
                 </p>
                 <p style={{ margin: '0 0 10px 0', fontSize: '0.8em', color: '#777' }}>
-                  Recurrence: {formatChoreDefinitionRecurrence(choreDef)} {/* Use new formatter */}
+                  Recurrence: {formatChoreDefinitionRecurrence(choreDef)}
                 </p>
                 <p style={{ margin: '0 0 10px 0', fontSize: '0.8em', color: '#777' }}>
                   Reward: {choreDef.rewardAmount !== undefined ? `$${choreDef.rewardAmount.toFixed(2)}` : 'N/A'}
                 </p>
                 <div>
+                  {/* The Edit button is commented out until EditChoreForm is updated */}
                   {/* <button onClick={() => handleEdit(choreDef)} style={{ marginRight: '10px', padding: '5px 10px', fontSize: '0.9em' }}>Edit</button> */}
                   <button onClick={() => deleteChoreDefinition(choreDef.id)} style={{ padding: '5px 10px', fontSize: '0.9em', backgroundColor: '#dc3545', color: 'white', border: 'none' }}>Delete Definition</button>
                 </div>
@@ -185,7 +177,6 @@ const DashboardView: React.FC = () => { // Removed DashboardViewProps as onNavig
               <button style={buttonStyle}>Go to Kanban Board</button>
           </Link>
       </div>
-
     </div>
   );
 };

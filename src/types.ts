@@ -3,15 +3,17 @@
 // Re-export Transaction type directly from FinancialContext
 export { type Transaction } from './contexts/FinancialContext';
 
+// --- User Types ---
+
 export enum UserRole {
   PARENT = 'parent',
   KID = 'kid',
   ADMIN = 'admin',
 }
 
-interface BaseUser {
+export interface BaseUser {
   id: string;
-  email: string; // Email might be optional for kids or managed by parent
+  email: string; // Email is part of the base user for consistency
   name: string;
   role: UserRole;
   createdAt: Date;
@@ -22,17 +24,6 @@ export interface KidUser extends BaseUser {
   role: UserRole.KID;
   age: number;
   parentAccountId: string; // Link to the parent user
-<<<<<<< HEAD
-  // Other kid-specific fields, for example:
-  // balance?: number; // Current account balance
-  // allowanceSettings?: {
-  //   amount: number;
-  //   frequency: 'daily' | 'weekly' | 'monthly';
-  //   nextDueDate?: string;
-  // };
-  // goals?: Array<{ id: string; name: string; targetAmount: number; savedAmount: number; }>;
-  // avatarUrl?: string; // For personalization
-=======
   spendingLimits?: { // Optional object for spending limits
     daily?: number;
     weekly?: number;
@@ -40,84 +31,74 @@ export interface KidUser extends BaseUser {
     perTransaction?: number;
   };
   blockedCategories?: string[]; // Optional array of blocked category names/IDs
->>>>>>> a2cf91d0615d864b7c5b1012036ab2ec7e0b51be
 }
 
 export interface ParentUser extends BaseUser {
   role: UserRole.PARENT;
   kids: KidUser[]; // Array of associated kid accounts
-  // kycStatus?: 'pending' | 'verified' | 'rejected';
-  // mfaEnabled?: boolean;
+  // kycStatus?: 'pending' | 'verified' | 'rejected'; // Optional: KYC status
+  // mfaEnabled?: boolean; // Optional: Multi-factor authentication status
 }
 
 export interface AdminUser extends BaseUser {
   role: UserRole.ADMIN;
-  // permissions?: string[];
+  // permissions?: string[]; // Optional: Specific permissions for admin
 }
 
-<<<<<<< HEAD
-export interface Chore {
-  id: string;
-  title: string;
-  description?: string;
-  assignedKidId?: string;
-  dueDate?: string;
-=======
-// It might be useful to have a union type for any user
+// Union type for any user in the application
 export type AppUser = ParentUser | KidUser | AdminUser;
 
 ---
 
 ## Chore Definition and Instance Types
 
-// Defines the structure for recurrence settings. This can still be useful for forms,
-// but the ChoreDefinition will store recurrence in a flattened structure.
+// Defines the structure for recurrence settings. This is primarily for forms or UI logic,
+// as the ChoreDefinition stores recurrence in a flattened structure for data consistency.
 export type RecurrenceSetting =
   | { type: 'daily' }
   | { type: 'weekly'; dayOfWeek: number } // 0 for Sunday, 6 for Saturday
   | { type: 'monthly'; dayOfMonth: number } // 1 to 31
-  | { type: 'specificDays'; days: number[] } // Array of dayOfWeek
-  | null; // For non-recurring chores
+  | { type: 'specificDays'; days: number[] } // Array of dayOfWeek (e.g., [1,3,5] for Mon, Wed, Fri)
+  | null; // For non-recurring chores or when recurrence is not applicable
 
 // Chore Definition: Represents the template for a chore, including its recurrence pattern.
-// Renamed from Chore in the kanban branch, and adapted to be the source of truth for chore properties.
+// This is the source of truth for chore properties, designed for recurring and one-time chores.
 export interface ChoreDefinition {
   id: string; // Unique ID for the chore definition
   title: string;
   description?: string;
-  assignedKidId?: string;
-  // For non-recurring, this is the due date.
-  // For recurring, this is the START date of recurrence.
-  dueDate?: string; // ISO date string (e.g., "2023-10-27")
->>>>>>> a2cf91d0615d864b7c5b1012036ab2ec7e0b51be
-  rewardAmount?: number;
-  // isComplete for a definition might mean "archived" or "template no longer active"
-  // It's still a boolean, but its meaning shifts for definitions.
-  isComplete: boolean; // Indicates if the definition itself is active/complete (e.g., archived)
+  assignedKidId?: string; // Optional: ID of the kid assigned to this chore definition
 
-  // Recurrence properties for the definition
-  recurrenceType?: 'daily' | 'weekly' | 'monthly' | 'one-time' | null; // 'none' can be represented by null or 'one-time'
-  // For weekly: 0 (Sun) to 6 (Sat). For monthly: 1 to 31.
-  recurrenceDay?: number | null;
-  recurrenceEndDate?: string | null; // Date after which no more instances are generated (ISO date string)
+  // For non-recurring chores, this is the exact due date.
+  // For recurring chores, this is the START date from which instances will be generated.
+  dueDate?: string; // ISO date string (e.g., "YYYY-MM-DD")
+
+  rewardAmount?: number; // Amount rewarded for completing instances of this chore
+  isComplete: boolean; // Indicates if the definition itself is active/complete (e.g., archived or deactivated)
+
+  // Recurrence properties for the definition. 'one-time' is for non-recurring.
+  recurrenceType?: 'daily' | 'weekly' | 'monthly' | 'one-time' | null;
+  
+  // For 'weekly' recurrence: 0 (Sunday) to 6 (Saturday).
+  // For 'monthly' recurrence: 1 to 31 (day of month).
+  recurrenceDay?: number | null; 
+  
+  recurrenceEndDate?: string | null; // Optional: Date after which no more instances are generated (ISO date string)
 }
 
-<<<<<<< HEAD
-export type AppUser = ParentUser | KidUser | AdminUser;
-
-// Kept for compatibility, but KidUser is preferred for new features
-=======
 // Chore Instance: Represents a specific occurrence of a chore on a given date.
+// Instances are generated from ChoreDefinitions based on their recurrence patterns.
 export interface ChoreInstance {
-  id: string; // Unique ID for this specific instance (e.g., choreDefId + '_' + instanceDate)
-  choreDefinitionId: string; // Link back to its definition
+  id: string; // Unique ID for this specific instance (e.g., derived from choreDefId + instanceDate)
+  choreDefinitionId: string; // Link back to its parent ChoreDefinition
   instanceDate: string; // The specific date this instance is due (YYYY-MM-DD)
-  isComplete: boolean;
-  // Optional: if reward is snapshotted per instance or can vary.
-  // We copy some key details from ChoreDefinition for easier access, preventing constant lookups.
-  title: string; // Copy title from definition
-  assignedKidId?: string; // Copy assignedKidId from definition
-  rewardAmount?: number; // Copy rewardAmount from definition
+  isComplete: boolean; // Indicates if this specific instance has been completed
+
+  // Key details copied from ChoreDefinition for easier access on the instance,
+  // preventing constant lookups to the definition for basic display.
+  title: string;
+  assignedKidId?: string;
+  rewardAmount?: number;
 }
 
 ---
@@ -129,8 +110,8 @@ export type KanbanPeriod = 'daily' | 'weekly' | 'monthly';
 export interface KanbanColumn {
   id: string;
   title: string;
-  // This will eventually hold ChoreInstance[], aligning with the new chore model.
-  chores: ChoreInstance[]; // MODIFIED: Now holds ChoreInstance[]
+  // Columns now hold ChoreInstance objects, representing specific chores for a given period.
+  chores: ChoreInstance[]; 
 }
 
 export interface KidKanbanConfig {
@@ -143,154 +124,11 @@ export interface KidKanbanConfig {
 
 ## Deprecated Kid Interface
 
-// Deprecate the old Kid interface. KidUser replaces its use cases.
-// This is kept for now to avoid breaking existing UserContext until fully migrated.
-// Ideally, UserContext should use KidUser.
-// Once UserContext and other related components are fully updated to use KidUser,
-// this 'Kid' interface can be safely removed.
->>>>>>> a2cf91d0615d864b7c5b1012036ab2ec7e0b51be
-export interface Kid {
-  id: string;
-  name: string;
-  age?: number;
-<<<<<<< HEAD
-}
-=======
-  spendingLimits?: {
-    daily?: number;
-    weekly?: number;
-    monthly?: number;
-    perTransaction?: number;
-  };
-  blockedCategories?: string[];
-}
->>>>>>> a2cf91d0615d864b7c5b1012036ab2ec7e0b51be
-// src/types.ts
-
-// Re-export Transaction type directly from FinancialContext
-export { type Transaction } from './contexts/FinancialContext';
-
-export enum UserRole {
-  PARENT = 'parent',
-  KID = 'kid',
-  ADMIN = 'admin',
-}
-
-interface BaseUser {
-  id: string;
-  email: string; // Email might be optional for kids or managed by parent
-  name: string;
-  role: UserRole;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface KidUser extends BaseUser {
-  role: UserRole.KID;
-  age: number;
-  parentAccountId: string; // Link to the parent user
-  spendingLimits?: { // Optional object for spending limits - Adopted from a2cf91d0615d864b7c5b1012036ab2ec7e0b51be
-    daily?: number;
-    weekly?: number;
-    monthly?: number;
-    perTransaction?: number;
-  };
-  blockedCategories?: string[]; // Optional array of blocked category names/IDs - Adopted from a2cf91d0615d864b7c5b1012036ab2ec7e0b51be
-}
-
-export interface ParentUser extends BaseUser {
-  role: UserRole.PARENT;
-  kids: KidUser[]; // Array of associated kid accounts
-  // kycStatus?: 'pending' | 'verified' | 'rejected';
-  // mfaEnabled?: boolean;
-}
-
-export interface AdminUser extends BaseUser {
-  role: UserRole.ADMIN;
-  // permissions?: string[];
-}
-
-// It might be useful to have a union type for any user - Adopted from a2cf91d0615d864b7c5b1012036ab2ec7e0b51be
-export type AppUser = ParentUser | KidUser | AdminUser;
-
----
-
-## Chore Definition and Instance Types
-
-// Defines the structure for recurrence settings. This can still be useful for forms,
-// but the ChoreDefinition will store recurrence in a flattened structure.
-export type RecurrenceSetting =
-  | { type: 'daily' }
-  | { type: 'weekly'; dayOfWeek: number } // 0 for Sunday, 6 for Saturday
-  | { type: 'monthly'; dayOfMonth: number } // 1 to 31
-  | { type: 'specificDays'; days: number[] } // Array of dayOfWeek
-  | null; // For non-recurring chores
-
-// Chore Definition: Represents the template for a chore, including its recurrence pattern.
-// Adopted this whole block from a2cf91d0615d864b7c5b1012036ab2ec7e0b51be
-export interface ChoreDefinition {
-  id: string; // Unique ID for the chore definition
-  title: string;
-  description?: string;
-  assignedKidId?: string;
-  // For non-recurring, this is the due date.
-  // For recurring, this is the START date of recurrence.
-  dueDate?: string; // ISO date string (e.g., "2023-10-27")
-  rewardAmount?: number;
-  // isComplete for a definition might mean "archived" or "template no longer active"
-  // It's still a boolean, but its meaning shifts for definitions.
-  isComplete: boolean; // Indicates if the definition itself is active/complete (e.g., archived)
-
-  // Recurrence properties for the definition
-  recurrenceType?: 'daily' | 'weekly' | 'monthly' | 'one-time' | null; // 'none' can be represented by null or 'one-time'
-  // For weekly: 0 (Sun) to 6 (Sat). For monthly: 1 to 31.
-  recurrenceDay?: number | null;
-  recurrenceEndDate?: string | null; // Date after which no more instances are generated (ISO date string)
-}
-
-// Chore Instance: Represents a specific occurrence of a chore on a given date.
-// Adopted this whole block from a2cf91d0615d864b7c5b1012036ab2ec7e0b51be
-export interface ChoreInstance {
-  id: string; // Unique ID for this specific instance (e.g., choreDefId + '_' + instanceDate)
-  choreDefinitionId: string; // Link back to its definition
-  instanceDate: string; // The specific date this instance is due (YYYY-MM-DD)
-  isComplete: boolean;
-  // Optional: if reward is snapshotted per instance or can vary.
-  // We copy some key details from ChoreDefinition for easier access, preventing constant lookups.
-  title: string; // Copy title from definition
-  assignedKidId?: string; // Copy assignedKidId from definition
-  rewardAmount?: number; // Copy rewardAmount from definition
-}
-
----
-
-## Kanban-Specific Types
-
-export type KanbanPeriod = 'daily' | 'weekly' | 'monthly';
-
-export interface KanbanColumn {
-  id: string;
-  title: string;
-  // This will eventually hold ChoreInstance[], aligning with the new chore model.
-  chores: ChoreInstance[]; // MODIFIED: Now holds ChoreInstance[] - Adopted from a2cf91d0615d864b7c5b1012036ab2ec7e0b51be
-}
-
-export interface KidKanbanConfig {
-  kidId: string;
-  selectedPeriod: KanbanPeriod;
-  columns: KanbanColumn[];
-}
-
----
-
-## Deprecated Kid Interface
-
-// Deprecate the old Kid interface. KidUser replaces its use cases.
-// This is kept for now to avoid breaking existing UserContext until fully migrated..
-// Ideally, UserContext should use KidUser.
-// Once UserContext and other related components are fully updated to use KidUser,
-// this 'Kid' interface can be safely removed.
-// Adopted this whole block from a2cf91d0615d864b7c5b1012036ab2ec7e0b51be
+// Deprecated: This 'Kid' interface is being phased out in favor of 'KidUser'.
+// It is kept temporarily to avoid breaking existing code that might still reference it.
+// All new implementations and refactored components should use 'KidUser'.
+// This interface can be safely removed once UserContext and all related components
+// are fully updated to utilize the 'KidUser' and 'BaseUser' types.
 export interface Kid {
   id: string;
   name: string;

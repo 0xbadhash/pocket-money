@@ -1,39 +1,38 @@
+// src/contexts/ChoresContext.tsx
 import React, { createContext, useState, ReactNode, useContext } from 'react';
-import type { ChoreDefinition, ChoreInstance } from '../types'; // Modified types import
+import type { ChoreDefinition, ChoreInstance } from '../types';
 import { useFinancialContext } from '../contexts/FinancialContext';
-import { generateChoreInstances } from '../utils/choreUtils'; // NEW IMPORT from kanban branch
+import { generateChoreInstances } from '../utils/choreUtils'; // NEW IMPORT
 
-// Define the shape of the context value
+// Define the shape of the context value - MODIFIED
 interface ChoresContextType {
   choreDefinitions: ChoreDefinition[];
   choreInstances: ChoreInstance[];
   addChoreDefinition: (choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete'>) => void;
   toggleChoreInstanceComplete: (instanceId: string) => void;
   getChoreDefinitionsForKid: (kidId: string) => ChoreDefinition[];
-  generateInstancesForPeriod: (startDate: string, endDate: string) => void; // From kanban branch
-  // The following are added for backward compatibility and may be removed after full migration
-  // deleteChoreDefinition: (id: string) => void; // If needed for definitions
-  // updateChoreDefinition: (id: string, updates: Partial<Omit<ChoreDefinition, 'id'>>) => void; // If needed for definitions
+  generateInstancesForPeriod: (startDate: string, endDate: string) => void; // NEW
 }
 
-const ChoresContext = createContext<ChoresContextType | undefined>(undefined);
+// Create the context
+export const ChoresContext = createContext<ChoresContextType | undefined>(undefined);
 
-// Custom hook for easier context consumption
+// Custom hook for easier context consumption - Ensure return type matches new ChoresContextType
 export const useChoresContext = (): ChoresContextType => {
   const context = useContext(ChoresContext);
-  if (!context) {
-    // Changed error message to reflect the new hook name
+  if (context === undefined) {
     throw new Error('useChoresContext must be used within a ChoresProvider');
   }
   return context;
 };
 
+// Create a ChoresProvider component
 interface ChoresProviderProps {
   children: ReactNode;
 }
 
 export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
-  // State for chore definitions from kanban branch
+  // MODIFIED: State for chore definitions
   const [choreDefinitions, setChoreDefinitions] = useState<ChoreDefinition[]>([
     { id: 'cd1', title: 'Clean Room (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
       rewardAmount: 1, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: '2023-12-05' },
@@ -50,12 +49,16 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       rewardAmount: 0.5, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: null } // No end date
   ]);
 
-  // State for chore instances from kanban branch
-  const [choreInstances, setChoreInstances] = useState<ChoreInstance[]>([]); // Initialize empty, as they will be generated
+  // NEW: State for chore instances
+  const [choreInstances, setChoreInstances] = useState<ChoreInstance[]>([
+    // Example: Some initial instances for testing. Real generation will occur later.
+    // { id: 'cd1_2023-12-01', choreDefinitionId: 'cd1', instanceDate: '2023-12-01', isComplete: false },
+    // { id: 'cd1_2023-12-02', choreDefinitionId: 'cd1', instanceDate: '2023-12-02', isComplete: true }, // Example of a completed one
+  ]);
 
-  const { addKidReward } = useFinancialContext(); // Retained from both branches
+  const { addKidReward } = useFinancialContext();
 
-  // Renamed and updated logic for adding chore definitions
+  // MODIFIED: Renamed and updated logic
   const addChoreDefinition = (choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete'>) => {
     const newChoreDef: ChoreDefinition = {
       id: `cd${Date.now()}`, // Simple unique ID
@@ -65,7 +68,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     setChoreDefinitions(prevDefs => [newChoreDef, ...prevDefs]);
   };
 
-  // Renamed and updated logic for toggling chore instances
+  // MODIFIED: Renamed and updated logic for instances
   const toggleChoreInstanceComplete = (instanceId: string) => {
     const instance = choreInstances.find(inst => inst.id === instanceId);
     if (!instance) {
@@ -79,7 +82,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       return;
     }
 
-    // If marking as complete, and it has a reward, and kid is assigned (logic from recurring-chores/main)
+    // If marking as complete, and it has a reward, and kid is assigned
     if (!instance.isComplete && definition.assignedKidId && definition.rewardAmount && definition.rewardAmount > 0) {
       addKidReward(definition.assignedKidId, definition.rewardAmount, `${definition.title} (${instance.instanceDate})`);
     }
@@ -91,12 +94,12 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     );
   };
 
-  // Renamed and filters chore definitions
+  // MODIFIED: Renamed and filters definitions
   const getChoreDefinitionsForKid = (kidId: string): ChoreDefinition[] => {
     return choreDefinitions.filter(def => def.assignedKidId === kidId);
   };
 
-  // Instance generation logic using utility function from kanban branch
+  // MODIFIED: Instance generation logic using utility function
   const generateInstancesForPeriod = (periodStartDate: string, periodEndDate: string) => {
     console.log(`Generating instances for period: ${periodStartDate} to ${periodEndDate}`);
     const generatedForPeriod = generateChoreInstances(choreDefinitions, periodStartDate, periodEndDate);
@@ -106,6 +109,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       const outsideOfPeriod = prevInstances.filter(inst => {
         const instDate = new Date(inst.instanceDate);
         instDate.setUTCHours(0,0,0,0); // Normalize date for comparison
+        // Ensure periodStartDate and periodEndDate are also normalized if comparing Date objects
         const periodStartNorm = new Date(periodStartDate);
         periodStartNorm.setUTCHours(0,0,0,0);
         const periodEndNorm = new Date(periodEndDate);
@@ -126,7 +130,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     });
   };
 
-  // Update provider value with the new context shape
+  // MODIFIED: Update provider value
   return (
     <ChoresContext.Provider value={{
       choreDefinitions,

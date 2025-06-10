@@ -14,32 +14,16 @@ import ChoreManagementView from './ui/ChoreManagementView';
 import LoginView from './ui/LoginView';
 import AccountCreationView from './ui/AccountCreationView';
 import AdminDashboardView from './ui/AdminDashboardView';
-import NavigationBar from './ui/components/NavigationBar'; // Import the new NavigationBar
+import NavigationBar from './ui/components/NavigationBar'; // Keep the external NavigationBar
 import KanbanView from './ui/KanbanView'; // Assuming KanbanView will be added/used as per Kanban branch
-
-// Define the types for the views that can be displayed (less relevant for react-router, but can be kept for clarity if specific enums are useful elsewhere)
-// export type AppView =
-//   | 'login'
-//   | 'register'
-//   | 'dashboard'
-//   | 'admin_dashboard'
-//   | 'funds'
-//   | 'settings'
-//   | 'activity'
-//   | 'chores'
-//   | 'home';
 
 const AppContent: React.FC = () => {
   const { currentUser, loading: userLoading } = useUser();
-  // We no longer manage 'currentView' state here, react-router-dom handles it based on URL.
   const [theme, setTheme] = useState('light');
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
-
-  // The logic for redirecting based on login status will move into route guards or specific components
-  // For now, we'll keep it simple and rely on route setup.
 
   const toggleTheme = () => {
     setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
@@ -50,11 +34,9 @@ const AppContent: React.FC = () => {
     return <div style={{textAlign: 'center', marginTop: '50px'}}>Loading application...</div>;
   }
 
-  // The main application content structure uses react-router-dom
   return (
-    <>
+    <> {/* Using React Fragment as AppContent is wrapped by BrowserRouter outside */}
       {/* Navigation Bar will be rendered here. It needs to use <Link> components. */}
-      {/* Assuming NavigationBar can take a `toggleTheme` prop if needed */}
       <NavigationBar toggleTheme={toggleTheme} currentTheme={theme} currentUser={currentUser} />
 
       <div style={{ padding: 'var(--spacing-md)' }}> {/* Added padding around content area */}
@@ -62,7 +44,8 @@ const AppContent: React.FC = () => {
           {/* Public Routes */}
           <Route path="/login" element={<LoginView />} />
           <Route path="/register" element={<AccountCreationView />} />
-          <Route path="/" element={currentUser ? <DashboardView /> : <LoginView />} /> {/* Default to dashboard if logged in, else login */}
+          {/* Default to dashboard if logged in, else login */}
+          <Route path="/" element={currentUser ? <DashboardView /> : <LoginView />} /> 
 
           {/* Protected Routes - These should ideally have proper route guards or be rendered conditionally */}
           {/* For now, we'll let components handle their own redirects if unauthorized */}
