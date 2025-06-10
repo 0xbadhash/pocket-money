@@ -54,3 +54,5 @@ export interface KidKanbanConfig {
   selectedPeriod: KanbanPeriod;
   columns: KanbanColumn[];
 }
+
+export type ColumnThemeOption = 'default' | 'pastel' | 'ocean';
