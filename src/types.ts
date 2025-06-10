@@ -10,26 +10,42 @@ export interface Kid {
   // Add other kid-specific fields here if needed later
 }
 
-export interface Chore {
-  id: string;
+// Renamed from Chore
+export interface ChoreDefinition {
+  id: string; // Unique ID for the chore definition
   title: string;
   description?: string;
   assignedKidId?: string;
-  dueDate?: string; // This might represent the first due date for recurring chores
+  // For non-recurring, this is the due date.
+  // For recurring, this is the START date of recurrence.
+  dueDate?: string;
   rewardAmount?: number;
-  isComplete: boolean; // For recurring chores, this might represent the status of the current instance
-  recurrenceType?: 'daily' | 'weekly' | 'monthly' | null;
+  // isComplete for a definition might mean "archived" or "template no longer active"
+  isComplete: boolean;
+  recurrenceType?: 'daily' | 'weekly' | 'monthly' | null; // 'none' can be represented by null
+  // For weekly: 0 (Sun) to 6 (Sat). For monthly: 1 to 31.
   recurrenceDay?: number | null;
-  recurrenceEndDate?: string | null;
+  recurrenceEndDate?: string | null; // Date after which no more instances are generated
 }
 
-// Kanban-specific types
+export interface ChoreInstance {
+  id: string; // Unique ID for this specific instance (e.g., choreDefId + '_' + instanceDate)
+  choreDefinitionId: string;
+  instanceDate: string; // The specific date this instance is due (YYYY-MM-DD)
+  isComplete: boolean;
+  // Optional: if reward is snapshotted per instance or can vary
+  // rewardAmount?: number;
+}
+
+// Keep existing Kanban types for now, they might need adjustment later
+// if they directly reference 'Chore' which is now 'ChoreDefinition'
 export type KanbanPeriod = 'daily' | 'weekly' | 'monthly';
 
 export interface KanbanColumn {
-  id: string; // e.g., 'monday', 'week-1', 'todo'
-  title: string; // e.g., 'Monday', 'Week 1', 'To Do'
-  chores: Chore[];
+  id: string;
+  title: string;
+  // This will eventually hold ChoreInstance[]
+  chores: ChoreInstance[]; // MODIFIED: Was Chore[], now ChoreInstance[]
 }
 
 export interface KidKanbanConfig {

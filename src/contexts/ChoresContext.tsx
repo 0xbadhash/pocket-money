@@ -1,21 +1,24 @@
 // src/contexts/ChoresContext.tsx
 import React, { createContext, useState, ReactNode, useContext } from 'react';
-import type { Chore } from '../types'; // Import Chore type
-import { useFinancialContext } from '../contexts/FinancialContext'; // <-- New Import
+import type { ChoreDefinition, ChoreInstance } from '../types';
+import { useFinancialContext } from '../contexts/FinancialContext';
+import { generateChoreInstances } from '../utils/choreUtils'; // NEW IMPORT
 
-// Define the shape of the context value
+// Define the shape of the context value - MODIFIED
 interface ChoresContextType {
-  chores: Chore[];
-  addChore: (choreData: Omit<Chore, 'id' | 'isComplete'>) => void;
-  toggleChoreComplete: (choreId: string) => void;
-  getChoresForKid: (kidId: string) => Chore[]; // Added as per plan
+  choreDefinitions: ChoreDefinition[];
+  choreInstances: ChoreInstance[];
+  addChoreDefinition: (choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete'>) => void;
+  toggleChoreInstanceComplete: (instanceId: string) => void;
+  getChoreDefinitionsForKid: (kidId: string) => ChoreDefinition[];
+  generateInstancesForPeriod: (startDate: string, endDate: string) => void; // NEW
 }
 
 // Create the context
 export const ChoresContext = createContext<ChoresContextType | undefined>(undefined);
 
-// Custom hook for easier context consumption
-export const useChoresContext = () => {
+// Custom hook for easier context consumption - Ensure return type matches new ChoresContextType
+export const useChoresContext = (): ChoresContextType => {
   const context = useContext(ChoresContext);
   if (context === undefined) {
     throw new Error('useChoresContext must be used within a ChoresProvider');
@@ -29,52 +32,114 @@ interface ChoresProviderProps {
 }
 
 export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
-  const [chores, setChores] = useState<Chore[]>([
-    // Initial mock chores
-    { id: 'c1', title: 'Clean Room', assignedKidId: 'kid_a', dueDate: '2023-12-15', rewardAmount: 5, isComplete: false },
-    { id: 'c2', title: 'Walk the Dog', assignedKidId: 'kid_b', dueDate: '2023-12-10', rewardAmount: 3, isComplete: true },
-    { id: 'c3', title: 'Do Homework', assignedKidId: 'kid_a', isComplete: false },
-    { id: 'c4', title: 'Take out trash', description: 'Before Tuesday morning', rewardAmount: 1, isComplete: false}
+  // MODIFIED: State for chore definitions
+  const [choreDefinitions, setChoreDefinitions] = useState<ChoreDefinition[]>([
+    { id: 'cd1', title: 'Clean Room (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
+      rewardAmount: 1, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: '2023-12-05' },
+    { id: 'cd2', title: 'Walk the Dog (Weekly Sat)', assignedKidId: 'kid_b', dueDate: '2023-12-02',
+      rewardAmount: 3, isComplete: false, recurrenceType: 'weekly', recurrenceDay: 6, // Saturday
+      recurrenceEndDate: '2023-12-31'},
+    { id: 'cd3', title: 'Do Homework (One-off)', assignedKidId: 'kid_a', dueDate: '2023-12-15',
+      rewardAmount: 2, isComplete: false, recurrenceType: null },
+    { id: 'cd4', title: 'Take out trash (Monthly 15th)', description: 'Before evening', rewardAmount: 1.5,
+      assignedKidId: 'kid_a', dueDate: '2023-12-01', isComplete: false, recurrenceType: 'monthly', recurrenceDay: 15,
+      recurrenceEndDate: '2024-02-01'
+    },
+    { id: 'cd5', title: 'Feed Cat (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
+      rewardAmount: 0.5, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: null } // No end date
   ]);
-  const { addKidReward } = useFinancialContext(); // <-- Consume FinancialContext
 
-  const addChore = (choreData: Omit<Chore, 'id' | 'isComplete'>) => {
-    const newChore: Chore = {
-      id: `c${Date.now()}`, // Simple unique ID
-      isComplete: false, // New chores are incomplete by default
-      ...choreData,
+  // NEW: State for chore instances
+  const [choreInstances, setChoreInstances] = useState<ChoreInstance[]>([
+    // Example: Some initial instances for testing. Real generation will occur later.
+    // { id: 'cd1_2023-12-01', choreDefinitionId: 'cd1', instanceDate: '2023-12-01', isComplete: false },
+    // { id: 'cd1_2023-12-02', choreDefinitionId: 'cd1', instanceDate: '2023-12-02', isComplete: true }, // Example of a completed one
+  ]);
+
+  const { addKidReward } = useFinancialContext();
+
+  // MODIFIED: Renamed and updated logic
+  const addChoreDefinition = (choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete'>) => {
+    const newChoreDef: ChoreDefinition = {
+      id: `cd${Date.now()}`, // Simple unique ID
+      isComplete: false, // New definitions are active by default
+      ...choreDefData,
     };
-    setChores(prevChores => [newChore, ...prevChores]); // Add to top
+    setChoreDefinitions(prevDefs => [newChoreDef, ...prevDefs]);
   };
 
-  const toggleChoreComplete = (choreId: string) => {
-    // Find the chore first to check its properties before toggling
-    const choreToToggle = chores.find(chore => chore.id === choreId);
-
-    if (choreToToggle) {
-      // Check if we are marking it as complete and if it qualifies for a reward
-      if (!choreToToggle.isComplete && choreToToggle.assignedKidId && choreToToggle.rewardAmount && choreToToggle.rewardAmount > 0) {
-        addKidReward(choreToToggle.assignedKidId, choreToToggle.rewardAmount, choreToToggle.title);
-      }
-    } else {
-      console.warn(`Chore with ID ${choreId} not found for toggling.`);
-      // Optionally, you could stop here if the chore isn't found,
-      // but the map below will simply not find it and do nothing, which is also fine.
+  // MODIFIED: Renamed and updated logic for instances
+  const toggleChoreInstanceComplete = (instanceId: string) => {
+    const instance = choreInstances.find(inst => inst.id === instanceId);
+    if (!instance) {
+      console.warn(`Chore instance with ID ${instanceId} not found.`);
+      return;
     }
 
-    setChores(prevChores =>
-      prevChores.map(chore =>
-        chore.id === choreId ? { ...chore, isComplete: !chore.isComplete } : chore
+    const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
+    if (!definition) {
+      console.warn(`Chore definition for instance ID ${instanceId} (def ID: ${instance.choreDefinitionId}) not found.`);
+      return;
+    }
+
+    // If marking as complete, and it has a reward, and kid is assigned
+    if (!instance.isComplete && definition.assignedKidId && definition.rewardAmount && definition.rewardAmount > 0) {
+      addKidReward(definition.assignedKidId, definition.rewardAmount, `${definition.title} (${instance.instanceDate})`);
+    }
+
+    setChoreInstances(prevInstances =>
+      prevInstances.map(inst =>
+        inst.id === instanceId ? { ...inst, isComplete: !inst.isComplete } : inst
       )
     );
   };
 
-  const getChoresForKid = (kidId: string): Chore[] => {
-    return chores.filter(chore => chore.assignedKidId === kidId);
+  // MODIFIED: Renamed and filters definitions
+  const getChoreDefinitionsForKid = (kidId: string): ChoreDefinition[] => {
+    return choreDefinitions.filter(def => def.assignedKidId === kidId);
   };
 
+  // MODIFIED: Instance generation logic using utility function
+  const generateInstancesForPeriod = (periodStartDate: string, periodEndDate: string) => {
+    console.log(`Generating instances for period: ${periodStartDate} to ${periodEndDate}`);
+    const generatedForPeriod = generateChoreInstances(choreDefinitions, periodStartDate, periodEndDate);
+
+    setChoreInstances(prevInstances => {
+      // Filter out any old instances that were for the period we are now regenerating
+      const outsideOfPeriod = prevInstances.filter(inst => {
+        const instDate = new Date(inst.instanceDate);
+        instDate.setUTCHours(0,0,0,0); // Normalize date for comparison
+        // Ensure periodStartDate and periodEndDate are also normalized if comparing Date objects
+        const periodStartNorm = new Date(periodStartDate);
+        periodStartNorm.setUTCHours(0,0,0,0);
+        const periodEndNorm = new Date(periodEndDate);
+        periodEndNorm.setUTCHours(0,0,0,0);
+        return instDate < periodStartNorm || instDate > periodEndNorm;
+      });
+
+      // For the newly generated instances, try to preserve completion status if they existed before
+      const updatedGeneratedForPeriod = generatedForPeriod.map(newInstance => {
+        const oldMatchingInstance = prevInstances.find(oldInst => oldInst.id === newInstance.id);
+        if (oldMatchingInstance) {
+          return { ...newInstance, isComplete: oldMatchingInstance.isComplete };
+        }
+        return newInstance;
+      });
+
+      return [...outsideOfPeriod, ...updatedGeneratedForPeriod];
+    });
+  };
+
+  // MODIFIED: Update provider value
   return (
-    <ChoresContext.Provider value={{ chores, addChore, toggleChoreComplete, getChoresForKid }}>
+    <ChoresContext.Provider value={{
+      choreDefinitions,
+      choreInstances,
+      addChoreDefinition,
+      toggleChoreInstanceComplete,
+      getChoreDefinitionsForKid,
+      generateInstancesForPeriod
+    }}>
       {children}
     </ChoresContext.Provider>
   );

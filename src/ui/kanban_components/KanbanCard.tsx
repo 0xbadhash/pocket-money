@@ -1,51 +1,61 @@
 // src/ui/kanban_components/KanbanCard.tsx
 import React from 'react';
-import type { Chore } from '../../types';
+import type { ChoreInstance, ChoreDefinition } from '../../types'; // Updated import
 import { useChoresContext } from '../../contexts/ChoresContext';
 
-interface KanbanCardProps {
-  chore: Chore;
+interface KanbanCardProps { // Updated props
+  instance: ChoreInstance;
+  definition: ChoreDefinition;
 }
 
-const KanbanCard: React.FC<KanbanCardProps> = ({ chore }) => {
-  const { toggleChoreComplete } = useChoresContext();
+const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition }) => { // Updated destructuring
+  // Destructure the correct function name from context
+  const { toggleChoreInstanceComplete } = useChoresContext();
 
-  // Simplified recurrence info for card view - can be expanded later
-  const formatRecurrenceInfoShort = (c: Chore): string | null => {
-    if (!c.recurrenceType || c.recurrenceType === 'none' || c.recurrenceType === null) {
+  // This function still operates on definition as recurrence is defined there
+  const formatRecurrenceInfoShort = (def: ChoreDefinition): string | null => {
+    if (!def.recurrenceType || def.recurrenceType === null) { // 'none' represented by null
       return null;
     }
-    let info = `Repeats ${c.recurrenceType}`;
-    if (c.recurrenceEndDate) {
-      info += ` until ${c.recurrenceEndDate.split('T')[0]}`; // Just date part
+    let info = `Repeats ${def.recurrenceType}`;
+    if (def.recurrenceEndDate) {
+      // Just date part, and ensure recurrenceEndDate is a valid date string
+      try {
+        info += ` until ${new Date(def.recurrenceEndDate).toISOString().split('T')[0]}`;
+      } catch (e) {
+        console.warn(`Invalid recurrenceEndDate format for chore definition ${def.id}: ${def.recurrenceEndDate}`);
+        info += ` until (invalid date)`;
+      }
     }
     return info;
   };
 
-  const recurrenceInfo = formatRecurrenceInfoShort(chore);
+  const recurrenceInfo = formatRecurrenceInfoShort(definition);
 
   return (
-    <div className={`kanban-card ${chore.isComplete ? 'complete' : ''}`}
+    <div className={`kanban-card ${instance.isComplete ? 'complete' : ''}`}
          style={{
            border: '1px solid #ddd',
            padding: '10px',
            marginBottom: '10px',
            borderRadius: '4px',
-           backgroundColor: chore.isComplete ? '#e6ffe6' : '#fff'
+           backgroundColor: instance.isComplete ? '#e6ffe6' : '#fff'
          }}>
-      <h4>{chore.title}</h4>
-      {chore.description && <p style={{ fontSize: '0.9em', color: '#555' }}>{chore.description}</p>}
-      {/* Assigned to is implicit in the kid's board view */}
-      {chore.dueDate && <p style={{ fontSize: '0.9em' }}>Due: {chore.dueDate.split('T')[0]}</p>}
-      {chore.rewardAmount && <p style={{ fontSize: '0.9em' }}>Reward: ${chore.rewardAmount.toFixed(2)}</p>}
+      <h4>{definition.title}</h4>
+      {definition.description && <p style={{ fontSize: '0.9em', color: '#555' }}>{definition.description}</p>}
+
+      {/* Display instanceDate as the effective due date for this instance */}
+      <p style={{ fontSize: '0.9em' }}>Due: {instance.instanceDate}</p>
+
+      {definition.rewardAmount && definition.rewardAmount > 0 && <p style={{ fontSize: '0.9em' }}>Reward: ${definition.rewardAmount.toFixed(2)}</p>}
 
       {recurrenceInfo && <p style={{ fontStyle: 'italic', fontSize: '0.8em', color: '#777' }}>{recurrenceInfo}</p>}
 
-      <p style={{ fontSize: '0.9em' }}>Status: {chore.isComplete ? 'Complete' : 'Incomplete'}</p>
+      <p style={{ fontSize: '0.9em' }}>Status: {instance.isComplete ? 'Complete' : 'Incomplete'}</p>
       <button
-        onClick={() => toggleChoreComplete(chore.id)}
+        onClick={() => toggleChoreInstanceComplete(instance.id)} // Use instance.id
         style={{ padding: '5px 10px', fontSize: '0.9em', cursor: 'pointer' }}>
-        {chore.isComplete ? 'Mark Incomplete' : 'Mark Complete'}
+        {instance.isComplete ? 'Mark Incomplete' : 'Mark Complete'}
       </button>
     </div>
   );
