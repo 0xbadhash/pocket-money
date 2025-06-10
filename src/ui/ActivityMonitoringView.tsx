@@ -1,5 +1,5 @@
 // src/ui/ActivityMonitoringView.tsx
-import React, { useState, useMemo } from 'react'; // Import useMemo
+import { useState, useMemo } from 'react'; // Import useMemo
 import ActivityFilters from './activity_monitoring_components/ActivityFilters';
 import ActivityChart from './activity_monitoring_components/ActivityChart';
 import DetailedTransactionList from './activity_monitoring_components/DetailedTransactionList';

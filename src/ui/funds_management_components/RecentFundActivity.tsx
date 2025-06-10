@@ -1,5 +1,5 @@
 // src/ui/funds_management_components/RecentFundActivity.tsx
-import React, { useContext } from 'react'; // Import useContext
+import { useContext } from 'react'; // Import useContext
 import { useFinancialContext } from '../../contexts/FinancialContext';
 import { UserContext } from '../../contexts/UserContext'; // Import UserContext
 

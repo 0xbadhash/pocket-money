@@ -1,17 +1,21 @@
 // jest.config.js
 export default {
-  preset: 'ts-jest',
+  preset: 'ts-jest', // Reverted to standard ts-jest preset
   testEnvironment: 'jest-environment-jsdom',
-  setupFilesAfterEnv: ['@testing-library/jest-dom'],
+  setupFilesAfterEnv: ['./jest.setup.ts'], // Point to the new setup file (now .ts)
   moduleNameMapper: {
     '\.(css|less|scss|sass)$': 'identity-obj-proxy',
     '\.(gif|ttf|eot|svg|png)$': '<rootDir>/__mocks__/fileMock.js',
   },
   transform: {
-    '^.+\.tsx?$': ['ts-jest', {
-      tsconfig: 'tsconfig.json',
+    '^.+\\.tsx?$': ['ts-jest', { // Standard transform for .ts/.tsx files
+      tsconfig: 'tsconfig.jest.json', // Use dedicated tsconfig for Jest
+      diagnostics: {
+        ignoreCodes: ['TS6133'], // Ignore 'React' is declared but its value is never read.
+      },
     }],
   },
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'], // Reverted
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
