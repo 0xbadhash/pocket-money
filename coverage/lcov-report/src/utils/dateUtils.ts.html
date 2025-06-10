@@ -23,9 +23,9 @@
         <div class='clearfix'>
 
             <div class='fl pad1y space-right2'>
-                <span class="strong">50% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>14/28</span>
+                <span class='fraction'>0/28</span>
             </div>
 
 
@@ -37,16 +37,16 @@
 
 
             <div class='fl pad1y space-right2'>
-                <span class="strong">50% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>2/4</span>
+                <span class='fraction'>0/4</span>
             </div>
 
 
             <div class='fl pad1y space-right2'>
-                <span class="strong">41.66% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>10/24</span>
+                <span class='fraction'>0/24</span>
             </div>
 
 
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line high'></div>
+    <div class='status-line low'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -97,45 +97,45 @@
 <a name='L32'></a><a href='#L32'>32</a>
 <a name='L33'></a><a href='#L33'>33</a>
 <a name='L34'></a><a href='#L34'>34</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">// src/utils/dateUtils.ts
-export const getTodayDateString = (): string =&gt; {
-  const today = new Date();
-  return today.toISOString().split('T')[0]; // YYYY-MM-DD
+export const <span class="cstat-no" title="statement not covered" >getTodayDateString = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(</span>): string =</span>&gt; {</span>
+  const today = <span class="cstat-no" title="statement not covered" >new Date();</span>
+<span class="cstat-no" title="statement not covered" >  return today.toISOString().split('T')[0]; </span>// YYYY-MM-DD
 };
 &nbsp;
-export const getWeekRange = <span class="fstat-no" title="function not covered" >(d</span>ate: Date): { start: Date, end: Date } =&gt; {
+export const <span class="cstat-no" title="statement not covered" >getWeekRange = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(</span>d</span>ate: Date): { start: Date, end: Date } =&gt; {</span>
   const start = <span class="cstat-no" title="statement not covered" >new Date(date);</span>
   const dayOfWeek = <span class="cstat-no" title="statement not covered" >start.getDay();</span> // 0 (Sun) - 6 (Sat)
   const diffToMonday = <span class="cstat-no" title="statement not covered" >dayOfWeek === 0 ? -6 : 1 - dayOfWeek;</span> // Adjust if Sunday to get to Monday
@@ -148,7 +148,7 @@ export const getWeekRange = <span class="fstat-no" title="function not covered" 
 <span class="cstat-no" title="statement not covered" >  return { start, end };</span>
 };
 &nbsp;
-export const getMonthRange = <span class="fstat-no" title="function not covered" >(d</span>ate: Date): { start: Date, end: Date } =&gt; {
+export const <span class="cstat-no" title="statement not covered" >getMonthRange = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(</span>d</span>ate: Date): { start: Date, end: Date } =&gt; {</span>
   const start = <span class="cstat-no" title="statement not covered" >new Date(date.getFullYear(), date.getMonth(), 1);</span>
 <span class="cstat-no" title="statement not covered" >  start.setHours(0, 0, 0, 0);</span>
   const end = <span class="cstat-no" title="statement not covered" >new Date(date.getFullYear(), date.getMonth() + 1, 0);</span> // 0 day of next month gives last day of current
@@ -156,11 +156,11 @@ export const getMonthRange = <span class="fstat-no" title="function not covered"
 <span class="cstat-no" title="statement not covered" >  return { start, end };</span>
 };
 &nbsp;
-export const isDateInFuture = (dateString: string): boolean =&gt; {
- const today = new Date();
- today.setHours(0,0,0,0);
- const date = new Date(dateString);
- return date &gt;= today;
+export const <span class="cstat-no" title="statement not covered" >isDateInFuture = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(</span>d</span>ateString: string): boolean =&gt; {</span>
+ const today = <span class="cstat-no" title="statement not covered" >new Date();</span>
+<span class="cstat-no" title="statement not covered" > today.setHours(0,0,0,0);</span>
+ const date = <span class="cstat-no" title="statement not covered" >new Date(dateString);</span>
+<span class="cstat-no" title="statement not covered" > return date &gt;= today;</span>
 }
 &nbsp;</pre></td></tr></table></pre>
 
@@ -169,7 +169,7 @@ export const isDateInFuture = (dateString: string): boolean =&gt; {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-06-10T13:44:12.076Z
+                at 2025-06-10T14:31:10.350Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

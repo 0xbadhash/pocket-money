@@ -5,7 +5,7 @@ import { useFinancialContext } from '../contexts/FinancialContext';
 import { generateChoreInstances } from '../utils/choreUtils';
 
 // Define the shape of the context value - MODIFIED
-interface ChoresContextType {
+export interface ChoresContextType { // Added export
   choreDefinitions: ChoreDefinition[];
   choreInstances: ChoreInstance[];
   addChoreDefinition: (choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete'>) => void;
