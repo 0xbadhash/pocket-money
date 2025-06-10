@@ -36,6 +36,47 @@ This document tracks the status, priority, and progress of key features and task
 
 ---
 
+## Potential Independent Frontend Development Tasks
+
+This section lists features or parts of features that could potentially be developed in parallel by different team members with minimal overlap, assuming necessary data is mocked.
+
+1.  **Kid App UI Shells (Task 3.2):**
+    *   Description: Develop initial UI mockups, basic navigation, and component structure for the kid-facing application.
+    *   Focus: New components and views, separate from the parent app initially.
+    *   Status: Planned
+
+2.  **"Money Missions" UI (Tasks 4.1, 4.2):**
+    *   Description: Design and implement UI components for displaying financial education content like "Money Missions," including video placeholders and quiz interfaces.
+    *   Focus: Content presentation layer.
+    *   Status: Planned
+
+3.  **Spending Limits UI (Task 5.1):**
+    *   Description: Create UI elements within the parent app (e.g., KidDetailView or Settings) for setting and viewing flexible spending limits.
+    *   Focus: Forms and display elements for parental controls.
+    *   Status: Planned
+
+4.  **Recurring Pocket Money UI (Task 5.4):**
+    *   Description: Build UI components for parents to set up and manage recurring allowance schedules.
+    *   Focus: Forms and display elements in Settings or Funds Management.
+    *   Status: Planned
+
+5.  **Kid's Goal Setting UI (Tasks 6.1, 6.2):**
+    *   Description: (If Kid App UI is initiated) Develop the interface for kids to create, visualize, and track progress towards their savings goals.
+    *   Focus: Interactive UI elements within the Kid App.
+    *   Status: Planned
+
+6.  **ActivityChart.tsx Visualization (Part of Task 3.1):**
+    *   Description: Implement actual chart rendering (e.g., using a simple SVG chart or a lightweight library if approved) in `ActivityChart.tsx` to replace the placeholder.
+    *   Focus: Specific component enhancement.
+    *   Status: Planned
+
+7.  **Dashboard Placeholders - Dynamic Data/Actions (Part of Task 3.1):**
+    *   Description: Update `RecentActivityFeed.tsx` and `QuickActions.tsx` with more dynamic (though potentially still mocked) data and placeholder navigation/actions.
+    *   Focus: Enhancing existing dashboard components.
+    *   Status: Planned
+
+---
+
 ## Phase 1: Foundation & Core Functionality
 ### Task 1.1: Prepaid Debit Card Solution (Physical & Virtual)
 *Led by Google Pay/Wallet Team*
