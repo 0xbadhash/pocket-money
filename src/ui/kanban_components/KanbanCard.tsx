@@ -8,9 +8,9 @@ interface KanbanCardProps { // Updated props
   definition: ChoreDefinition;
 }
 
-const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition }) => { // Updated destructuring
+const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition }) => {
   // Destructure the correct function name from context
-  const { toggleChoreInstanceComplete } = useChoresContext();
+  const { toggleChoreInstanceComplete, toggleSubTaskComplete } = useChoresContext(); // Added toggleSubTaskComplete
 
   // This function still operates on definition as recurrence is defined there
   const formatRecurrenceInfoShort = (def: ChoreDefinition): string | null => {
@@ -42,6 +42,44 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition }) => { //
            backgroundColor: instance.isComplete ? '#e6ffe6' : '#fff'
          }}>
       <h4>{definition.title}</h4>
+
+      {/* Progress Indicator */}
+      {definition.subTasks && definition.subTasks.length > 0 && (() => {
+        const completedCount = definition.subTasks.filter(st => st.isComplete).length;
+        const progressPercent = (definition.subTasks.length > 0) ? (completedCount / definition.subTasks.length) * 100 : 0;
+
+        return (
+          <div className="progress-indicator-container" style={{ margin: '8px 0' }}>
+            <div
+              className="progress-bar-outline"
+              title={`Progress: ${Math.round(progressPercent)}% (${completedCount}/${definition.subTasks.length})`}
+              style={{
+                backgroundColor: 'var(--surface-color-hover, #e9ecef)',
+                borderRadius: '4px',
+                padding: '2px',
+                height: '12px', // Height of the outline includes padding
+                boxSizing: 'border-box'
+              }}
+            >
+              <div
+                className="progress-bar-fill"
+                style={{
+                  width: `${progressPercent}%`,
+                  height: '100%', // Fill the padded height of outline
+                  backgroundColor: 'var(--success-color, #28a745)',
+                  borderRadius: '2px',
+                  transition: 'width 0.3s ease-in-out' // Smooth transition for width change
+                }}
+              />
+            </div>
+            {/* Optional: Text percentage - can be added if desired */}
+            {/* <span style={{ fontSize: '0.75em', marginLeft: '5px', color: 'var(--text-color-secondary)' }}>
+              {Math.round(progressPercent)}%
+            </span> */}
+          </div>
+        );
+      })()}
+
       {definition.description && <p style={{ fontSize: '0.9em', color: '#555' }}>{definition.description}</p>}
 
       {/* Display instanceDate as the effective due date for this instance */}
@@ -67,6 +105,39 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition }) => { //
             >
               {tag}
             </span>
+          ))}
+        </div>
+      )}
+
+      {/* Display Sub-tasks */}
+      {definition.subTasks && definition.subTasks.length > 0 && (
+        <div className="sub-tasks-list" style={{ marginTop: '10px', borderTop: '1px solid #eee', paddingTop: '8px' }}>
+          <h5 style={{ fontSize: '0.9em', marginBottom: '5px', color: '#666', marginTop: '0' }}>Sub-tasks:</h5>
+          {definition.subTasks.map(subTask => (
+            <div
+              key={subTask.id}
+              className="sub-task"
+              style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}
+            >
+              <input
+                type="checkbox"
+                id={`subtask-${definition.id}-${subTask.id}`}
+                checked={subTask.isComplete}
+                onChange={() => toggleSubTaskComplete(definition.id, subTask.id)}
+                style={{ marginRight: '8px', cursor: 'pointer' }}
+              />
+              <label
+                htmlFor={`subtask-${definition.id}-${subTask.id}`}
+                style={{
+                  fontSize: '0.85em',
+                  textDecoration: subTask.isComplete ? 'line-through' : 'none',
+                  color: subTask.isComplete ? 'var(--text-color-secondary, #555)' : 'var(--text-color, #333)',
+                  cursor: 'pointer'
+                }}
+              >
+                {subTask.title}
+              </label>
+            </div>
           ))}
         </div>
       )}

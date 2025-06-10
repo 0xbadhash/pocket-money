@@ -258,6 +258,7 @@ button:focus-visible {
 /* Kanban Column Theme Styles */
 
 /* Default theme relies on existing .kanban-column styles for background
+<<<<<<< HEAD
     and h3 styles, but we can be explicit if needed or if those defaults change.
     The .kanban-column class already sets:
     background-color: var(--surface-color-secondary, #f0f0f0);
@@ -265,6 +266,15 @@ button:focus-visible {
     color: var(--text-color-strong);
     So, .kanban-column-theme-default might not need explicit rules if these are sufficient.
     For clarity, we can add them.
+=======
+   and h3 styles, but we can be explicit if needed or if those defaults change.
+   The .kanban-column class already sets:
+   background-color: var(--surface-color-secondary, #f0f0f0);
+   And its h3 child has:
+   color: var(--text-color-strong);
+   So, .kanban-column-theme-default might not need explicit rules if these are sufficient.
+   For clarity, we can add them.
+>>>>>>> dc0fa03e3ba2becad1e82c7d2a0cd939732cb3d1
 */
 
 .kanban-column-theme-default {
@@ -293,4 +303,69 @@ button:focus-visible {
 
 /* Ensure column titles have enough contrast with new backgrounds. */
 /* Card backgrounds (.kanban-card) are white by default (unless complete),
+<<<<<<< HEAD
     which should generally provide good contrast with these column backgrounds. */
+=======
+   which should generally provide good contrast with these column backgrounds. */
+
+/* Sub-tasks and Progress Indicator Styles for Kanban Card */
+.sub-tasks-list {
+  margin-top: 12px; /* Slightly more margin */
+  /* border-top: 1px solid var(--border-color, #ddd); */ /* Using main border-color */
+  padding-top: 10px; /* Slightly more padding */
+}
+
+.sub-tasks-list h5 {
+  font-size: 0.9em;
+  margin-top: 0;
+  margin-bottom: 8px; /* More space after heading */
+  color: var(--text-color-secondary, #555);
+  font-weight: 600;
+}
+
+.sub-task {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+  padding: 3px 0;
+}
+
+.sub-task input[type="checkbox"] {
+  margin-right: 10px; /* More space next to checkbox */
+  margin-left: 2px; /* Align with list items slightly */
+  cursor: pointer;
+  transform: scale(0.95); /* Adjust size */
+  /* Consider using accent-color for themed checkboxes if supported and desired */
+  /* accent-color: var(--primary-color); */
+}
+
+.sub-task label {
+  font-size: 0.9em; /* Slightly larger for readability */
+  cursor: pointer;
+  flex-grow: 1;
+  /* text-decoration and color are handled by inline styles in KanbanCard.tsx */
+}
+
+/* Progress Indicator Styles */
+.progress-indicator-container {
+  margin: 10px 0 12px 0; /* Adjusted margin */
+}
+
+.progress-bar-outline {
+  background-color: var(--surface-color-hover, #e9ecef);
+  border-radius: var(--border-radius-sm, 4px);
+  padding: 2px;
+  height: 14px; /* Slightly taller */
+  box-sizing: border-box;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.075);
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background-color: var(--success-color, #28a745);
+  /* For better contrast on some themes, consider a border for the fill if it's light */
+  /* border: 1px solid var(--success-color-darker, #1e7e34); */
+  border-radius: var(--border-radius-xs, 2px); /* Keep slightly smaller for inset look */
+  transition: width 0.3s ease-in-out;
+}
+>>>>>>> dc0fa03e3ba2becad1e82c7d2a0cd939732cb3d1

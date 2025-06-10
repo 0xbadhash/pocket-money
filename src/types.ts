@@ -3,36 +3,20 @@
 // Re-export Transaction type directly from FinancialContext
 export { type Transaction } from './contexts/FinancialContext';
 
-// --- User Types ---
-
-export enum UserRole {
-  PARENT = 'parent',
-  KID = 'kid',
-  ADMIN = 'admin',
-}
-
-export interface BaseUser {
+export interface Kid {
   id: string;
-  email: string; // Email is part of the base user for consistency
   name: string;
-  role: UserRole;
-  createdAt: Date;
-  updatedAt: Date;
+  age?: number;
+  // Add other kid-specific fields here if needed later
 }
 
-export interface KidUser extends BaseUser {
-  role: UserRole.KID;
-  age: number;
-  parentAccountId: string; // Link to the parent user
-  spendingLimits?: { // Optional object for spending limits
-    daily?: number;
-    weekly?: number;
-    monthly?: number;
-    perTransaction?: number;
-  };
-  blockedCategories?: string[]; // Optional array of blocked category names/IDs
+export interface SubTask {
+  id: string;          // Unique ID for the sub-task (e.g., generated on client-side)
+  title: string;
+  isComplete: boolean;
 }
 
+<<<<<<< HEAD
 export interface ParentUser extends BaseUser {
   role: UserRole.PARENT;
   kids: KidUser[]; // Array of associated kid accounts
@@ -64,10 +48,14 @@ export type RecurrenceSetting =
 
 // Chore Definition: Represents the template for a chore, including its recurrence pattern.
 // This is the source of truth for chore properties, designed for recurring and one-time chores.
+=======
+// Renamed from Chore
+>>>>>>> dc0fa03e3ba2becad1e82c7d2a0cd939732cb3d1
 export interface ChoreDefinition {
   id: string; // Unique ID for the chore definition
   title: string;
   description?: string;
+<<<<<<< HEAD
   assignedKidId?: string; // Optional: ID of the kid assigned to this chore definition
 
   // For non-recurring chores, this is the exact due date.
@@ -99,21 +87,46 @@ export interface ChoreInstance {
   // Key details copied from ChoreDefinition for easier access on the instance,
   // preventing constant lookups to the definition for basic display.
   title: string;
+=======
+>>>>>>> dc0fa03e3ba2becad1e82c7d2a0cd939732cb3d1
   assignedKidId?: string;
+  // For non-recurring, this is the due date.
+  // For recurring, this is the START date of recurrence.
+  dueDate?: string;
   rewardAmount?: number;
+  // isComplete for a definition might mean "archived" or "template no longer active"
+  isComplete: boolean;
+  recurrenceType?: 'daily' | 'weekly' | 'monthly' | null; // 'none' can be represented by null
+  // For weekly: 0 (Sun) to 6 (Sat). For monthly: 1 to 31.
+  recurrenceDay?: number | null;
+  recurrenceEndDate?: string | null; // Date after which no more instances are generated
+  tags?: string[]; // New field for tags
+  subTasks?: SubTask[]; // New field for sub-tasks
 }
 
----
+export interface ChoreInstance {
+  id: string; // Unique ID for this specific instance (e.g., choreDefId + '_' + instanceDate)
+  choreDefinitionId: string;
+  instanceDate: string; // The specific date this instance is due (YYYY-MM-DD)
+  isComplete: boolean;
+  // Optional: if reward is snapshotted per instance or can vary
+  // rewardAmount?: number;
+}
 
-## Kanban-Specific Types
-
+// Keep existing Kanban types for now, they might need adjustment later
+// if they directly reference 'Chore' which is now 'ChoreDefinition'
 export type KanbanPeriod = 'daily' | 'weekly' | 'monthly';
 
 export interface KanbanColumn {
   id: string;
   title: string;
+<<<<<<< HEAD
   // Columns now hold ChoreInstance objects, representing specific chores for a given period.
   chores: ChoreInstance[];
+=======
+  // This will eventually hold ChoreInstance[]
+  chores: ChoreInstance[]; // MODIFIED: Was Chore[], now ChoreInstance[]
+>>>>>>> dc0fa03e3ba2becad1e82c7d2a0cd939732cb3d1
 }
 
 export interface KidKanbanConfig {
@@ -122,6 +135,7 @@ export interface KidKanbanConfig {
   columns: KanbanColumn[];
 }
 
+<<<<<<< HEAD
 ---
 
 ## Deprecated Kid Interface
@@ -136,3 +150,6 @@ export interface Kid {
   name: string;
   // Add other properties if Kid is still used in any temporary context
 }
+=======
+export type ColumnThemeOption = 'default' | 'pastel' | 'ocean';
+>>>>>>> dc0fa03e3ba2becad1e82c7d2a0cd939732cb3d1

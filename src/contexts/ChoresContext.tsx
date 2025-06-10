@@ -1,8 +1,8 @@
 // src/contexts/ChoresContext.tsx
-import React, { createContext, useState, ReactNode, useContext, useEffect } from 'react'; // Added useEffect
-import type { ChoreDefinition, ChoreInstance } from '../types';
+import React, { createContext, useState, ReactNode, useContext, useEffect } from 'react';
+import type { ChoreDefinition, ChoreInstance } from '../types'; // Removed redundant SubTask import, as it should be part of ChoreDefinition now
 import { useFinancialContext } from '../contexts/FinancialContext';
-import { generateChoreInstances } from '../utils/choreUtils'; // NEW IMPORT
+import { generateChoreInstances } from '../utils/choreUtils';
 
 // Define the storage key for chore definitions
 const CHORE_DEFINITIONS_STORAGE_KEY = 'familyTaskManagerChoreDefinitions';
@@ -16,6 +16,7 @@ interface ChoresContextType {
   toggleChoreInstanceComplete: (instanceId: string) => void;
   getChoreDefinitionsForKid: (kidId: string) => ChoreDefinition[];
   generateInstancesForPeriod: (startDate: string, endDate: string) => void;
+  toggleSubTaskComplete: (choreDefinitionId: string, subTaskId: string) => void; // Include NEW subTask function
 }
 
 // Create the context
@@ -36,7 +37,7 @@ interface ChoresProviderProps {
 }
 
 export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
-  // State for chore definitions, loaded from localStorage
+  // State for chore definitions, loaded from localStorage with initial dummy data if empty
   const [choreDefinitions, setChoreDefinitions] = useState<ChoreDefinition[]>(() => {
     try {
       const storedDefs = window.localStorage.getItem(CHORE_DEFINITIONS_STORAGE_KEY);
@@ -50,34 +51,48 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('Error parsing chore definitions from localStorage:', error);
     }
-    // Default initial definitions if nothing in storage or parsing fails
+    // Default initial definitions if nothing in storage or parsing fails - Merged from both, ensuring subtasks
     return [
       {
         id: 'cd1', title: 'Clean Room (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
         rewardAmount: 1, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: '2023-12-05',
-        tags: ['cleaning', 'indoor']
+        tags: ['cleaning', 'indoor'],
+        subTasks: [ // Included from feature branch
+          { id: 'st1_1', title: 'Make bed', isComplete: false },
+          { id: 'st1_2', title: 'Tidy desk', isComplete: false },
+          { id: 'st1_3', title: 'Vacuum floor', isComplete: false }
+        ]
       },
       {
         id: 'cd2', title: 'Walk the Dog (Weekly Sat)', assignedKidId: 'kid_b', dueDate: '2023-12-02',
         rewardAmount: 3, isComplete: false, recurrenceType: 'weekly', recurrenceDay: 6, // Saturday
         recurrenceEndDate: '2023-12-31',
-        tags: ['outdoor', 'pet care', 'morning']
+        tags: ['outdoor', 'pet care', 'morning'],
+        subTasks: [ // Included from feature branch
+          { id: 'st2_1', title: 'Leash and harness', isComplete: false },
+          { id: 'st2_2', title: 'Walk for 30 mins', isComplete: false },
+        ]
       },
       {
         id: 'cd3', title: 'Do Homework (One-off)', assignedKidId: 'kid_a', dueDate: '2023-12-15',
         rewardAmount: 2, isComplete: false, recurrenceType: 'one-time'
-        // No tags for this one
+        // No tags or subtasks for this one
       },
       {
         id: 'cd4', title: 'Take out trash (Monthly 15th)', description: 'Before evening', rewardAmount: 1.5,
         assignedKidId: 'kid_a', dueDate: '2023-12-01', isComplete: false, recurrenceType: 'monthly', recurrenceDay: 15,
         recurrenceEndDate: '2024-02-01',
         tags: ['household', 'evening']
+        // No subtasks
       },
       {
         id: 'cd5', title: 'Feed Cat (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
-        rewardAmount: 0.5, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: null
-        // No tags for this one, but could add e.g. ['pet care', 'routine']
+        rewardAmount: 0.5, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: null,
+        subTasks: [ // Included from feature branch
+          { id: 'st5_1', title: 'Clean bowl', isComplete: false },
+          { id: 'st5_2', title: 'Fill with food', isComplete: false },
+          { id: 'st5_3', title: 'Check water', isComplete: true }, // Example pre-completed
+        ]
       }
     ];
   });
@@ -117,7 +132,6 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       console.error('Error saving chore instances to localStorage:', error);
     }
   }, [choreInstances]);
-
 
   const addChoreDefinition = (choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete'>) => {
     const newChoreDef: ChoreDefinition = {
@@ -190,6 +204,24 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     });
   };
 
+  const toggleSubTaskComplete = (choreDefinitionId: string, subTaskId: string) => {
+    setChoreDefinitions(prevDefs =>
+      prevDefs.map(def => {
+        if (def.id === choreDefinitionId) {
+          // Ensure subTasks array exists before mapping
+          const updatedSubTasks = def.subTasks?.map(st => {
+            if (st.id === subTaskId) {
+              return { ...st, isComplete: !st.isComplete };
+            }
+            return st;
+          });
+          return { ...def, subTasks: updatedSubTasks };
+        }
+        return def;
+      })
+    );
+  };
+
   return (
     <ChoresContext.Provider value={{
       choreDefinitions,
@@ -197,7 +229,8 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       addChoreDefinition,
       toggleChoreInstanceComplete,
       getChoreDefinitionsForKid,
-      generateInstancesForPeriod
+      generateInstancesForPeriod,
+      toggleSubTaskComplete // Add new function to provider
     }}>
       {children}
     </ChoresContext.Provider>

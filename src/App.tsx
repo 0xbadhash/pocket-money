@@ -1,83 +1,72 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'; // Keep BrowserRouter and routing components
-import { UserProvider, useUser } from './contexts/UserContext';
-import { FinancialProvider } from './contexts/FinancialContext';
-import { ChoresProvider } from './contexts/ChoresContext';
-
-// Import Views
+// src/App.tsx
+import { useState, useEffect } from 'react'; // Import useState, useEffect
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import DashboardView from './ui/DashboardView';
 import FundsManagementView from './ui/FundsManagementView';
 import SettingsView from './ui/SettingsView';
 import ActivityMonitoringView from './ui/ActivityMonitoringView';
 import KidDetailView from './ui/KidDetailView';
 import ChoreManagementView from './ui/ChoreManagementView';
-import LoginView from './ui/LoginView';
-import AccountCreationView from './ui/AccountCreationView';
-import AdminDashboardView from './ui/AdminDashboardView';
-import NavigationBar from './ui/components/NavigationBar'; // Keep the external NavigationBar
-import KanbanView from './ui/KanbanView'; // Assuming KanbanView will be added/used as per Kanban branch
+import KanbanView from './ui/KanbanView';
+import { UserProvider } from './contexts/UserContext';
+import { FinancialProvider } from './contexts/FinancialContext';
+import { ChoresProvider } from './contexts/ChoresContext';
 
-const AppContent: React.FC = () => {
-  const { currentUser, loading: userLoading } = useUser();
-  const [theme, setTheme] = useState('light');
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
+function App() {
+  const [theme, setTheme] = useState('light'); // Default theme
 
   const toggleTheme = () => {
     setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
   };
 
-  // Render a loading state while UserContext is loading (e.g., checking localStorage)
-  if (userLoading) {
-    return <div style={{textAlign: 'center', marginTop: '50px'}}>Loading application...</div>;
-  }
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   return (
-    <> {/* Using React Fragment as AppContent is wrapped by BrowserRouter outside */}
-      {/* Navigation Bar will be rendered here. It needs to use <Link> components. */}
-      <NavigationBar toggleTheme={toggleTheme} currentTheme={theme} currentUser={currentUser} />
-
-      <div style={{ padding: 'var(--spacing-md)' }}> {/* Added padding around content area */}
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/login" element={<LoginView />} />
-          <Route path="/register" element={<AccountCreationView />} />
-          {/* Default to dashboard if logged in, else login */}
-          <Route path="/" element={currentUser ? <DashboardView /> : <LoginView />} /> 
-
-          {/* Protected Routes - These should ideally have proper route guards or be rendered conditionally */}
-          {/* For now, we'll let components handle their own redirects if unauthorized */}
-          <Route path="/dashboard" element={<DashboardView />} />
-          <Route path="/funds" element={<FundsManagementView />} />
-          <Route path="/settings" element={<SettingsView />} />
-          <Route path="/activity" element={<ActivityMonitoringView />} />
-          <Route path="/chores" element={<ChoreManagementView />} />
-          <Route path="/kanban" element={<KanbanView />} /> {/* Added KanbanView route */}
-
-          {/* Admin Route - Simple check here, a proper guard is recommended */}
-          <Route path="/admin" element={currentUser?.role === 'admin' ? <AdminDashboardView /> : <DashboardView />} />
-
-          {/* Kid Detail View - Example of a route with a parameter */}
-          <Route path="/kid/:kidId" element={<KidDetailView />} />
-
-          {/* Catch-all route for unmatched paths (redirect to dashboard or login) */}
-          <Route path="*" element={currentUser ? <DashboardView /> : <LoginView />} />
-        </Routes>
-      </div>
-    </>
-  );
-};
-
-// App component now just sets up providers and BrowserRouter
-const App: React.FC = () => {
-  return (
-    <BrowserRouter> {/* BrowserRouter wraps the entire application */}
+    <BrowserRouter>
       <UserProvider>
         <FinancialProvider>
           <ChoresProvider>
-            <AppContent />
+            <div>
+              <nav style={{
+                marginBottom: 'var(--spacing-md)', /* Using CSS var */
+                background: 'var(--surface-color-hover)', /* Using CSS var */
+                padding: 'var(--spacing-sm) var(--spacing-md)', /* Using CSS var */
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                borderBottom: 'var(--border-width) solid var(--border-color)' /* Adding a bottom border */
+              }}>
+                <ul style={{ listStyleType: 'none', padding: 0, margin: 0, display: 'flex', gap: 'var(--spacing-md)' /* Using CSS var */ }}>
+                  <li><Link to="/">Dashboard</Link></li>
+                  <li><Link to="/funds">Funds Management</Link></li>
+                  <li><Link to="/settings">Settings</Link></li>
+                  <li><Link to="/activity">Activity Monitoring</Link></li>
+                  <li><Link to="/chores">Chores</Link></li>
+                  <li><Link to="/kanban">Kanban Board</Link></li>
+                </ul>
+                <button
+                  onClick={toggleTheme}
+                  className="theme-toggle-button"
+                >
+                  Switch to {theme === 'light' ? 'Dark' : 'Light'} Mode
+                </button>
+              </nav>
+
+              {/* Removed <hr /> as nav now has a borderBottom */}
+
+              <Routes>
+                <Route path="/" element={<DashboardView />} />
+                <Route path="/funds" element={<FundsManagementView />} />
+                <Route path="/settings" element={<SettingsView />} />
+                <Route path="/activity" element={<ActivityMonitoringView />} />
+                <Route path="/kid/:kidId" element={<KidDetailView />} />
+                <Route path="/chores" element={<ChoreManagementView />} />
+                <Route path="/kanban" element={<KanbanView />} />
+                <Route path="*" element={<DashboardView />} />
+              </Routes>
+            </div>
           </ChoresProvider>
         </FinancialProvider>
       </UserProvider>

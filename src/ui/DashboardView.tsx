@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // src/ui/DashboardView.tsx
 import React, { useState, useEffect } from 'react';
 import { useUser } from '../contexts/UserContext';
@@ -214,6 +215,28 @@ const DashboardView: React.FC = () => {
               <button style={buttonStyle}>Go to Kanban Board</button>
           </Link>
       </div>
+=======
+// /tmp/vite_init_area/temp_pocket_money_app/src/ui/DashboardView.tsx
+import TotalFundsSummary from './dashboard_components/TotalFundsSummary';
+import QuickActions from './dashboard_components/QuickActions';
+import RecentActivityFeed from './dashboard_components/RecentActivityFeed';
+
+const DashboardView = () => {
+  return (
+    <div className="dashboard-view">
+      <header className="dashboard-header">
+        <h1>Parent Dashboard</h1>
+      </header>
+      <section className="dashboard-summary">
+        <TotalFundsSummary />
+      </section>
+      <section className="dashboard-quick-actions">
+        <QuickActions />
+      </section>
+      <section className="dashboard-activity-feed">
+        <RecentActivityFeed />
+      </section>
+>>>>>>> dc0fa03e3ba2becad1e82c7d2a0cd939732cb3d1
     </div>
   );
 };
