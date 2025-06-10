@@ -1,74 +1,43 @@
-import React, { useState, useEffect } from 'react';
+// src/App.tsx
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import DashboardView from './ui/DashboardView';
 import FundsManagementView from './ui/FundsManagementView';
 import SettingsView from './ui/SettingsView';
-import ActivityMonitoringView from './ui/ActivityMonitoringView';
-import KidDetailView from './ui/KidDetailView';
-import ChoreManagementView from './ui/ChoreManagementView';
-import KanbanView from './ui/KanbanView';
-import { UserProvider } from './contexts/UserContext';
-import { FinancialProvider } from './contexts/FinancialContext';
-import { ChoresProvider } from './contexts/ChoresContext';
+import { ChoresProvider } from './contexts/ChoresContext'; // Import ChoresProvider
+// We'll import styles globally in main.tsx, but if App.css specific styles were needed:
+// import './App.css'; // Assuming Vite's default App.css is present or created
 
 function App() {
-  const [theme, setTheme] = useState('light'); // Default theme
-
-  const toggleTheme = () => {
-    setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
-  };
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
-
   return (
-    <BrowserRouter>
-      {/* All providers from 'main' are included, with ChoresProvider as the innermost */}
-      <UserProvider>
-        <FinancialProvider>
-          <ChoresProvider> {/* Wrap the application with ChoresProvider */}
-            <div>
-              <nav style={{
-                marginBottom: 'var(--spacing-md)', /* Using CSS var */
-                background: 'var(--surface-color-hover)', /* Using CSS var */
-                padding: 'var(--spacing-sm) var(--spacing-md)', /* Using CSS var */
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                borderBottom: 'var(--border-width) solid var(--border-color)' /* Adding a bottom border */
-              }}>
-                <ul style={{ listStyleType: 'none', padding: 0, margin: 0, display: 'flex', gap: 'var(--spacing-md)' /* Using CSS var */ }}>
-                  <li><Link to="/">Dashboard</Link></li>
-                  <li><Link to="/funds">Funds Management</Link></li>
-                  <li><Link to="/settings">Settings</Link></li>
-                  <li><Link to="/activity">Activity Monitoring</Link></li>
-                  <li><Link to="/chores">Chores</Link></li>
-                  <li><Link to="/kanban">Kanban Board</Link></li>
-                </ul>
-                <button
-                  onClick={toggleTheme}
-                  className="theme-toggle-button"
-                >
-                  Switch to {theme === 'light' ? 'Dark' : 'Light'} Mode
-                </button>
-              </nav>
+    <ChoresProvider> {/* Wrap the application with ChoresProvider */}
+      <BrowserRouter>
+      <div>
+        <nav style={{ marginBottom: '20px', background: '#eee', padding: '10px' }}>
+          <ul style={{ listStyleType: 'none', padding: 0, margin: 0, display: 'flex', gap: '15px' }}>
+            <li>
+              <Link to="/">Dashboard</Link>
+            </li>
+            <li>
+              <Link to="/funds">Funds Management</Link>
+            </li>
+            <li>
+              <Link to="/settings">Settings</Link>
+            </li>
+          </ul>
+        </nav>
 
-              <Routes>
-                <Route path="/" element={<DashboardView />} />
-                <Route path="/funds" element={<FundsManagementView />} />
-                <Route path="/settings" element={<SettingsView />} />
-                <Route path="/activity" element={<ActivityMonitoringView />} />
-                <Route path="/kid/:kidId" element={<KidDetailView />} />
-                <Route path="/chores" element={<ChoreManagementView />} />
-                <Route path="/kanban" element={<KanbanView />} />
-                <Route path="*" element={<DashboardView />} />
-              </Routes>
-            </div>
-          </ChoresProvider>
-        </FinancialProvider>
-      </UserProvider>
+        <hr />
+
+        <Routes>
+          <Route path="/" element={<DashboardView />} />
+          <Route path="/funds" element={<FundsManagementView />} />
+          <Route path="/settings" element={<SettingsView />} />
+          {/* Default route could be Dashboard or a dedicated NotFound component later */}
+          <Route path="*" element={<DashboardView />} />
+        </Routes>
+      </div>
     </BrowserRouter>
+    </ChoresProvider>
   );
 }
 

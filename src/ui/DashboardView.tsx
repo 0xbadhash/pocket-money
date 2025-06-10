@@ -23,6 +23,8 @@ const formatRecurrence = (recurrence: RecurrenceSetting): string => {
 const DashboardView: React.FC = () => {
   const { chores, toggleChore, deleteChore } = useChores();
   const [editingChore, setEditingChore] = useState<Chore | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [sortCriteria, setSortCriteria] = useState<string>("dueDate_desc"); // Default sort
 
   const handleEdit = (chore: Chore) => {
     setEditingChore(chore);
@@ -34,12 +36,80 @@ const DashboardView: React.FC = () => {
     }
   };
 
+  // NEW Filtering Logic
+  let processedChores = chores; // Start with all chores
+
+  if (filterStatus === 'completed') {
+    processedChores = processedChores.filter(chore => chore.isComplete);
+  } else if (filterStatus === 'incomplete') {
+    processedChores = processedChores.filter(chore => !chore.isComplete);
+  }
+  // If filterStatus is 'all', no filtering is done on status.
+
+  // NEW Sorting Logic
+  let choresToDisplay = [...processedChores]; // Create a mutable copy for sorting
+
+  switch (sortCriteria) {
+    case 'dueDate_desc':
+      choresToDisplay.sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime());
+      break;
+    case 'dueDate_asc':
+      choresToDisplay.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+      break;
+    case 'name_asc':
+      choresToDisplay.sort((a, b) => a.name.localeCompare(b.name));
+      break;
+    case 'name_desc':
+      choresToDisplay.sort((a, b) => b.name.localeCompare(a.name));
+      break;
+    default:
+      // No sorting or default sort if needed
+      break;
+  }
+
+  // NEW Upcoming/Due Today Summary Logic
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const tomorrowStart = new Date(todayStart);
+  tomorrowStart.setDate(todayStart.getDate() + 1);
+
+  const fourDaysFromTodayStart = new Date(todayStart);
+  fourDaysFromTodayStart.setDate(todayStart.getDate() + 4);
+
+  let dueTodayCount = 0;
+  let dueNext3DaysCount = 0;
+
+  // Iterate over the original 'chores' from context for this summary
+  chores.forEach(chore => {
+    if (!chore.isComplete) {
+      const choreDueDate = new Date(chore.dueDate + 'T00:00:00'); // Parse chore's due date as local
+
+      // Check for due today
+      if (choreDueDate.getTime() === todayStart.getTime()) {
+        dueTodayCount++;
+      }
+      // Check for due in the next 3 days (tomorrow, day after, day after that)
+      else if (choreDueDate >= tomorrowStart && choreDueDate < fourDaysFromTodayStart) {
+        dueNext3DaysCount++;
+      }
+    }
+  });
+
   return (
     // <div className="dashboard-view"> // Assuming top-level div is desired
     <div>
       {/* <header className="dashboard-header">
         <h1>Parent Dashboard</h1>
       </header> */}
+
+      {/* NEW Upcoming Chores Summary Section */}
+      <div style={{ padding: '10px 15px', marginBottom: '20px', background: '#f0f8ff', border: '1px solid #cce5ff', borderRadius: '5px' }}>
+        <h3 style={{ marginTop: 0, marginBottom: '10px', color: '#004085' }}>Chores Summary</h3>
+        <p style={{ margin: '5px 0' }}>Chores Due Today: <strong>{dueTodayCount}</strong></p>
+        <p style={{ margin: '5px 0' }}>Chores Due in Next 3 Days (excluding today): <strong>{dueNext3DaysCount}</strong></p>
+      </div>
+
       {/* <section className="dashboard-summary">
         <TotalFundsSummary />
       </section>
@@ -61,14 +131,70 @@ const DashboardView: React.FC = () => {
 
       <hr style={{ margin: '20px 0' }}/>
       <h3>Chore List</h3>
-      {chores.length === 0 ? (
-        <p>No chores yet. Add some!</p>
+
+      {/* NEW Filter and Sort Controls */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px', gap: '20px' }}>
+        <div>
+          <label htmlFor="filterStatus" style={{ marginRight: '5px' }}>Filter by status:</label>
+          <select
+            id="filterStatus"
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            style={{ padding: '5px' }}
+          >
+            <option value="all">All</option>
+            <option value="completed">Completed</option>
+            <option value="incomplete">Incomplete</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="sortCriteria" style={{ marginRight: '5px' }}>Sort by:</label>
+          <select
+            id="sortCriteria"
+            value={sortCriteria}
+            onChange={(e) => setSortCriteria(e.target.value)}
+            style={{ padding: '5px' }}
+          >
+            <option value="dueDate_desc">Due Date (Newest First)</option>
+            <option value="dueDate_asc">Due Date (Oldest First)</option>
+            <option value="name_asc">Name (A-Z)</option>
+            <option value="name_desc">Name (Z-A)</option>
+          </select>
+        </div>
+      </div>
+
+      {choresToDisplay.length === 0 ? ( // Use choresToDisplay
+        <p>No chores match the current filters.</p> // Message can be more dynamic
       ) : (
         <ul style={{ listStyleType: 'none', padding: 0 }}>
-          {chores.map(chore => (
-            <li key={chore.id} style={{ marginBottom: '15px', padding: '15px', border: '1px solid #eee', borderRadius: '5px', backgroundColor: chore.isComplete ? '#e6ffe6' : '#fff' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                <h4 style={{ margin: '0', flexGrow: 1 }}>{chore.name}</h4>
+          {choresToDisplay.map(chore => {
+            // NEW Overdue Check Logic
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Normalize today to the beginning of the day for accurate comparison
+            const dueDate = new Date(chore.dueDate + 'T00:00:00'); // Ensure dueDate is parsed as local
+            const isOverdue = !chore.isComplete && dueDate < today;
+
+            // Base style for all items (from previous steps)
+            let itemStyle: React.CSSProperties = {
+              marginBottom: '15px',
+              padding: '15px',
+              border: '1px solid #eee',
+              borderRadius: '5px',
+              backgroundColor: chore.isComplete ? '#e6ffe6' : '#fff'
+            };
+
+            if (isOverdue) {
+              itemStyle = {
+                ...itemStyle,
+                backgroundColor: '#ffdddd', // Light red background for overdue
+                borderColor: '#ffaaaa',   // Darker red border
+              };
+            }
+
+            return (
+              <li key={chore.id} style={itemStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <h4 style={{ margin: '0', flexGrow: 1 }}>{chore.name}</h4>
                 <input
                   type="checkbox"
                   checked={chore.isComplete}
@@ -88,7 +214,8 @@ const DashboardView: React.FC = () => {
                 <button onClick={() => handleDelete(chore.id)} style={{ padding: '5px 10px', fontSize: '0.9em', backgroundColor: '#dc3545', color: 'white', border: 'none' }}>Delete</button>
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
 

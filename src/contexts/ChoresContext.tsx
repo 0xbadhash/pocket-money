@@ -1,7 +1,7 @@
+// src/contexts/ChoresContext.tsx
 import React, { createContext, useState, useContext, ReactNode } from 'react';
 import { Chore, RecurrenceSetting } from '../types'; // Ensure RecurrenceSetting is imported
 import { v4 as uuidv4 } from 'uuid';
-import { useFinancialContext } from '../contexts/FinancialContext'; // Merged: Import FinancialContext
 
 // Helper function to add days to a date
 const addDays = (date: Date, days: number): Date => {
@@ -22,13 +22,14 @@ const addMonths = (date: Date, months: number): Date => {
   return result;
 };
 
+const CHORES_STORAGE_KEY = 'familyTaskManagerChores';
+
 interface ChoresContextType {
   chores: Chore[];
-  addChore: (name: string, description: string, recurrence: RecurrenceSetting, dueDate: string, assignedKidId?: string, rewardAmount?: number) => void; // Updated signature
+  addChore: (name: string, description: string, recurrence: RecurrenceSetting, dueDate: string) => void;
   toggleChore: (id: string) => void;
   deleteChore: (id: string) => void;
-  updateChore: (id: string, updates: Partial<Omit<Chore, 'id'>>) => void;
-  getChoresForKid: (kidId: string) => Chore[]; // Merged: Function to filter chores by kid
+  updateChore: (id: string, updates: Partial<Omit<Chore, 'id'>>) => void; // Added for next step
 }
 
 const ChoresContext = createContext<ChoresContextType | undefined>(undefined);
@@ -46,21 +47,41 @@ interface ChoresProviderProps {
 }
 
 export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
-  const [chores, setChores] = useState<Chore[]>([]);
-  const { addKidReward } = useFinancialContext(); // Merged: Consume FinancialContext
+  const [chores, setChores] = useState<Chore[]>(() => { // Using useState initializer function
+    try {
+      const storedChores = window.localStorage.getItem(CHORES_STORAGE_KEY);
+      if (storedChores) {
+        const parsedChores = JSON.parse(storedChores);
+        // Basic validation: check if it's an array
+        if (Array.isArray(parsedChores)) {
+          // Further validation could be added here to check structure of each chore object
+          return parsedChores;
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing chores from localStorage:', error);
+      // Fall through to return default empty array
+    }
+    return []; // Default to empty array if nothing in storage or if parsing fails
+  });
 
-  // Updated addChore to include assignedKidId and rewardAmount
-  const addChore = (name: string, description: string, recurrence: RecurrenceSetting, dueDate: string, assignedKidId?: string, rewardAmount?: number) => {
+  // NEW useEffect for saving to localStorage
+  useEffect(() => {
+    try {
+      const serializedChores = JSON.stringify(chores);
+      window.localStorage.setItem(CHORES_STORAGE_KEY, serializedChores);
+    } catch (error) {
+      console.error('Error saving chores to localStorage:', error);
+    }
+  }, [chores]); // Dependency array ensures this runs when 'chores' changes
+
+  const addChore = (name: string, description: string, recurrence: RecurrenceSetting, dueDate: string) => {
     const newChore: Chore = {
       id: uuidv4(),
-      title: name, // Renamed from 'name' to 'title' to match Chore type
+      name,
       description,
       isComplete: false,
-      recurrenceType: recurrence?.type || null, // Map RecurrenceSetting to Chore properties
-      recurrenceDay: recurrence && 'dayOfWeek' in recurrence ? recurrence.dayOfWeek : (recurrence && 'dayOfMonth' in recurrence ? recurrence.dayOfMonth : null),
-      recurrenceEndDate: null, // This would need to be handled if recurrence settings include an end date
-      assignedKidId, // Merged: Optional assignedKidId
-      rewardAmount, // Merged: Optional rewardAmount
+      recurrence,
       dueDate, // Expecting ISO string "YYYY-MM-DD"
     };
     setChores(prevChores => [...prevChores, newChore]);
@@ -72,13 +93,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       const updatedChores = prevChores.map(chore => {
         if (chore.id === id) {
           const newStatus = !chore.isComplete;
-
-          // Merged: Add reward if chore is completed and has a reward amount
-          if (newStatus && chore.assignedKidId && chore.rewardAmount && chore.rewardAmount > 0) {
-            addKidReward(chore.assignedKidId, chore.rewardAmount, chore.title);
-          }
-
-          if (newStatus && chore.recurrenceType) { // Chore is marked complete and is recurring
+          if (newStatus && chore.recurrence) { // Chore is marked complete and is recurring
             choreToReschedule = { ...chore, isComplete: false }; // Clone for new instance, mark as incomplete
           }
           return { ...chore, isComplete: newStatus }; // Update status of the original chore
@@ -86,88 +101,71 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
         return chore;
       });
 
-      if (choreToReschedule && choreToReschedule.recurrenceType) {
-        // Construct RecurrenceSetting temporarily for rescheduling logic
-        let recurrence: RecurrenceSetting = null;
-        if (choreToReschedule.recurrenceType === 'daily') {
-          recurrence = { type: 'daily' };
-        } else if (choreToReschedule.recurrenceType === 'weekly' && choreToReschedule.recurrenceDay !== undefined && choreToReschedule.recurrenceDay !== null) {
-          recurrence = { type: 'weekly', dayOfWeek: choreToReschedule.recurrenceDay };
-        } else if (choreToReschedule.recurrenceType === 'monthly' && choreToReschedule.recurrenceDay !== undefined && choreToReschedule.recurrenceDay !== null) {
-          recurrence = { type: 'monthly', dayOfMonth: choreToReschedule.recurrenceDay };
-        }
-        // 'specificDays' type is not directly available on Chore, implying it's a more complex recurrence handled by Chore's existing recurrenceDay property or a separate one
-        // For simplicity, I'll rely on the existing recurrenceType and recurrenceDay from Chore, assuming specificDays might map to a generic recurrenceDay or be deprecated.
-        // If 'specificDays' was a distinct recurrence type in Chore, it would need a new property like `recurrenceSpecificDays: number[]`
-
-        // Re-evaluating based on the RecurrenceSetting definition in types.ts (from feature/recurring-chores)
-        // If Chore interface uses recurrenceType, recurrenceDay etc., and RecurrenceSetting is for form input,
-        // then conversion is needed.
-        // Let's ensure Chore type properly reflects the recurrence setting for direct use here.
-        // Assuming Chore has: recurrenceType: 'daily' | 'weekly' | 'monthly' | null; recurrenceDay?: number | null;
-        // And that `specificDays` recurrence is handled via recurrenceDay representing multiple values or a separate property.
-
-        // Given types.ts for Chore has `recurrenceType`, `recurrenceDay`, `recurrenceEndDate`:
-        // We need to map `choreToReschedule`'s properties back into a RecurrenceSetting for the calculation.
-        // Or, refactor the `toggleChore` logic to directly use `choreToReschedule` properties without re-creating `RecurrenceSetting`.
-        // Let's refactor to directly use `choreToReschedule` properties for clarity and avoid re-mapping.
-
-        const { recurrenceType: type, recurrenceDay, dueDate: currentDueDateString } = choreToReschedule;
-        const currentDueDate = new Date(currentDueDateString + 'T00:00:00'); // Ensure parsing as local date
-
+      if (choreToReschedule && choreToReschedule.recurrence) {
+        const { recurrence, dueDate: currentDueDateString } = choreToReschedule;
+        // Ensure parsing as local date, not UTC, by appending time for safety with `new Date()`
+        const currentDueDate = new Date(currentDueDateString + 'T00:00:00');
         let nextDueDate: Date | null = null;
 
-        switch (type) {
+        switch (recurrence.type) {
           case 'daily':
             nextDueDate = addDays(currentDueDate, 1);
             break;
           case 'weekly':
-            // Need to ensure recurrenceDay is available for weekly
-            if (recurrenceDay !== undefined && recurrenceDay !== null) {
-              nextDueDate = new Date(currentDueDate);
-              const daysToAddForWeekly = (recurrenceDay - currentDueDate.getDay() + 7) % 7;
-              nextDueDate.setDate(currentDueDate.getDate() + daysToAddForWeekly);
-              if (nextDueDate <= currentDueDate) {
-                nextDueDate.setDate(nextDueDate.getDate() + 7);
-              }
+            nextDueDate = new Date(currentDueDate); // Start from current due date
+            const daysToAddForWeekly = (recurrence.dayOfWeek - currentDueDate.getDay() + 7) % 7;
+            nextDueDate.setDate(currentDueDate.getDate() + daysToAddForWeekly);
+            if (nextDueDate <= currentDueDate) {
+                 nextDueDate.setDate(nextDueDate.getDate() + 7);
             }
             break;
           case 'monthly':
-            // Need to ensure recurrenceDay is available for monthly (which is dayOfMonth)
-            if (recurrenceDay !== undefined && recurrenceDay !== null) {
-              const targetDayOfMonth = recurrenceDay;
-              let tempNextMonthDate = addMonths(currentDueDate, 1);
+            const targetDayOfMonth = recurrence.dayOfMonth;
+            let tempNextMonthDate = addMonths(currentDueDate, 1);
 
-              const daysInCalcMonth = new Date(tempNextMonthDate.getFullYear(), tempNextMonthDate.getMonth() + 1, 0).getDate();
-              tempNextMonthDate.setDate(Math.min(targetDayOfMonth, daysInCalcMonth));
-              nextDueDate = tempNextMonthDate;
+            const daysInCalcMonth = new Date(tempNextMonthDate.getFullYear(), tempNextMonthDate.getMonth() + 1, 0).getDate();
+            tempNextMonthDate.setDate(Math.min(targetDayOfMonth, daysInCalcMonth));
+            nextDueDate = tempNextMonthDate;
 
-              if (nextDueDate <= currentDueDate) {
+            if (nextDueDate <= currentDueDate) {
                 let futureMonth = addMonths(currentDueDate,1);
                 if(futureMonth <= currentDueDate) futureMonth = addMonths(futureMonth,1);
 
                 const daysInFutureCalcMonth = new Date(futureMonth.getFullYear(), futureMonth.getMonth() + 1, 0).getDate();
                 futureMonth.setDate(Math.min(targetDayOfMonth, daysInFutureCalcMonth));
                 nextDueDate = futureMonth;
-                if (nextDueDate <= currentDueDate) {
-                  nextDueDate = addDays(addMonths(currentDueDate,1), 1); // Fallback to first day of next month + 1 day
-                  const daysInFallbackMonth = new Date(nextDueDate.getFullYear(), nextDueDate.getMonth() + 1, 0).getDate();
-                  nextDueDate.setDate(Math.min(targetDayOfMonth,daysInFallbackMonth));
-                }
-              }
+                 if (nextDueDate <= currentDueDate) {
+                    nextDueDate = addDays(addMonths(currentDueDate,1), 1); // Fallback to first day of next month + 1 day
+                    const daysInFallbackMonth = new Date(nextDueDate.getFullYear(), nextDueDate.getMonth() + 1, 0).getDate();
+                    nextDueDate.setDate(Math.min(targetDayOfMonth,daysInFallbackMonth));
+                 }
             }
             break;
-          // 'specificDays' is not directly a type on Chore.recurrenceType.
-          // If 'specificDays' means Chore.recurrenceDay holds an array of days, then Chore type needs update.
-          // For now, assuming it's handled by other means or if recurrenceDay means a single day of week/month.
-          // If a 'specificDays' type was intended, Chore needs `recurrenceSpecificDays: number[]` property.
-          // Based on the 'AddChoreForm' where `recurrenceSetting.type === 'specificDays'` sets `recurrenceSetting.days`,
-          // it implies Chore should have a `recurrenceSpecificDays?: number[];` to store this.
-          // Without it, `specificDays` logic won't work correctly in `toggleChore`.
-          // For this merge, I'm adapting based on existing Chore type in types.ts provided previously which only has `recurrenceDay`.
-          // If 'specificDays' recurrence is critical, the Chore interface in types.ts needs a `recurrenceSpecificDays: number[]` property.
-          // For now, I'm omitting the specificDays logic in toggleChore as it doesn't align with the Chore type.
+          case 'specificDays':
+            // const sortedDays = [...recurrence.days].sort((a, b) => a - b); // Not strictly needed if just checking includes
+            // const currentDayOfWeek = currentDueDate.getDay(); // Can get from dateCursor
+            let nextDayFound = false;
+            let dateCursor = new Date(currentDueDate);
 
+            for (let i = 0; i < 14; i++) { // Check up to two weeks ahead
+                dateCursor = addDays(currentDueDate, i + 1); // Start checking from the day AFTER currentDueDate
+                if (recurrence.days.includes(dateCursor.getDay())) {
+                    nextDueDate = dateCursor;
+                    nextDayFound = true;
+                    break;
+                }
+            }
+            if (!nextDayFound && recurrence.days.length > 0) {
+                // Fallback if somehow not found in 2 weeks
+                // Go to the first specific day of the week (from recurrence.days), starting 2 weeks from currentDueDate
+                dateCursor = addDays(currentDueDate, 14);
+                const baseFallbackDay = dateCursor.getDay();
+                // Ensure recurrence.days is sorted to pick the "first" logical day for fallback
+                const sortedRecurrenceDays = [...recurrence.days].sort((a,b) => a-b);
+                const daysToAdd = (sortedRecurrenceDays[0] - baseFallbackDay + 7) % 7;
+                nextDueDate = addDays(dateCursor, daysToAdd);
+            }
+            break;
           default:
             break;
         }
@@ -176,7 +174,6 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
           const nextInstance: Chore = {
             ...choreToReschedule,
             id: uuidv4(),
-            isComplete: false, // Ensure new instance is incomplete
             dueDate: nextDueDate.toISOString().split('T')[0],
           };
           return [...updatedChores, nextInstance];
@@ -198,23 +195,8 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     );
   };
 
-  // Merged: Function to filter chores by kid
-  const getChoresForKid = (kidId: string): Chore[] => {
-    return chores.filter(chore => chore.assignedKidId === kidId);
-  };
-
-  // Initial mock chores from 'main' (adapted to new Chore type)
-  // These are for initial state, will be overwritten if localStorage used later
-  useState<Chore[]>(() => [
-    { id: uuidv4(), title: 'Clean Room', assignedKidId: 'kid_a', dueDate: '2025-06-15', rewardAmount: 5, isComplete: false, recurrenceType: null },
-    { id: uuidv4(), title: 'Walk the Dog', assignedKidId: 'kid_b', dueDate: '2025-06-10', rewardAmount: 3, isComplete: true, recurrenceType: null },
-    { id: uuidv4(), title: 'Do Homework', assignedKidId: 'kid_a', isComplete: false, recurrenceType: null, dueDate: '2025-06-12' },
-    { id: uuidv4(), title: 'Take out trash', description: 'Before Tuesday morning', rewardAmount: 1, isComplete: false, recurrenceType: null, dueDate: '2025-06-11' }
-  ]);
-
-
   return (
-    <ChoresContext.Provider value={{ chores, addChore, toggleChore, deleteChore, updateChore, getChoresForKid }}>
+    <ChoresContext.Provider value={{ chores, addChore, toggleChore, deleteChore, updateChore }}>
       {children}
     </ChoresContext.Provider>
   );
