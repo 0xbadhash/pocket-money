@@ -218,3 +218,39 @@ button:focus-visible {
   --button-text-color: #ffffff;
 }
 */
+
+/* Tag Styles for Kanban Card */
+.chore-tags-container {
+  margin-top: 8px;
+  margin-bottom: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.chore-tag {
+  background-color: var(--surface-color-hover, #e9ecef); /* Using a variable that likely exists from nav styling, or fallback */
+  color: var(--text-color-secondary, #495057); /* Using a variable or fallback */
+  padding: 3px 8px;
+  border-radius: var(--border-radius-md, 5px); /* Assuming --border-radius-md from previous styling */
+  font-size: 0.85em;
+  line-height: 1.4;
+  box-shadow: 0 1px 1px rgba(0,0,0,0.05);
+  /* Consider adding a light border if contrast with card background is low */
+  /* border: 1px solid var(--border-color-light, #ced4da); */
+}
+
+/* Example of how specific tags could be styled if logic was added to KanbanCard to add classes like 'tag-urgent' */
+/*
+.chore-tag--urgent {
+  background-color: var(--danger-background-color, #f8d7da);
+  color: var(--danger-text-color, #721c24);
+  border: 1px solid var(--danger-border-color, #f5c6cb);
+}
+
+.chore-tag--cleaning {
+  background-color: var(--info-background-color, #d1ecf1);
+  color: var(--info-text-color, #0c5460);
+  border: 1px solid var(--info-border-color, #bee5eb);
+}
+*/

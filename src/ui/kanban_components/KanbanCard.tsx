@@ -49,6 +49,28 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition }) => { //
 
       {definition.rewardAmount && definition.rewardAmount > 0 && <p style={{ fontSize: '0.9em' }}>Reward: ${definition.rewardAmount.toFixed(2)}</p>}
 
+      {/* Display Tags */}
+      {definition.tags && definition.tags.length > 0 && (
+        <div className="chore-tags-container" style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+          {definition.tags.map(tag => (
+            <span
+              key={tag}
+              className="chore-tag"
+              // Basic inline styles for now, will be enhanced by CSS class in next step
+              style={{
+                backgroundColor: '#e0e0e0',
+                color: '#333',
+                padding: '2px 6px',
+                borderRadius: '3px',
+                fontSize: '0.8em'
+              }}
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+
       {recurrenceInfo && <p style={{ fontStyle: 'italic', fontSize: '0.8em', color: '#777' }}>{recurrenceInfo}</p>}
 
       <p style={{ fontSize: '0.9em' }}>Status: {instance.isComplete ? 'Complete' : 'Incomplete'}</p>

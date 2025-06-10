@@ -26,6 +26,7 @@ export interface ChoreDefinition {
   // For weekly: 0 (Sun) to 6 (Sat). For monthly: 1 to 31.
   recurrenceDay?: number | null;
   recurrenceEndDate?: string | null; // Date after which no more instances are generated
+  tags?: string[]; // New field for tags
 }
 
 export interface ChoreInstance {
