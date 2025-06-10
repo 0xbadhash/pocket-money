@@ -46,18 +46,12 @@ const loginUser = async (req, res) => {
   try {
     const user = await userModel.findUserByEmail(email);
 
-    // IMPORTANT: In a real app, NEVER compare plain text passwords.
-    // You would:
-    // 1. Retrieve the hashed password for the user from the database.
-    // 2. Use a library like bcrypt to compare the provided password with the stored hash:
-    //    const isValidPassword = await bcrypt.compare(password, user.passwordHash);
-    // For this mock, we do a direct comparison, which is insecure.
     if (!user || user.password !== password) { // Insecure: direct password comparison
       return res.status(401).json({ error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password.' } });
     }
 
     const token = generateMockJwt(user);
-    const { password: _, ...userForResponse } = user; // Exclude password from response
+    const { password: _, ...userForResponse } = user;
 
     res.status(200).json({
       data: {
@@ -73,12 +67,6 @@ const loginUser = async (req, res) => {
 
 const getAllUsers = async (req, res) => {
   try {
-    // TODO: Add authentication and authorization check here to ensure only admins can access
-    // For now, it's open for demonstration with the mock backend.
-    // if (!req.user || req.user.role !== 'admin') {
-    //   return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Access denied. Admin role required.' }});
-    // }
-
     const users = await userModel.findAllUsers();
     res.status(200).json({
       data: {
@@ -98,15 +86,7 @@ const requestPasswordRecovery = async (req, res) => {
   if (!email) {
     return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Email is required.' } });
   }
-
-  // In a real application:
-  // 1. Check if the email exists in the database.
-  // 2. Generate a secure, unique, time-limited token.
-  // 3. Store the token (hashed) associated with the user's account.
-  // 4. Send an email to the user with a link containing this token.
-  console.log(`Password recovery requested for email: ${email}`); // Mock action
-
-  // Always return a generic message to prevent email enumeration attacks
+  console.log(`Password recovery requested for email: ${email}`);
   res.status(200).json({
     data: {
       message: "If an account with that email address exists, a password recovery link has been sent."
@@ -114,9 +94,48 @@ const requestPasswordRecovery = async (req, res) => {
   });
 };
 
+const googleInitiate = async (req, res) => {
+  console.log("Google Sign-In initiated (mock).");
+
+  // Simulate finding or creating a mock Google user
+  const mockGoogleEmail = "google.user." + Date.now() + "@example.com";
+  const mockGoogleName = "Google User";
+  let user = await userModel.findUserByEmail(mockGoogleEmail);
+
+  try {
+    if (!user) {
+      console.log(`Mock Google user not found, creating: ${mockGoogleEmail}`);
+      user = await userModel.createUser({
+        name: mockGoogleName,
+        email: mockGoogleEmail,
+        password: "mockGooglePassword",
+        role: 'parent'
+      });
+    } else {
+      console.log(`Mock Google user found: ${mockGoogleEmail}`);
+    }
+
+    const token = generateMockJwt(user);
+    const { password: _, ...userForResponse } = user;
+
+    res.status(200).json({
+      data: {
+        user: userForResponse,
+        token: token,
+        message: "Mock Google Sign-In successful."
+      }
+    });
+
+  } catch (error) {
+    console.error('Mock Google Sign-In error:', error);
+    res.status(500).json({ error: { code: 'INTERNAL_SERVER_ERROR', message: 'An unexpected error occurred during mock Google Sign-In.' } });
+  }
+};
+
 module.exports = {
   registerParent,
   loginUser,
   getAllUsers,
-  requestPasswordRecovery, // Add new function here
+  requestPasswordRecovery,
+  googleInitiate, // Add new function here
 };

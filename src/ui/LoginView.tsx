@@ -1,17 +1,15 @@
 // src/ui/LoginView.tsx
-import React, { useState } from 'react'; // Removed useContext
-import { loginUser } from '../api/apiService'; // Adjusted path assuming apiService is in src/api
-import { useUser } from '../contexts/UserContext'; // Import useUser instead of UserContext
+import React, { useState } from 'react';
+import { loginUser, initiateGoogleLogin } from '../api/apiService'; // Import initiateGoogleLogin
+import { useUser } from '../contexts/UserContext';
 
 const LoginView: React.FC = () => {
-  const userContext = useUser(); // Use the useUser hook
+  const { loginContext } = useUser(); // Destructure loginContext directly
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  // Temporary state to show login success
   const [loginSuccessMessage, setLoginSuccessMessage] = useState<string | null>(null);
-
 
   const handleLogin = async () => {
     setError(null);
@@ -24,17 +22,10 @@ const LoginView: React.FC = () => {
     try {
       const response = await loginUser(email, password);
       console.log('Login successful:', response.data.user);
-      console.log('Received token:', response.data.token);
-
-      // Use loginContext from useUser()
-      // The useUser hook ensures context is not undefined, so the check can be removed if preferred,
-      // but keeping it for consistency with previous pattern or if loginContext could be optional.
-      if (userContext && userContext.loginContext) {
-        userContext.loginContext(response.data.user, response.data.token);
-      }
+      // loginContext is guaranteed to be defined by useUser hook
+      loginContext(response.data.user, response.data.token);
 
       setLoginSuccessMessage(`Login successful! Welcome ${response.data.user.name}. You are now logged in.`);
-      // Clear form or redirect user
       setEmail('');
       setPassword('');
     } catch (err: any) {
@@ -49,20 +40,37 @@ const LoginView: React.FC = () => {
     }
   };
 
-  const handleGoogleLogin = () => {
-    // Placeholder for Google login logic
-    console.log('Attempting Google login...');
-    alert('Login with Google functionality is not implemented yet.');
+  const handleGoogleLogin = async () => {
+    setError(null);
+    setLoginSuccessMessage(null);
+    setLoading(true);
+    try {
+      const response = await initiateGoogleLogin(); // Call the new API service function
+      console.log('Mock Google login successful:', response.data.user);
+
+      // loginContext is guaranteed to be defined by useUser hook
+      loginContext(response.data.user, response.data.token);
+
+      setLoginSuccessMessage(`Mock Google login successful! Welcome ${response.data.user.name}. You are now logged in.`);
+    } catch (err: any) {
+      if (err.error && err.error.message) {
+        setError(err.error.message);
+      } else {
+        setError('An unexpected error occurred during Google login.');
+      }
+      console.error('Google login error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div style={{ maxWidth: '400px', margin: '50px auto', padding: '20px', border: '1px solid #ccc', borderRadius: '8px', fontFamily: 'Arial, sans-serif' }}>
       <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>Login</h2>
 
-      {error && <p style={{ color: 'red', textAlign: 'center' }}>{error}</p>}
-      {loginSuccessMessage && <p style={{ color: 'green', textAlign: 'center' }}>{loginSuccessMessage}</p>}
+      {error && <p style={{ color: 'red', textAlign: 'center', marginBottom: '10px' }}>{error}</p>}
+      {loginSuccessMessage && <p style={{ color: 'green', textAlign: 'center', marginBottom: '10px' }}>{loginSuccessMessage}</p>}
 
-      {/* Custom Login Form */}
       <div style={{ marginBottom: '15px' }}>
         <label htmlFor="email" style={{ display: 'block', marginBottom: '5px' }}>Email</label>
         <input
@@ -102,23 +110,21 @@ const LoginView: React.FC = () => {
         }}
         disabled={loading}
       >
-        {loading ? 'Logging in...' : 'Login'}
+        {loading ? 'Processing...' : 'Login'}
       </button>
 
-      {/* Separator */}
       <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0' }}>
         <hr style={{ flexGrow: 1, border: 'none', borderTop: '1px solid #eee' }} />
         <span style={{ padding: '0 10px', color: '#aaa' }}>OR</span>
         <hr style={{ flexGrow: 1, border: 'none', borderTop: '1px solid #eee' }} />
       </div>
 
-      {/* Google Login Button */}
       <button
         onClick={handleGoogleLogin}
         style={{
           width: '100%',
           padding: '12px',
-          backgroundColor: '#db4437',
+          backgroundColor: loading ? '#ccc' : '#db4437',
           color: 'white',
           border: 'none',
           borderRadius: '4px',
@@ -131,7 +137,7 @@ const LoginView: React.FC = () => {
         disabled={loading}
       >
         <span style={{ marginRight: '10px', fontWeight: 'bold' }}>G</span>
-        Login with Google
+        {loading ? 'Processing...' : 'Login with Google'}
       </button>
     </div>
   );

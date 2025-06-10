@@ -10,23 +10,12 @@ interface ApiErrorResponse {
   };
 }
 
-// Assuming AppUser is the general type for users from your src/types.ts
-interface UserApiResponse extends Omit<AppUser, 'createdAt' | 'updatedAt' | 'kids' | 'parentAccountId' | 'age'> {
-  // Define more accurately based on actual backend responses for login/register
-}
-
-
-interface LoginSuccessResponse {
+// This interface can be used for any auth response that returns a user and token
+interface AuthSuccessResponse {
   data: {
-    user: ParentUser;
+    user: ParentUser; // Or AppUser if more generic user type is returned by Google mock
     token: string;
-  };
-}
-
-interface RegisterSuccessResponse {
-  data: {
-    user: ParentUser;
-    token: string;
+    message?: string; // Optional message (e.g., from Google mock)
   };
 }
 
@@ -42,7 +31,6 @@ interface PasswordRecoverySuccessResponse {
     message: string;
   };
 }
-
 
 /**
  * Handles API responses, checks for errors, and parses JSON.
@@ -66,7 +54,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
   throw { error: { code: 'INVALID_RESPONSE_TYPE', message: 'Expected JSON response from API.'}};
 }
 
-export const loginUser = async (email: string, password_param: string): Promise<LoginSuccessResponse> => {
+export const loginUser = async (email: string, password_param: string): Promise<AuthSuccessResponse> => {
   const response = await fetch(`${BASE_URL}/auth/login`, {
     method: 'POST',
     headers: {
@@ -74,10 +62,10 @@ export const loginUser = async (email: string, password_param: string): Promise<
     },
     body: JSON.stringify({ email, password: password_param }),
   });
-  return handleResponse<LoginSuccessResponse>(response);
+  return handleResponse<AuthSuccessResponse>(response);
 };
 
-export const registerParent = async (name: string, email: string, password_param: string): Promise<RegisterSuccessResponse> => {
+export const registerParent = async (name: string, email: string, password_param: string): Promise<AuthSuccessResponse> => {
   const response = await fetch(`${BASE_URL}/auth/register/parent`, {
     method: 'POST',
     headers: {
@@ -85,14 +73,10 @@ export const registerParent = async (name: string, email: string, password_param
     },
     body: JSON.stringify({ name, email, password: password_param }),
   });
-  return handleResponse<RegisterSuccessResponse>(response);
+  return handleResponse<AuthSuccessResponse>(response);
 };
 
 export const getAllUsers = async (authToken: string | null): Promise<GetAllUsersSuccessResponse> => {
-  // Token check can be more robust or handled by interceptors in a real app
-  // if (!authToken) {
-  //   return Promise.reject({ error: { code: 'AUTH_TOKEN_MISSING', message: 'Authentication token is required.' }});
-  // }
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   };
@@ -100,7 +84,7 @@ export const getAllUsers = async (authToken: string | null): Promise<GetAllUsers
   //   headers['Authorization'] = `Bearer ${authToken}`;
   // }
 
-  const response = await fetch(`${BASE_URL}/auth/users`, { // Endpoint from backend setup
+  const response = await fetch(`${BASE_URL}/auth/users`, {
     method: 'GET',
     headers: headers,
   });
@@ -116,4 +100,14 @@ export const requestPasswordRecovery = async (email: string): Promise<PasswordRe
     body: JSON.stringify({ email }),
   });
   return handleResponse<PasswordRecoverySuccessResponse>(response);
+};
+
+export const initiateGoogleLogin = async (): Promise<AuthSuccessResponse> => {
+  const response = await fetch(`${BASE_URL}/auth/google/initiate`, {
+    method: 'GET', // As defined in the backend route
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  return handleResponse<AuthSuccessResponse>(response);
 };
