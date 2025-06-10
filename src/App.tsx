@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+// src/App.tsx
+import React, { useState, useEffect } from 'react'; // Import useState, useEffect
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import DashboardView from './ui/DashboardView';
 import FundsManagementView from './ui/FundsManagementView';
@@ -24,10 +25,9 @@ function App() {
 
   return (
     <BrowserRouter>
-      {/* All providers from 'main' are included, with ChoresProvider as the innermost */}
       <UserProvider>
         <FinancialProvider>
-          <ChoresProvider> {/* Wrap the application with ChoresProvider */}
+          <ChoresProvider>
             <div>
               <nav style={{
                 marginBottom: 'var(--spacing-md)', /* Using CSS var */
@@ -53,6 +53,8 @@ function App() {
                   Switch to {theme === 'light' ? 'Dark' : 'Light'} Mode
                 </button>
               </nav>
+
+              {/* Removed <hr /> as nav now has a borderBottom */}
 
               <Routes>
                 <Route path="/" element={<DashboardView />} />
