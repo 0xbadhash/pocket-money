@@ -20,7 +20,8 @@ const formatChoreDefinitionRecurrence = (choreDef: ChoreDefinition): string => {
 
 const DashboardView: React.FC = () => {
   const { currentUser } = useUser();
-  const { choresDefinitions, toggleChoreInstanceComplete, deleteChoreDefinition } = useChoresContext(); // Using choreDefinitions and deleteChoreDefinition
+  // Destructure both choreDefinitions and choreInstances as planned
+  const { choresDefinitions, choreInstances, toggleChoreInstanceComplete, deleteChoreDefinition } = useChoresContext();
 
   const containerStyle: React.CSSProperties = {
     padding: '20px',
@@ -76,6 +77,35 @@ const DashboardView: React.FC = () => {
 
   const parentUser = currentUser.role === UserRole.PARENT ? (currentUser as ParentUserType) : null;
 
+  // Adapt the 'Upcoming Chores Summary' logic to use choreInstances
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const tomorrowStart = new Date(todayStart);
+  tomorrowStart.setDate(todayStart.getDate() + 1);
+
+  const fourDaysFromTodayStart = new Date(todayStart);
+  fourDaysFromTodayStart.setDate(todayStart.getDate() + 4);
+
+  let dueTodayCount = 0;
+  let dueNext3DaysCount = 0;
+
+  // Iterate over choreInstances from context for this summary
+  choreInstances.forEach(instance => {
+    if (!instance.isComplete) {
+      const instanceDueDate = new Date(instance.instanceDate + 'T00:00:00'); // Parse instance's due date as local
+
+      // Check for due today
+      if (instanceDueDate.getTime() === todayStart.getTime()) {
+        dueTodayCount++;
+      }
+      // Check for due in the next 3 days (tomorrow, day after, day after that)
+      else if (instanceDueDate >= tomorrowStart && instanceDueDate < fourDaysFromTodayStart) {
+        dueNext3DaysCount++;
+      }
+    }
+  });
+
   return (
     <div style={containerStyle}>
       <h1 style={headerStyle}>Dashboard</h1>
@@ -83,6 +113,13 @@ const DashboardView: React.FC = () => {
 
       <div>
         <p>This is your main dashboard area. From here, you can manage your account and access application features.</p>
+      </div>
+
+      {/* NEW Upcoming Chores Summary Section - Inserted here */}
+      <div style={{ padding: '10px 15px', marginBottom: '20px', background: '#f0f8ff', border: '1px solid #cce5ff', borderRadius: '5px' }}>
+        <h3 style={{ marginTop: 0, marginBottom: '10px', color: '#004085' }}>Upcoming Chores Summary</h3>
+        <p style={{ margin: '5px 0' }}>Chores Due Today: <strong>{dueTodayCount}</strong></p>
+        <p style={{ margin: '5px 0' }}>Chores Due in Next 3 Days (excluding today): <strong>{dueNext3DaysCount}</strong></p>
       </div>
 
       {/* My Kids Section for Parent Users */}

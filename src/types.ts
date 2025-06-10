@@ -59,7 +59,8 @@ export type RecurrenceSetting =
   | { type: 'weekly'; dayOfWeek: number } // 0 for Sunday, 6 for Saturday
   | { type: 'monthly'; dayOfMonth: number } // 1 to 31
   | { type: 'specificDays'; days: number[] } // Array of dayOfWeek (e.g., [1,3,5] for Mon, Wed, Fri)
-  | null; // For non-recurring chores or when recurrence is not applicable
+  | { type: 'one-time' } // Explicitly for non-recurring chores
+  | null; // For cases where recurrence is explicitly 'none' or not set (e.g. initial form state)
 
 // Chore Definition: Represents the template for a chore, including its recurrence pattern.
 // This is the source of truth for chore properties, designed for recurring and one-time chores.
@@ -78,11 +79,11 @@ export interface ChoreDefinition {
 
   // Recurrence properties for the definition. 'one-time' is for non-recurring.
   recurrenceType?: 'daily' | 'weekly' | 'monthly' | 'one-time' | null;
-  
+
   // For 'weekly' recurrence: 0 (Sunday) to 6 (Saturday).
   // For 'monthly' recurrence: 1 to 31 (day of month).
-  recurrenceDay?: number | null; 
-  
+  recurrenceDay?: number | null;
+
   recurrenceEndDate?: string | null; // Optional: Date after which no more instances are generated (ISO date string)
   tags?: string[]; // New field for tags - MERGED FROM MAIN
 }
@@ -112,7 +113,7 @@ export interface KanbanColumn {
   id: string;
   title: string;
   // Columns now hold ChoreInstance objects, representing specific chores for a given period.
-  chores: ChoreInstance[]; 
+  chores: ChoreInstance[];
 }
 
 export interface KidKanbanConfig {
@@ -133,12 +134,5 @@ export interface KidKanbanConfig {
 export interface Kid {
   id: string;
   name: string;
-  age?: number;
-  spendingLimits?: {
-    daily?: number;
-    weekly?: number;
-    monthly?: number;
-    perTransaction?: number;
-  };
-  blockedCategories?: string[];
+  // Add other properties if Kid is still used in any temporary context
 }
