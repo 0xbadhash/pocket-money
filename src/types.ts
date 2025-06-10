@@ -71,7 +71,7 @@ export interface ChoreDefinition {
 
   // For non-recurring chores, this is the exact due date.
   // For recurring chores, this is the START date from which instances will be generated.
-  dueDate?: string; // ISO date string (e.g., "YYYY-MM-DD")
+  dueDate: string; // ISO date string (e.g., "YYYY-MM-DD")
 
   rewardAmount?: number; // Amount rewarded for completing instances of this chore
   isComplete: boolean; // Indicates if the definition itself is active/complete (e.g., archived or deactivated)
@@ -84,6 +84,7 @@ export interface ChoreDefinition {
   recurrenceDay?: number | null; 
   
   recurrenceEndDate?: string | null; // Optional: Date after which no more instances are generated (ISO date string)
+  tags?: string[]; // New field for tags - MERGED FROM MAIN
 }
 
 // Chore Instance: Represents a specific occurrence of a chore on a given date.

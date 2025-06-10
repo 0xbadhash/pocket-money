@@ -15,6 +15,7 @@ const AddChoreForm = () => {
   const [recurrenceType, setRecurrenceType] = useState<'none' | 'daily' | 'weekly' | 'monthly'>('none');
   const [recurrenceDay, setRecurrenceDay] = useState<string>(''); // Store as string from select/input
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
+  const [tagsInput, setTagsInput] = useState(''); // New state for tags
 
   const { addChoreDefinition } = useChoresContext();
   const userContext = useContext(UserContext);
@@ -37,6 +38,7 @@ const AddChoreForm = () => {
       recurrenceType: recurrenceType === 'none' ? null : recurrenceType,
       recurrenceDay: (recurrenceType === 'weekly' || recurrenceType === 'monthly') && recurrenceDay ? parseInt(recurrenceDay, 10) : null,
       recurrenceEndDate: recurrenceType !== 'none' && recurrenceEndDate ? recurrenceEndDate : null,
+      tags: tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag !== '').length > 0 ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag !== '') : undefined,
     };
 
     addChoreDefinition(choreData);
@@ -50,6 +52,7 @@ const AddChoreForm = () => {
     setRecurrenceType('none');
     setRecurrenceDay('');
     setRecurrenceEndDate('');
+    setTagsInput(''); // Reset tags input
     alert('Chore added!');
   };
 
@@ -84,6 +87,18 @@ const AddChoreForm = () => {
       <div>
         <label htmlFor="rewardAmount">Reward Amount (Optional):</label>
         <input type="number" id="rewardAmount" value={rewardAmount} onChange={(e) => setRewardAmount(e.target.value)} step="0.01" min="0"/>
+      </div>
+
+      {/* New Tags Input Field */}
+      <div>
+        <label htmlFor="choreTags">Tags (comma-separated, Optional):</label>
+        <input
+          type="text"
+          id="choreTags"
+          value={tagsInput}
+          onChange={(e) => setTagsInput(e.target.value)}
+          placeholder="e.g. cleaning, outdoor, urgent"
+        />
       </div>
 
       {/* New Recurrence Fields */}
