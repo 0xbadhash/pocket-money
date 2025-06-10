@@ -1,25 +1,28 @@
 // src/ui/AdminDashboardView.tsx
 import React, { useState, useEffect } from 'react';
 import { AppUser, UserRole, ParentUser, KidUser } from '../types';
-import { getAllUsers } from '../api/apiService'; // Import the API service
-import { useUser } from '../contexts/UserContext'; // To get authToken
+import { getAllUsers } from '../api/apiService';
+import { useUser } from '../contexts/UserContext';
 
 const AdminDashboardView: React.FC = () => {
-  const { authToken } = useUser(); // Get authToken from context
+  const { currentUser, authToken } = useUser(); // Get currentUser as well
   const [users, setUsers] = useState<AppUser[]>([]);
   const [filterRole, setFilterRole] = useState<UserRole | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Start true as we check auth then fetch
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!currentUser || currentUser.role !== UserRole.ADMIN) {
+      setError("Access Denied. You must be an admin to view this page.");
+      setLoading(false);
+      return; // Stop execution if not admin
+    }
+
     const fetchUsers = async () => {
-      setLoading(true);
+      setLoading(true); // Ensure loading is true before fetch, though already set initially
       setError(null);
       try {
-        // Pass authToken to getAllUsers.
-        // The backend /auth/users endpoint is currently not protected,
-        // but we pass the token for future compatibility.
         const response = await getAllUsers(authToken);
         setUsers(response.data.users);
       } catch (err: any) {
@@ -34,12 +37,24 @@ const AdminDashboardView: React.FC = () => {
       }
     };
 
-    // Only fetch users if an authToken is present (or if backend didn't require it for this specific call)
-    // For this mock backend, the /auth/users is open, but in real app, it would be protected.
-    // If the token is required by the backend, and it's null, getAllUsers will reject.
-    // We could also add an explicit check here: if (!authToken) { setError("Not authenticated"); setLoading(false); return; }
+    // Only fetch if confirmed admin
     fetchUsers();
-  }, [authToken]); // Re-fetch if authToken changes
+  }, [currentUser, authToken]); // Depend on currentUser to re-evaluate if it changes
+
+  // Early return for non-admins, also handles case where currentUser might be null briefly
+  if (!loading && (!currentUser || currentUser.role !== UserRole.ADMIN)) {
+      // If there's an error message already set (e.g. by useEffect), display that.
+      // Otherwise, default to a generic access denied message.
+    return (
+      <div style={{ padding: '20px', textAlign: 'center', color: 'red' }}>
+        <h1>Admin Dashboard</h1>
+        <p>{error || "Access Denied. You must be an admin to view this page."}</p>
+      </div>
+    );
+  }
+
+  // The rest of the component remains largely the same, but wrapped in this check
+  // or only rendered if the user is admin.
 
   const handleViewDetails = (user: AppUser) => {
     alert(`Viewing details for ${user.name} (ID: ${user.id}). Actual implementation needed.`);
@@ -76,13 +91,21 @@ const AdminDashboardView: React.FC = () => {
     cursor: 'pointer',
   };
 
+  // Loading and error states specific to data fetching (after admin check passes)
   if (loading) {
     return <div style={{ padding: '20px', textAlign: 'center' }}>Loading users...</div>;
   }
 
-  if (error) {
-    return <div style={{ padding: '20px', textAlign: 'center', color: 'red' }}>Error: {error}</div>;
+  // This error is for data fetching errors, distinct from auth error
+  if (error && currentUser && currentUser.role === UserRole.ADMIN) {
+     return (
+        <div style={{ padding: '20px' }}>
+            <h1>Admin Dashboard</h1>
+            <p style={{textAlign: 'center', color: 'red' }}>Error: {error}</p>
+        </div>
+     );
   }
+
 
   return (
     <div style={{ padding: '20px' }}>
@@ -123,11 +146,10 @@ const AdminDashboardView: React.FC = () => {
             {filteredUsers.length > 0 ? filteredUsers.map(user => (
               <tr key={user.id}>
                 <td style={tableCellStyle}>{user.name}</td>
-                <td style={tableCellStyle}>{user.email || 'N/A'}</td> {/* Display N/A if email is undefined */}
+                <td style={tableCellStyle}>{user.email || 'N/A'}</td>
                 <td style={tableCellStyle}>{user.role}</td>
                 <td style={tableCellStyle}>
                   {user.role === UserRole.PARENT && `Kids: ${(user as ParentUser).kids?.length || 0}`}
-                  {/* For KidUser, ensure parentAccountId and age are typically present based on your types */}
                   {user.role === UserRole.KID && `Age: ${(user as KidUser).age !== undefined ? (user as KidUser).age : 'N/A'}, Parent: ${(user as KidUser).parentAccountId ? (user as KidUser).parentAccountId.substring(0,6) + '...' : 'N/A'}`}
                 </td>
                 <td style={tableCellStyle}>
