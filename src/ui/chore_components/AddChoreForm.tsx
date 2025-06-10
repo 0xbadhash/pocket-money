@@ -2,7 +2,7 @@
 import React, { useState, useContext } from 'react';
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { UserContext } from '../../contexts/UserContext'; // To get kids for dropdown
-import type { Kid } from '../../types'; // Import Kid type
+import type { Kid, SubTask } from '../../types'; // Import Kid and SubTask type
 
 const AddChoreForm = () => {
   const [title, setTitle] = useState('');
@@ -16,6 +16,7 @@ const AddChoreForm = () => {
   const [recurrenceDay, setRecurrenceDay] = useState<string>(''); // Store as string from select/input
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
   const [tagsInput, setTagsInput] = useState(''); // New state for tags
+  const [subTasks, setSubTasks] = useState<SubTask[]>([]); // New state for sub-tasks
 
   const { addChoreDefinition } = useChoresContext();
   const userContext = useContext(UserContext);
@@ -39,6 +40,7 @@ const AddChoreForm = () => {
       recurrenceDay: (recurrenceType === 'weekly' || recurrenceType === 'monthly') && recurrenceDay ? parseInt(recurrenceDay, 10) : null,
       recurrenceEndDate: recurrenceType !== 'none' && recurrenceEndDate ? recurrenceEndDate : null,
       tags: tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag !== '').length > 0 ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag !== '') : undefined,
+      subTasks: subTasks.map(st => ({...st, title: st.title.trim()})).filter(st => st.title !== '').length > 0 ? subTasks.map(st => ({...st, title: st.title.trim()})).filter(st => st.title !== '') : undefined,
     };
 
     addChoreDefinition(choreData);
@@ -53,6 +55,7 @@ const AddChoreForm = () => {
     setRecurrenceDay('');
     setRecurrenceEndDate('');
     setTagsInput(''); // Reset tags input
+    setSubTasks([]); // Reset sub-tasks
     alert('Chore added!');
   };
 
@@ -60,6 +63,19 @@ const AddChoreForm = () => {
     const type = e.target.value as 'none' | 'daily' | 'weekly' | 'monthly';
     setRecurrenceType(type);
     setRecurrenceDay(''); // Reset day when type changes
+  };
+
+  // Sub-task handlers
+  const handleAddSubTask = () => {
+    setSubTasks(prev => [...prev, { id: `st_${Date.now()}`, title: '', isComplete: false }]);
+  };
+
+  const handleSubTaskTitleChange = (id: string, newTitle: string) => {
+    setSubTasks(prev => prev.map(st => st.id === id ? { ...st, title: newTitle } : st));
+  };
+
+  const handleRemoveSubTask = (id: string) => {
+    setSubTasks(prev => prev.filter(st => st.id !== id));
   };
 
   return (
@@ -155,6 +171,26 @@ const AddChoreForm = () => {
           />
         </div>
       )}
+
+      {/* Sub-tasks Section */}
+      <div className="sub-tasks-section" style={{ marginTop: '15px', borderTop: '1px solid #eee', paddingTop: '10px' }}>
+        <label>Sub-tasks (Optional):</label>
+        {subTasks.map((subTask, index) => (
+          <div key={subTask.id} className="sub-task-item" style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+            <input
+              type="text"
+              placeholder={`Sub-task ${index + 1}`}
+              value={subTask.title}
+              onChange={(e) => handleSubTaskTitleChange(subTask.id, e.target.value)}
+              style={{ flexGrow: 1, marginRight: '5px' }}
+            />
+            <button type="button" onClick={() => handleRemoveSubTask(subTask.id)}>Remove</button>
+          </div>
+        ))}
+        <button type="button" onClick={handleAddSubTask} style={{ marginTop: '5px' }}>
+          + Add Sub-task
+        </button>
+      </div>
 
       <button type="submit">Add Chore</button>
     </form>
