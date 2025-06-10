@@ -121,24 +121,4 @@ export interface KidKanbanConfig {
   columns: KanbanColumn[];
 }
 
----
-
-## Deprecated Kid Interface
-
-// Deprecated: This 'Kid' interface is being phased out in favor of 'KidUser'.
-// It is kept temporarily to avoid breaking existing code that might still reference it.
-// All new implementations and refactored components should use 'KidUser'.
-// This interface can be safely removed once UserContext and all related components
-// are fully updated to utilize the 'KidUser' and 'BaseUser' types.
-export interface Kid {
-  id: string;
-  name: string;
-  age?: number;
-  spendingLimits?: {
-    daily?: number;
-    weekly?: number;
-    monthly?: number;
-    perTransaction?: number;
-  };
-  blockedCategories?: string[];
-}
+export type ColumnThemeOption = 'default' | 'pastel' | 'ocean';

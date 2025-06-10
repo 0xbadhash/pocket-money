@@ -254,3 +254,43 @@ button:focus-visible {
   border: 1px solid var(--info-border-color, #bee5eb);
 }
 */
+
+/* Kanban Column Theme Styles */
+
+/* Default theme relies on existing .kanban-column styles for background
+    and h3 styles, but we can be explicit if needed or if those defaults change.
+    The .kanban-column class already sets:
+    background-color: var(--surface-color-secondary, #f0f0f0);
+    And its h3 child has:
+    color: var(--text-color-strong);
+    So, .kanban-column-theme-default might not need explicit rules if these are sufficient.
+    For clarity, we can add them.
+*/
+
+.kanban-column-theme-default {
+  background-color: var(--surface-color-secondary, #f0f0f0); /* Default from .kanban-column */
+}
+
+.kanban-column-theme-default h3 {
+  color: var(--text-color-strong, #000); /* Default from .kanban-column h3 */
+}
+
+.kanban-column-theme-pastel {
+  background-color: #e9e7fd; /* Light lavender/periwinkle */
+}
+
+.kanban-column-theme-pastel h3 {
+  color: #5c5493; /* Darker muted purple */
+}
+
+.kanban-column-theme-ocean {
+  background-color: #d4f0f0; /* Light teal/cyan */
+}
+
+.kanban-column-theme-ocean h3 {
+  color: #3b706a; /* Darker muted teal */
+}
+
+/* Ensure column titles have enough contrast with new backgrounds. */
+/* Card backgrounds (.kanban-card) are white by default (unless complete),
+    which should generally provide good contrast with these column backgrounds. */

@@ -1,7 +1,8 @@
 // src/ui/kanban_components/KidKanbanBoard.tsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { useChoresContext } from '../../contexts/ChoresContext';
-import type { ChoreDefinition, ChoreInstance, KanbanPeriod, KanbanColumn as KanbanColumnType } from '../../types';
+// Import ColumnThemeOption from types
+import type { ChoreDefinition, ChoreInstance, KanbanPeriod, KanbanColumn as KanbanColumnType, ColumnThemeOption } from '../../types';
 import KanbanColumn from './KanbanColumn';
 import { getTodayDateString, getWeekRange, getMonthRange } from '../../utils/dateUtils';
 
@@ -9,6 +10,7 @@ import { getTodayDateString, getWeekRange, getMonthRange } from '../../utils/dat
 type RewardFilterOption = 'any' | 'has_reward' | 'no_reward';
 type SortByOption = 'instanceDate' | 'title' | 'rewardAmount';
 type SortDirectionOption = 'asc' | 'desc';
+// ColumnThemeOption is now imported from ../../types
 
 interface KidKanbanBoardProps {
   kidId: string;
@@ -23,6 +25,15 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   const [rewardFilter, setRewardFilter] = useState<RewardFilterOption>('any');
   const [sortBy, setSortBy] = useState<SortByOption>('instanceDate');
   const [sortDirection, setSortDirection] = useState<SortDirectionOption>('asc');
+  const [selectedColumnTheme, setSelectedColumnTheme] = useState<ColumnThemeOption>(() => {
+    const storedTheme = localStorage.getItem('kanban_columnTheme') as ColumnThemeOption | null;
+    return storedTheme || 'default';
+  });
+
+  // Effect to save theme to localStorage
+  useEffect(() => {
+    localStorage.setItem('kanban_columnTheme', selectedColumnTheme);
+  }, [selectedColumnTheme]);
 
   // 1. Determine current period's start and end dates
   const currentPeriodDateRange = useMemo(() => {
@@ -191,6 +202,20 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
             {sortDirection === 'asc' ? ' ↑' : ' ↓'}
           </button>
         </div>
+
+        <div>
+          <label htmlFor="columnThemeSelect" style={{ marginRight: '5px' }}>Column Theme:</label>
+          <select
+            id="columnThemeSelect"
+            value={selectedColumnTheme}
+            onChange={(e) => setSelectedColumnTheme(e.target.value as ColumnThemeOption)}
+            style={{ padding: '5px' }}
+          >
+            <option value="default">Default</option>
+            <option value="pastel">Pastel</option>
+            <option value="ocean">Ocean</option>
+          </select>
+        </div>
       </div>
 
       <div className="kanban-columns" style={{ display: 'flex', gap: '10px' }}>
@@ -199,6 +224,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
             key={col.id}
             column={col}
             getDefinitionForInstance={getDefinitionForInstance}
+            theme={selectedColumnTheme} // Pass the selected theme state
           />
         ))}
         {columns.every(col => col.chores.length === 0) && <p>No chores to display for this period.</p>}
