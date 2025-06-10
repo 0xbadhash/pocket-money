@@ -16,7 +16,7 @@ const AddChoreForm = () => {
   const [recurrenceDay, setRecurrenceDay] = useState<string>(''); // Store as string from select/input
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
 
-  const { addChore } = useChoresContext();
+  const { addChoreDefinition } = useChoresContext();
   const userContext = useContext(UserContext);
   const kids = userContext?.user?.kids || [];
 
@@ -39,7 +39,7 @@ const AddChoreForm = () => {
       recurrenceEndDate: recurrenceType !== 'none' && recurrenceEndDate ? recurrenceEndDate : null,
     };
 
-    addChore(choreData);
+    addChoreDefinition(choreData);
 
     // Reset form fields
     setTitle('');
