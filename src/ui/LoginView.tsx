@@ -1,10 +1,10 @@
 // src/ui/LoginView.tsx
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react'; // Removed useContext
 import { loginUser } from '../api/apiService'; // Adjusted path assuming apiService is in src/api
-import { UserContext } from '../contexts/UserContext'; // Import UserContext
+import { useUser } from '../contexts/UserContext'; // Import useUser instead of UserContext
 
 const LoginView: React.FC = () => {
-  const userContext = useContext(UserContext); // Use the context
+  const userContext = useUser(); // Use the useUser hook
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -26,8 +26,10 @@ const LoginView: React.FC = () => {
       console.log('Login successful:', response.data.user);
       console.log('Received token:', response.data.token);
 
-      // Use loginContext to update global state
-      if (userContext) {
+      // Use loginContext from useUser()
+      // The useUser hook ensures context is not undefined, so the check can be removed if preferred,
+      // but keeping it for consistency with previous pattern or if loginContext could be optional.
+      if (userContext && userContext.loginContext) {
         userContext.loginContext(response.data.user, response.data.token);
       }
 

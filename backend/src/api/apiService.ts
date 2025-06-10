@@ -11,32 +11,35 @@ interface ApiErrorResponse {
 }
 
 // Assuming AppUser is the general type for users from your src/types.ts
-interface UserApiResponse {
-  id: string;
-  name: string;
-  email: string;
-  role: 'parent' | 'kid' | 'admin'; // Match UserRole enum values
-  // Add other fields that are common and safe to send to client
+interface UserApiResponse extends Omit<AppUser, 'createdAt' | 'updatedAt' | 'kids' | 'parentAccountId' | 'age'> {
+  // Define more accurately based on actual backend responses for login/register
 }
+
 
 interface LoginSuccessResponse {
   data: {
-    user: UserApiResponse; // Use UserApiResponse or a more specific one like ParentUserApiResponse
+    user: ParentUser;
     token: string;
   };
 }
 
 interface RegisterSuccessResponse {
   data: {
-    user: UserApiResponse; // Use UserApiResponse
+    user: ParentUser;
     token: string;
   };
 }
 
 interface GetAllUsersSuccessResponse {
   data: {
-    users: AppUser[]; // Expecting an array of AppUser from backend
+    users: AppUser[];
     count: number;
+  };
+}
+
+interface PasswordRecoverySuccessResponse {
+  data: {
+    message: string;
   };
 }
 
@@ -86,16 +89,31 @@ export const registerParent = async (name: string, email: string, password_param
 };
 
 export const getAllUsers = async (authToken: string | null): Promise<GetAllUsersSuccessResponse> => {
-  if (!authToken) {
-    // Or handle this more gracefully depending on app flow
-    return Promise.reject({ error: { code: 'AUTH_TOKEN_MISSING', message: 'Authentication token is required.' }});
-  }
-  const response = await fetch(`${BASE_URL}/auth/users`, { // Assuming /auth/users from backend setup
+  // Token check can be more robust or handled by interceptors in a real app
+  // if (!authToken) {
+  //   return Promise.reject({ error: { code: 'AUTH_TOKEN_MISSING', message: 'Authentication token is required.' }});
+  // }
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  // if (authToken) { // Backend /auth/users is not currently protected
+  //   headers['Authorization'] = `Bearer ${authToken}`;
+  // }
+
+  const response = await fetch(`${BASE_URL}/auth/users`, { // Endpoint from backend setup
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      // 'Authorization': `Bearer ${authToken}`, // TODO: Uncomment when backend expects token for this route
-    },
+    headers: headers,
   });
   return handleResponse<GetAllUsersSuccessResponse>(response);
+};
+
+export const requestPasswordRecovery = async (email: string): Promise<PasswordRecoverySuccessResponse> => {
+  const response = await fetch(`${BASE_URL}/auth/request-password-recovery`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email }),
+  });
+  return handleResponse<PasswordRecoverySuccessResponse>(response);
 };

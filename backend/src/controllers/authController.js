@@ -92,8 +92,31 @@ const getAllUsers = async (req, res) => {
   }
 };
 
+const requestPasswordRecovery = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Email is required.' } });
+  }
+
+  // In a real application:
+  // 1. Check if the email exists in the database.
+  // 2. Generate a secure, unique, time-limited token.
+  // 3. Store the token (hashed) associated with the user's account.
+  // 4. Send an email to the user with a link containing this token.
+  console.log(`Password recovery requested for email: ${email}`); // Mock action
+
+  // Always return a generic message to prevent email enumeration attacks
+  res.status(200).json({
+    data: {
+      message: "If an account with that email address exists, a password recovery link has been sent."
+    }
+  });
+};
+
 module.exports = {
   registerParent,
   loginUser,
-  getAllUsers, // Add new function here
+  getAllUsers,
+  requestPasswordRecovery, // Add new function here
 };

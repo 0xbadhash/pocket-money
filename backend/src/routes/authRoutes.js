@@ -8,9 +8,12 @@ const router = express.Router();
 router.post('/register/parent', authController.registerParent);
 
 // POST /api/v1/auth/login
-router.post('/login', authController.loginUser); // Add login route
+router.post('/login', authController.loginUser);
 
 // GET /api/v1/auth/users (for admin purposes)
 router.get('/users', authController.getAllUsers);
+
+// POST /api/v1/auth/request-password-recovery
+router.post('/request-password-recovery', authController.requestPasswordRecovery);
 
 module.exports = router;

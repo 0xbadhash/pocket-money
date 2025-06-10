@@ -1,10 +1,10 @@
 // src/ui/AccountCreationView.tsx
-import React, { useState, useContext } from 'react'; // Import useContext
+import React, { useState } from 'react'; // Import useContext
 import { registerParent } from '../api/apiService'; // Adjusted path
-import { UserContext } from '../contexts/UserContext'; // Import UserContext
+import { useUser } from '../contexts/UserContext'; // Import useUser instead of UserContext
 
 const AccountCreationView: React.FC = () => {
-  const userContext = useContext(UserContext); // Use the context
+  const userContext = useUser(); // Use the useUser hook
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -37,8 +37,8 @@ const AccountCreationView: React.FC = () => {
       console.log('Account creation successful:', response.data.user);
       console.log('Received token:', response.data.token);
 
-      // Use loginContext to update global state and log the user in
-      if (userContext) {
+      // Use loginContext from useUser()
+      if (userContext && userContext.loginContext) {
         userContext.loginContext(response.data.user, response.data.token);
       }
 

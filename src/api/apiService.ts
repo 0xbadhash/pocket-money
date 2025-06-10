@@ -11,33 +11,35 @@ interface ApiErrorResponse {
 }
 
 // Assuming AppUser is the general type for users from your src/types.ts
-// This can be refined if backend sends a more specific subset of AppUser fields
 interface UserApiResponse extends Omit<AppUser, 'createdAt' | 'updatedAt' | 'kids' | 'parentAccountId' | 'age'> {
-  // Example: Exclude sensitive or large fields not needed for login/register response immediately
-  // Adjust based on what backend actually sends for login/register
+  // Define more accurately based on actual backend responses for login/register
 }
 
 
 interface LoginSuccessResponse {
   data: {
-    // user: UserApiResponse; // More specific if backend sends trimmed user object
-    user: ParentUser; // Assuming login returns a ParentUser for now
+    user: ParentUser;
     token: string;
   };
 }
 
 interface RegisterSuccessResponse {
   data: {
-    // user: UserApiResponse;
-    user: ParentUser; // Assuming register returns a ParentUser
+    user: ParentUser;
     token: string;
   };
 }
 
 interface GetAllUsersSuccessResponse {
   data: {
-    users: AppUser[]; // Expecting an array of AppUser from backend
+    users: AppUser[];
     count: number;
+  };
+}
+
+interface PasswordRecoverySuccessResponse {
+  data: {
+    message: string;
   };
 }
 
@@ -87,24 +89,31 @@ export const registerParent = async (name: string, email: string, password_param
 };
 
 export const getAllUsers = async (authToken: string | null): Promise<GetAllUsersSuccessResponse> => {
-  if (!authToken) {
-    // This check can be done in the component or here.
-    // If done here, the component won't need to pass a potentially null token.
-    console.warn('getAllUsers called without authToken. This might be intended for public data, or an error.');
-    // Depending on backend, you might allow this or throw an error.
-    // For now, proceeding but real app would need stricter check or public endpoint.
-  }
+  // Token check can be more robust or handled by interceptors in a real app
+  // if (!authToken) {
+  //   return Promise.reject({ error: { code: 'AUTH_TOKEN_MISSING', message: 'Authentication token is required.' }});
+  // }
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   };
-  // TODO: Uncomment and use Authorization header when backend protects the /users route
-  // if (authToken) {
+  // if (authToken) { // Backend /auth/users is not currently protected
   //   headers['Authorization'] = `Bearer ${authToken}`;
   // }
 
-  const response = await fetch(`${BASE_URL}/auth/users`, {
+  const response = await fetch(`${BASE_URL}/auth/users`, { // Endpoint from backend setup
     method: 'GET',
     headers: headers,
   });
   return handleResponse<GetAllUsersSuccessResponse>(response);
+};
+
+export const requestPasswordRecovery = async (email: string): Promise<PasswordRecoverySuccessResponse> => {
+  const response = await fetch(`${BASE_URL}/auth/request-password-recovery`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email }),
+  });
+  return handleResponse<PasswordRecoverySuccessResponse>(response);
 };
