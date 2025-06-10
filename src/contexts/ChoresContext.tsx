@@ -34,19 +34,33 @@ interface ChoresProviderProps {
 export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
   // MODIFIED: State for chore definitions
   const [choreDefinitions, setChoreDefinitions] = useState<ChoreDefinition[]>([
-    { id: 'cd1', title: 'Clean Room (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
-      rewardAmount: 1, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: '2023-12-05' },
-    { id: 'cd2', title: 'Walk the Dog (Weekly Sat)', assignedKidId: 'kid_b', dueDate: '2023-12-02',
-      rewardAmount: 3, isComplete: false, recurrenceType: 'weekly', recurrenceDay: 6, // Saturday
-      recurrenceEndDate: '2023-12-31'},
-    { id: 'cd3', title: 'Do Homework (One-off)', assignedKidId: 'kid_a', dueDate: '2023-12-15',
-      rewardAmount: 2, isComplete: false, recurrenceType: null },
-    { id: 'cd4', title: 'Take out trash (Monthly 15th)', description: 'Before evening', rewardAmount: 1.5,
-      assignedKidId: 'kid_a', dueDate: '2023-12-01', isComplete: false, recurrenceType: 'monthly', recurrenceDay: 15,
-      recurrenceEndDate: '2024-02-01'
+    {
+      id: 'cd1', title: 'Clean Room (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
+      rewardAmount: 1, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: '2023-12-05',
+      tags: ['cleaning', 'indoor']
     },
-    { id: 'cd5', title: 'Feed Cat (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
-      rewardAmount: 0.5, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: null } // No end date
+    {
+      id: 'cd2', title: 'Walk the Dog (Weekly Sat)', assignedKidId: 'kid_b', dueDate: '2023-12-02',
+      rewardAmount: 3, isComplete: false, recurrenceType: 'weekly', recurrenceDay: 6, // Saturday
+      recurrenceEndDate: '2023-12-31',
+      tags: ['outdoor', 'pet care', 'morning']
+    },
+    {
+      id: 'cd3', title: 'Do Homework (One-off)', assignedKidId: 'kid_a', dueDate: '2023-12-15',
+      rewardAmount: 2, isComplete: false, recurrenceType: null
+      // No tags for this one
+    },
+    {
+      id: 'cd4', title: 'Take out trash (Monthly 15th)', description: 'Before evening', rewardAmount: 1.5,
+      assignedKidId: 'kid_a', dueDate: '2023-12-01', isComplete: false, recurrenceType: 'monthly', recurrenceDay: 15,
+      recurrenceEndDate: '2024-02-01',
+      tags: ['household', 'evening']
+    },
+    {
+      id: 'cd5', title: 'Feed Cat (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
+      rewardAmount: 0.5, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: null
+      // No tags for this one, but could add e.g. ['pet care', 'routine']
+    }
   ]);
 
   // NEW: State for chore instances
