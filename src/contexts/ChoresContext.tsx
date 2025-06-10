@@ -1,11 +1,11 @@
 // src/contexts/ChoresContext.tsx
 import React, { createContext, useState, ReactNode, useContext } from 'react';
-import type { ChoreDefinition, ChoreInstance, SubTask } from '../types'; // Import SubTask
+import type { ChoreDefinition, ChoreInstance } from '../types'; // Import SubTask
 import { useFinancialContext } from '../contexts/FinancialContext';
 import { generateChoreInstances } from '../utils/choreUtils';
 
 // Define the shape of the context value - MODIFIED
-interface ChoresContextType {
+export interface ChoresContextType { // Added export
   choreDefinitions: ChoreDefinition[];
   choreInstances: ChoreInstance[];
   addChoreDefinition: (choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete'>) => void;

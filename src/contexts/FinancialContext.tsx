@@ -17,7 +17,7 @@ export interface FinancialData { // Exporting for potential use
 }
 
 // Define the shape of the context value
-interface FinancialContextType {
+export interface FinancialContextType { // Added export
   financialData: FinancialData;
   addFunds: (amount: number, description?: string, kidId?: string) => void; // Updated signature
   addTransaction: (transaction: Omit<Transaction, 'id' | 'date'>) => void;

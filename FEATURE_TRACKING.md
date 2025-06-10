@@ -14,6 +14,14 @@ This document tracks the status, priority, and progress of key features and task
 ## Overall Next Priorities
 *(Updated: YYYY-MM-DD - Will be manually updated by the user/agent as focus shifts)*
 
+*   **Testing Framework Setup (Completed 2025-06-10 on branch `feature/testing-setup`)**:
+    *   Successfully set up Jest and React Testing Library for unit and component testing.
+    *   Initial tests for utilities (`dateUtils.ts`) and a sample component (`TotalFundsSummary.tsx`) are in place and passing.
+    *   Cleaned up several TypeScript errors in the existing codebase.
+    *   The project now has a foundation for ongoing test development.
+    *   Status: Done
+    *   Priority: N/A (Infrastructure)
+
 1.  **Implement Recurring Chores (Chore Tracking - Task 7.2 & new UI)**:
     *   Define recurrence rules in `Chore` type (`src/types.ts`).
     *   Update `AddChoreForm.tsx` to allow setting recurrence.

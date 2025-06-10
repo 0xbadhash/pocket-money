@@ -1,5 +1,5 @@
 // src/ui/settings_components/ProfileSettings.tsx
-import React, { useContext } from 'react';
+import { useContext } from 'react';
 import { UserContext } from '../../contexts/UserContext';
 
 const ProfileSettings = () => {
