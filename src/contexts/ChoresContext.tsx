@@ -1,42 +1,29 @@
-import React, { createContext, useState, useContext, ReactNode } from 'react';
-import { Chore, RecurrenceSetting } from '../types'; // Ensure RecurrenceSetting is imported
-import { v4 as uuidv4 } from 'uuid';
-import { useFinancialContext } from '../contexts/FinancialContext'; // Merged: Import FinancialContext
+import React, { createContext, useState, ReactNode, useContext } from 'react';
+import type { ChoreDefinition, ChoreInstance } from '../types'; // Modified types import
+import { useFinancialContext } from '../contexts/FinancialContext';
+import { generateChoreInstances } from '../utils/choreUtils'; // NEW IMPORT from kanban branch
 
-// Helper function to add days to a date
-const addDays = (date: Date, days: number): Date => {
-  const result = new Date(date);
-  result.setDate(result.getDate() + days);
-  return result;
-};
-
-// Helper function to add months to a date
-const addMonths = (date: Date, months: number): Date => {
-  const result = new Date(date);
-  // Set date to 1 to avoid month overflow issues with setMonth
-  result.setDate(1);
-  result.setMonth(result.getMonth() + months);
-  // Try to set to original day, or last day of new month if original day is too high
-  const originalDay = date.getDate();
-  result.setDate(Math.min(originalDay, new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate()));
-  return result;
-};
-
+// Define the shape of the context value
 interface ChoresContextType {
-  chores: Chore[];
-  addChore: (name: string, description: string, recurrence: RecurrenceSetting, dueDate: string, assignedKidId?: string, rewardAmount?: number) => void; // Updated signature
-  toggleChore: (id: string) => void;
-  deleteChore: (id: string) => void;
-  updateChore: (id: string, updates: Partial<Omit<Chore, 'id'>>) => void;
-  getChoresForKid: (kidId: string) => Chore[]; // Merged: Function to filter chores by kid
+  choreDefinitions: ChoreDefinition[];
+  choreInstances: ChoreInstance[];
+  addChoreDefinition: (choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete'>) => void;
+  toggleChoreInstanceComplete: (instanceId: string) => void;
+  getChoreDefinitionsForKid: (kidId: string) => ChoreDefinition[];
+  generateInstancesForPeriod: (startDate: string, endDate: string) => void; // From kanban branch
+  // The following are added for backward compatibility and may be removed after full migration
+  // deleteChoreDefinition: (id: string) => void; // If needed for definitions
+  // updateChoreDefinition: (id: string, updates: Partial<Omit<ChoreDefinition, 'id'>>) => void; // If needed for definitions
 }
 
 const ChoresContext = createContext<ChoresContextType | undefined>(undefined);
 
-export const useChores = (): ChoresContextType => {
+// Custom hook for easier context consumption
+export const useChoresContext = (): ChoresContextType => {
   const context = useContext(ChoresContext);
   if (!context) {
-    throw new Error('useChores must be used within a ChoresProvider');
+    // Changed error message to reflect the new hook name
+    throw new Error('useChoresContext must be used within a ChoresProvider');
   }
   return context;
 };
@@ -46,175 +33,109 @@ interface ChoresProviderProps {
 }
 
 export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
-  const [chores, setChores] = useState<Chore[]>([]);
-  const { addKidReward } = useFinancialContext(); // Merged: Consume FinancialContext
+  // State for chore definitions from kanban branch
+  const [choreDefinitions, setChoreDefinitions] = useState<ChoreDefinition[]>([
+    { id: 'cd1', title: 'Clean Room (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
+      rewardAmount: 1, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: '2023-12-05' },
+    { id: 'cd2', title: 'Walk the Dog (Weekly Sat)', assignedKidId: 'kid_b', dueDate: '2023-12-02',
+      rewardAmount: 3, isComplete: false, recurrenceType: 'weekly', recurrenceDay: 6, // Saturday
+      recurrenceEndDate: '2023-12-31'},
+    { id: 'cd3', title: 'Do Homework (One-off)', assignedKidId: 'kid_a', dueDate: '2023-12-15',
+      rewardAmount: 2, isComplete: false, recurrenceType: null },
+    { id: 'cd4', title: 'Take out trash (Monthly 15th)', description: 'Before evening', rewardAmount: 1.5,
+      assignedKidId: 'kid_a', dueDate: '2023-12-01', isComplete: false, recurrenceType: 'monthly', recurrenceDay: 15,
+      recurrenceEndDate: '2024-02-01'
+    },
+    { id: 'cd5', title: 'Feed Cat (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
+      rewardAmount: 0.5, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: null } // No end date
+  ]);
 
-  // Updated addChore to include assignedKidId and rewardAmount
-  const addChore = (name: string, description: string, recurrence: RecurrenceSetting, dueDate: string, assignedKidId?: string, rewardAmount?: number) => {
-    const newChore: Chore = {
-      id: uuidv4(),
-      title: name, // Renamed from 'name' to 'title' to match Chore type
-      description,
-      isComplete: false,
-      recurrenceType: recurrence?.type || null, // Map RecurrenceSetting to Chore properties
-      recurrenceDay: recurrence && 'dayOfWeek' in recurrence ? recurrence.dayOfWeek : (recurrence && 'dayOfMonth' in recurrence ? recurrence.dayOfMonth : null),
-      recurrenceEndDate: null, // This would need to be handled if recurrence settings include an end date
-      assignedKidId, // Merged: Optional assignedKidId
-      rewardAmount, // Merged: Optional rewardAmount
-      dueDate, // Expecting ISO string "YYYY-MM-DD"
+  // State for chore instances from kanban branch
+  const [choreInstances, setChoreInstances] = useState<ChoreInstance[]>([]); // Initialize empty, as they will be generated
+
+  const { addKidReward } = useFinancialContext(); // Retained from both branches
+
+  // Renamed and updated logic for adding chore definitions
+  const addChoreDefinition = (choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete'>) => {
+    const newChoreDef: ChoreDefinition = {
+      id: `cd${Date.now()}`, // Simple unique ID
+      isComplete: false, // New definitions are active by default
+      ...choreDefData,
     };
-    setChores(prevChores => [...prevChores, newChore]);
+    setChoreDefinitions(prevDefs => [newChoreDef, ...prevDefs]);
   };
 
-  const toggleChore = (id: string) => {
-    setChores(prevChores => {
-      let choreToReschedule: Chore | null = null;
-      const updatedChores = prevChores.map(chore => {
-        if (chore.id === id) {
-          const newStatus = !chore.isComplete;
+  // Renamed and updated logic for toggling chore instances
+  const toggleChoreInstanceComplete = (instanceId: string) => {
+    const instance = choreInstances.find(inst => inst.id === instanceId);
+    if (!instance) {
+      console.warn(`Chore instance with ID ${instanceId} not found.`);
+      return;
+    }
 
-          // Merged: Add reward if chore is completed and has a reward amount
-          if (newStatus && chore.assignedKidId && chore.rewardAmount && chore.rewardAmount > 0) {
-            addKidReward(chore.assignedKidId, chore.rewardAmount, chore.title);
-          }
+    const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
+    if (!definition) {
+      console.warn(`Chore definition for instance ID ${instanceId} (def ID: ${instance.choreDefinitionId}) not found.`);
+      return;
+    }
 
-          if (newStatus && chore.recurrenceType) { // Chore is marked complete and is recurring
-            choreToReschedule = { ...chore, isComplete: false }; // Clone for new instance, mark as incomplete
-          }
-          return { ...chore, isComplete: newStatus }; // Update status of the original chore
-        }
-        return chore;
-      });
+    // If marking as complete, and it has a reward, and kid is assigned (logic from recurring-chores/main)
+    if (!instance.isComplete && definition.assignedKidId && definition.rewardAmount && definition.rewardAmount > 0) {
+      addKidReward(definition.assignedKidId, definition.rewardAmount, `${definition.title} (${instance.instanceDate})`);
+    }
 
-      if (choreToReschedule && choreToReschedule.recurrenceType) {
-        // Construct RecurrenceSetting temporarily for rescheduling logic
-        let recurrence: RecurrenceSetting = null;
-        if (choreToReschedule.recurrenceType === 'daily') {
-          recurrence = { type: 'daily' };
-        } else if (choreToReschedule.recurrenceType === 'weekly' && choreToReschedule.recurrenceDay !== undefined && choreToReschedule.recurrenceDay !== null) {
-          recurrence = { type: 'weekly', dayOfWeek: choreToReschedule.recurrenceDay };
-        } else if (choreToReschedule.recurrenceType === 'monthly' && choreToReschedule.recurrenceDay !== undefined && choreToReschedule.recurrenceDay !== null) {
-          recurrence = { type: 'monthly', dayOfMonth: choreToReschedule.recurrenceDay };
-        }
-        // 'specificDays' type is not directly available on Chore, implying it's a more complex recurrence handled by Chore's existing recurrenceDay property or a separate one
-        // For simplicity, I'll rely on the existing recurrenceType and recurrenceDay from Chore, assuming specificDays might map to a generic recurrenceDay or be deprecated.
-        // If 'specificDays' was a distinct recurrence type in Chore, it would need a new property like `recurrenceSpecificDays: number[]`
-
-        // Re-evaluating based on the RecurrenceSetting definition in types.ts (from feature/recurring-chores)
-        // If Chore interface uses recurrenceType, recurrenceDay etc., and RecurrenceSetting is for form input,
-        // then conversion is needed.
-        // Let's ensure Chore type properly reflects the recurrence setting for direct use here.
-        // Assuming Chore has: recurrenceType: 'daily' | 'weekly' | 'monthly' | null; recurrenceDay?: number | null;
-        // And that `specificDays` recurrence is handled via recurrenceDay representing multiple values or a separate property.
-
-        // Given types.ts for Chore has `recurrenceType`, `recurrenceDay`, `recurrenceEndDate`:
-        // We need to map `choreToReschedule`'s properties back into a RecurrenceSetting for the calculation.
-        // Or, refactor the `toggleChore` logic to directly use `choreToReschedule` properties without re-creating `RecurrenceSetting`.
-        // Let's refactor to directly use `choreToReschedule` properties for clarity and avoid re-mapping.
-
-        const { recurrenceType: type, recurrenceDay, dueDate: currentDueDateString } = choreToReschedule;
-        const currentDueDate = new Date(currentDueDateString + 'T00:00:00'); // Ensure parsing as local date
-
-        let nextDueDate: Date | null = null;
-
-        switch (type) {
-          case 'daily':
-            nextDueDate = addDays(currentDueDate, 1);
-            break;
-          case 'weekly':
-            // Need to ensure recurrenceDay is available for weekly
-            if (recurrenceDay !== undefined && recurrenceDay !== null) {
-              nextDueDate = new Date(currentDueDate);
-              const daysToAddForWeekly = (recurrenceDay - currentDueDate.getDay() + 7) % 7;
-              nextDueDate.setDate(currentDueDate.getDate() + daysToAddForWeekly);
-              if (nextDueDate <= currentDueDate) {
-                nextDueDate.setDate(nextDueDate.getDate() + 7);
-              }
-            }
-            break;
-          case 'monthly':
-            // Need to ensure recurrenceDay is available for monthly (which is dayOfMonth)
-            if (recurrenceDay !== undefined && recurrenceDay !== null) {
-              const targetDayOfMonth = recurrenceDay;
-              let tempNextMonthDate = addMonths(currentDueDate, 1);
-
-              const daysInCalcMonth = new Date(tempNextMonthDate.getFullYear(), tempNextMonthDate.getMonth() + 1, 0).getDate();
-              tempNextMonthDate.setDate(Math.min(targetDayOfMonth, daysInCalcMonth));
-              nextDueDate = tempNextMonthDate;
-
-              if (nextDueDate <= currentDueDate) {
-                let futureMonth = addMonths(currentDueDate,1);
-                if(futureMonth <= currentDueDate) futureMonth = addMonths(futureMonth,1);
-
-                const daysInFutureCalcMonth = new Date(futureMonth.getFullYear(), futureMonth.getMonth() + 1, 0).getDate();
-                futureMonth.setDate(Math.min(targetDayOfMonth, daysInFutureCalcMonth));
-                nextDueDate = futureMonth;
-                if (nextDueDate <= currentDueDate) {
-                  nextDueDate = addDays(addMonths(currentDueDate,1), 1); // Fallback to first day of next month + 1 day
-                  const daysInFallbackMonth = new Date(nextDueDate.getFullYear(), nextDueDate.getMonth() + 1, 0).getDate();
-                  nextDueDate.setDate(Math.min(targetDayOfMonth,daysInFallbackMonth));
-                }
-              }
-            }
-            break;
-          // 'specificDays' is not directly a type on Chore.recurrenceType.
-          // If 'specificDays' means Chore.recurrenceDay holds an array of days, then Chore type needs update.
-          // For now, assuming it's handled by other means or if recurrenceDay means a single day of week/month.
-          // If a 'specificDays' type was intended, Chore needs `recurrenceSpecificDays: number[]` property.
-          // Based on the 'AddChoreForm' where `recurrenceSetting.type === 'specificDays'` sets `recurrenceSetting.days`,
-          // it implies Chore should have a `recurrenceSpecificDays?: number[];` to store this.
-          // Without it, `specificDays` logic won't work correctly in `toggleChore`.
-          // For this merge, I'm adapting based on existing Chore type in types.ts provided previously which only has `recurrenceDay`.
-          // If 'specificDays' recurrence is critical, the Chore interface in types.ts needs a `recurrenceSpecificDays: number[]` property.
-          // For now, I'm omitting the specificDays logic in toggleChore as it doesn't align with the Chore type.
-
-          default:
-            break;
-        }
-
-        if (nextDueDate) {
-          const nextInstance: Chore = {
-            ...choreToReschedule,
-            id: uuidv4(),
-            isComplete: false, // Ensure new instance is incomplete
-            dueDate: nextDueDate.toISOString().split('T')[0],
-          };
-          return [...updatedChores, nextInstance];
-        }
-      }
-      return updatedChores;
-    });
-  };
-
-  const deleteChore = (id: string) => {
-    setChores(prevChores => prevChores.filter(chore => chore.id !== id));
-  };
-
-  const updateChore = (id: string, updates: Partial<Omit<Chore, 'id'>>) => {
-    setChores(prevChores =>
-      prevChores.map(chore =>
-        chore.id === id ? { ...chore, ...updates } : chore
+    setChoreInstances(prevInstances =>
+      prevInstances.map(inst =>
+        inst.id === instanceId ? { ...inst, isComplete: !inst.isComplete } : inst
       )
     );
   };
 
-  // Merged: Function to filter chores by kid
-  const getChoresForKid = (kidId: string): Chore[] => {
-    return chores.filter(chore => chore.assignedKidId === kidId);
+  // Renamed and filters chore definitions
+  const getChoreDefinitionsForKid = (kidId: string): ChoreDefinition[] => {
+    return choreDefinitions.filter(def => def.assignedKidId === kidId);
   };
 
-  // Initial mock chores from 'main' (adapted to new Chore type)
-  // These are for initial state, will be overwritten if localStorage used later
-  useState<Chore[]>(() => [
-    { id: uuidv4(), title: 'Clean Room', assignedKidId: 'kid_a', dueDate: '2025-06-15', rewardAmount: 5, isComplete: false, recurrenceType: null },
-    { id: uuidv4(), title: 'Walk the Dog', assignedKidId: 'kid_b', dueDate: '2025-06-10', rewardAmount: 3, isComplete: true, recurrenceType: null },
-    { id: uuidv4(), title: 'Do Homework', assignedKidId: 'kid_a', isComplete: false, recurrenceType: null, dueDate: '2025-06-12' },
-    { id: uuidv4(), title: 'Take out trash', description: 'Before Tuesday morning', rewardAmount: 1, isComplete: false, recurrenceType: null, dueDate: '2025-06-11' }
-  ]);
+  // Instance generation logic using utility function from kanban branch
+  const generateInstancesForPeriod = (periodStartDate: string, periodEndDate: string) => {
+    console.log(`Generating instances for period: ${periodStartDate} to ${periodEndDate}`);
+    const generatedForPeriod = generateChoreInstances(choreDefinitions, periodStartDate, periodEndDate);
 
+    setChoreInstances(prevInstances => {
+      // Filter out any old instances that were for the period we are now regenerating
+      const outsideOfPeriod = prevInstances.filter(inst => {
+        const instDate = new Date(inst.instanceDate);
+        instDate.setUTCHours(0,0,0,0); // Normalize date for comparison
+        const periodStartNorm = new Date(periodStartDate);
+        periodStartNorm.setUTCHours(0,0,0,0);
+        const periodEndNorm = new Date(periodEndDate);
+        periodEndNorm.setUTCHours(0,0,0,0);
+        return instDate < periodStartNorm || instDate > periodEndNorm;
+      });
 
+      // For the newly generated instances, try to preserve completion status if they existed before
+      const updatedGeneratedForPeriod = generatedForPeriod.map(newInstance => {
+        const oldMatchingInstance = prevInstances.find(oldInst => oldInst.id === newInstance.id);
+        if (oldMatchingInstance) {
+          return { ...newInstance, isComplete: oldMatchingInstance.isComplete };
+        }
+        return newInstance;
+      });
+
+      return [...outsideOfPeriod, ...updatedGeneratedForPeriod];
+    });
+  };
+
+  // Update provider value with the new context shape
   return (
-    <ChoresContext.Provider value={{ chores, addChore, toggleChore, deleteChore, updateChore, getChoresForKid }}>
+    <ChoresContext.Provider value={{
+      choreDefinitions,
+      choreInstances,
+      addChoreDefinition,
+      toggleChoreInstanceComplete,
+      getChoreDefinitionsForKid,
+      generateInstancesForPeriod
+    }}>
       {children}
     </ChoresContext.Provider>
   );
