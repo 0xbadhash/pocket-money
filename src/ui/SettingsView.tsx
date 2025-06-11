@@ -5,6 +5,7 @@ import PaymentSettings from './settings_components/PaymentSettings';
 import KidAccountSettings from './settings_components/KidAccountSettings';
 import AppPreferences from './settings_components/AppPreferences';
 import SupportLegal from './settings_components/SupportLegal';
+import KanbanSettingsView from './settings_components/KanbanSettingsView'; // Import the new component
 
 const SettingsView = () => {
   return (
@@ -17,6 +18,12 @@ const SettingsView = () => {
         <NotificationSettings />
         <PaymentSettings />
         <KidAccountSettings />
+        {/* Add Kanban Settings Section */}
+        <div className="settings-section">
+          <h2>Kanban Column Settings</h2>
+          <p>Customize the columns for each kid's Kanban board (e.g., "To Do", "In Progress", "Awaiting Approval").</p>
+          <KanbanSettingsView />
+        </div>
         <AppPreferences />
         <SupportLegal />
       </div>

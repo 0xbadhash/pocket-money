@@ -36,8 +36,14 @@ interface ChoresContextType {
   toggleChoreInstanceComplete: (instanceId: string) => void;
   /** Retrieves all chore definitions assigned to a specific kid. */
   getChoreDefinitionsForKid: (kidId: string) => ChoreDefinition[];
-  /** Generates chore instances for all definitions within a given date range. */
-  generateInstancesForPeriod: (startDate: string, endDate: string) => void;
+  /**
+   * Generates chore instances for all definitions within a given date range.
+   * Optionally assigns a default Kanban column ID to newly generated instances.
+   * @param {string} startDate - The start date of the period (YYYY-MM-DD).
+   * @param {string} endDate - The end date of the period (YYYY-MM-DD).
+   * @param {string} [defaultKanbanColumnId] - Optional ID of the default Kanban column for new instances.
+   */
+  generateInstancesForPeriod: (startDate: string, endDate: string, defaultKanbanColumnId?: string) => void;
   /** Toggles the completion status of a sub-task within a chore definition. */
   toggleSubTaskComplete: (choreDefinitionId: string, subTaskId: string) => void;
   /**
@@ -48,6 +54,12 @@ interface ChoresContextType {
    *                                     Pass an empty array to clear the custom order for the column.
    */
   updateKanbanChoreOrder: (kidId: string, columnIdentifier: string, orderedChoreIds: string[]) => void;
+  /**
+   * Updates the `kanbanColumnId` of a specific chore instance.
+   * @param {string} instanceId - The ID of the chore instance to update.
+   * @param {string} newKanbanColumnId - The ID of the new Kanban column for this instance.
+   */
+  updateChoreInstanceColumn: (instanceId: string, newKanbanColumnId: string) => void;
 }
 
 // Create the context
@@ -143,6 +155,24 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     }
   }, [kanbanChoreOrders]);
 
+  // Effect to save choreDefinitions to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('choreDefinitions', JSON.stringify(choreDefinitions));
+    } catch (error) {
+      console.error("Failed to save chore definitions to localStorage:", error);
+    }
+  }, [choreDefinitions]);
+
+  // Effect to save choreInstances to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('choreInstances', JSON.stringify(choreInstances));
+    } catch (error) {
+      console.error("Failed to save chore instances to localStorage:", error);
+    }
+  }, [choreInstances]);
+
   // MODIFIED: Renamed and updated logic
   const addChoreDefinition = (choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete'>) => {
     const newChoreDef: ChoreDefinition = {
@@ -185,16 +215,30 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
   };
 
   // MODIFIED: Instance generation logic using utility function
-  const generateInstancesForPeriod = (periodStartDate: string, periodEndDate: string) => {
-    console.log(`Generating instances for period: ${periodStartDate} to ${periodEndDate}`);
-    const generatedForPeriod = generateChoreInstances(choreDefinitions, periodStartDate, periodEndDate);
+  const generateInstancesForPeriod = (
+    periodStartDate: string,
+    periodEndDate: string,
+    defaultKanbanColumnId?: string // Optional default column ID for new instances
+  ) => {
+    console.log(`Generating instances for period: ${periodStartDate} to ${periodEndDate}. Default column ID: ${defaultKanbanColumnId}`);
+    let newInstances = generateChoreInstances(choreDefinitions, periodStartDate, periodEndDate);
+
+    // Assign defaultKanbanColumnId to newly generated instances if provided,
+    // but only if they don't already have one (e.g., from a previous generation if definition didn't change but period did)
+    if (defaultKanbanColumnId) {
+      newInstances = newInstances.map(instance => ({
+        ...instance,
+        kanbanColumnId: instance.kanbanColumnId || defaultKanbanColumnId
+      }));
+    }
 
     setChoreInstances(prevInstances => {
       // Filter out any old instances that were for the period we are now regenerating
+      // This needs to be careful not to remove instances outside the current kid's scope if context becomes multi-kid for instances
+      // For now, assuming choreInstances in context are generally for the "active" scope being managed.
       const outsideOfPeriod = prevInstances.filter(inst => {
         const instDate = new Date(inst.instanceDate);
-        instDate.setUTCHours(0,0,0,0); // Normalize date for comparison
-        // Ensure periodStartDate and periodEndDate are also normalized if comparing Date objects
+        instDate.setUTCHours(0,0,0,0);
         const periodStartNorm = new Date(periodStartDate);
         periodStartNorm.setUTCHours(0,0,0,0);
         const periodEndNorm = new Date(periodEndDate);
@@ -202,12 +246,19 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
         return instDate < periodStartNorm || instDate > periodEndNorm;
       });
 
-      // For the newly generated instances, try to preserve completion status if they existed before
-      const updatedGeneratedForPeriod = generatedForPeriod.map(newInstance => {
+      // For the newly generated instances, try to preserve completion status and an existing kanbanColumnId
+      // if they existed before (e.g. from a previous generation for the same day if definitions changed).
+      const updatedGeneratedForPeriod = newInstances.map(newInstance => {
         const oldMatchingInstance = prevInstances.find(oldInst => oldInst.id === newInstance.id);
         if (oldMatchingInstance) {
-          return { ...newInstance, isComplete: oldMatchingInstance.isComplete };
+          return {
+            ...newInstance,
+            isComplete: oldMatchingInstance.isComplete,
+            // Preserve existing kanbanColumnId if it was already set, otherwise use the new default (already set on newInstance if defaultKanbanColumnId was provided)
+            kanbanColumnId: oldMatchingInstance.kanbanColumnId || newInstance.kanbanColumnId
+          };
         }
+        // If it's a truly new instance (not found in prevInstances), it already has defaultKanbanColumnId (if provided) from the step above.
         return newInstance;
       });
 
@@ -263,18 +314,35 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     });
   };
 
+  /**
+   * Updates the `kanbanColumnId` for a specific chore instance.
+   * @param {string} instanceId - The ID of the chore instance to update.
+   * @param {string} newKanbanColumnId - The ID of the new Kanban column this instance should belong to.
+   */
+  const updateChoreInstanceColumn = (instanceId: string, newKanbanColumnId: string): void => {
+    setChoreInstances(prevInstances =>
+      prevInstances.map(instance =>
+        instance.id === instanceId
+          // Consider adding an 'updatedAt' field to ChoreInstance if detailed tracking is needed
+          ? { ...instance, kanbanColumnId: newKanbanColumnId /* , updatedAt: new Date().toISOString() */ }
+          : instance
+      )
+    );
+  };
+
   // MODIFIED: Update provider value
   return (
     <ChoresContext.Provider value={{
       choreDefinitions,
       choreInstances,
-      kanbanChoreOrders, // Add to context value
+      kanbanChoreOrders,
       addChoreDefinition,
       toggleChoreInstanceComplete,
       getChoreDefinitionsForKid,
       generateInstancesForPeriod,
       toggleSubTaskComplete,
-      updateKanbanChoreOrder, // Add new function to provider
+      updateKanbanChoreOrder,
+      updateChoreInstanceColumn, // Add new function
     }}>
       {children}
     </ChoresContext.Provider>

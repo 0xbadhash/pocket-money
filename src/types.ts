@@ -7,6 +7,10 @@ export interface Kid {
   id: string;
   name: string;
   age?: number;
+  avatarFilename?: string; // Assuming this was added in UserContext or similar
+  totalFunds?: number;     // Assuming this was added
+  /** Optional list of custom Kanban column configurations for this kid. */
+  kanbanColumnConfigs?: KanbanColumnConfig[];
   // Add other kid-specific fields here if needed later
 }
 
@@ -41,8 +45,29 @@ export interface ChoreInstance {
   choreDefinitionId: string;
   instanceDate: string; // The specific date this instance is due (YYYY-MM-DD)
   isComplete: boolean;
+  /** Identifier of the custom Kanban column this chore instance currently belongs to. Optional for backward compatibility. */
+  kanbanColumnId?: string;
   // Optional: if reward is snapshotted per instance or can vary
   // rewardAmount?: number;
+}
+
+/**
+ * Represents the configuration for a custom Kanban column defined by a user for a specific kid.
+ * These are user-defined columns beyond the default "Active" and "Completed".
+ */
+export interface KanbanColumnConfig {
+  /** Unique identifier for the column configuration (e.g., UUID). */
+  id: string;
+  /** Identifier of the kid this column config belongs to. */
+  kidId: string;
+  /** Display title of the Kanban column (e.g., "To Do", "In Progress", "Waiting for Review"). */
+  title: string;
+  /** Order in which this column should be displayed on the board relative to other custom columns. */
+  order: number;
+  /** Optional: Timestamp for when this column configuration was created. */
+  createdAt?: string;
+  /** Optional: Timestamp for when this column configuration was last updated. */
+  updatedAt?: string;
 }
 
 // Keep existing Kanban types for now, they might need adjustment later
