@@ -8,6 +8,16 @@ import { UserContext, UserContextType as ActualUserContextType } from '../../../
 import { FinancialContext, FinancialContextType as ActualFinancialContextType } from '../../../contexts/FinancialContext';
 import type { Kid } from '../../../types';
 import { vi } from 'vitest';
+import { getTodayDateString as actualGetTodayDateString } from '../../utils/dateUtils'; // Import to potentially use actual or ensure path is right
+
+vi.mock('../../utils/dateUtils', async () => {
+  return {
+    getTodayDateString: vi.fn(() => '2024-01-01'), // Mocked date
+    // If dateUtils exports other functions, you might need to mock them or provide actual implementations
+    // For example:
+    // ...await vi.importActual('../../utils/dateUtils'), // if you want to keep other functions real
+  };
+});
 
 // Mocks
 const mockAddChoreDefinition = vi.fn();
@@ -272,7 +282,7 @@ describe('AddChoreForm', () => {
             title: 'Minimal Chore',
             description: undefined,
             assignedKidId: undefined,
-            dueDate: undefined,
+            dueDate: '2024-01-01', // Updated to mocked date
             rewardAmount: undefined,
             recurrenceType: null,
             recurrenceDay: null,

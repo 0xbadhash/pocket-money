@@ -175,4 +175,3 @@ describe('ChoreList', () => {
   // The ChoreList component's own useEffect for instance generation is triggered by period changes,
   // but the actual generation logic is in ChoresContext, which is already tested.
 });
-```

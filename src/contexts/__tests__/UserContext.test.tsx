@@ -23,12 +23,12 @@ const renderWithUserProvider = (ui: React.ReactElement) => {
 describe('UserContext', () => {
   beforeEach(() => {
     capturedContextState = null;
-    jest.useFakeTimers(); // Use fake timers as UserProvider uses setTimeout
+    vi.useFakeTimers(); // Use fake timers as UserProvider uses setTimeout
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers(); // Run any remaining timers
-    jest.useRealTimers(); // Restore real timers
+    vi.runOnlyPendingTimers(); // Run any remaining timers
+    vi.useRealTimers(); // Restore real timers
   });
 
   it('should initially have loading as true and user as null', () => {
@@ -46,7 +46,7 @@ describe('UserContext', () => {
 
     // Fast-forward timers
     act(() => {
-      jest.advanceTimersByTime(1500); // Advance by the timeout duration in UserProvider
+      vi.advanceTimersByTime(1500); // Advance by the timeout duration in UserProvider
     });
 
     // Wait for state update (though with fake timers and act, it might be synchronous)
@@ -64,7 +64,7 @@ describe('UserContext', () => {
   });
 
   it('clears timeout on unmount', () => {
-    const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+    const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
     const { unmount } = renderWithUserProvider(<div />);
 
     unmount();

@@ -31,8 +31,8 @@ describe('TotalFundsSummary', () => {
 
   it('renders the current balance correctly', () => {
     renderComponent();
-    expect(screen.getByText('Total Balance:')).toBeInTheDocument();
-    expect(screen.getByText('$100.00')).toBeInTheDocument(); // Assuming currency formatting
+    expect(screen.getByText(/Available: \$/i)).toBeInTheDocument();
+    expect(screen.getByText((content, element) => content.startsWith('Available: $') && content.includes('100.00'))).toBeInTheDocument();
   });
 
   it('renders a different balance correctly', () => {
@@ -41,7 +41,7 @@ describe('TotalFundsSummary', () => {
       financialData: { currentBalance: 250.75, transactions: [] },
     };
     renderComponent(customBalanceValue);
-    expect(screen.getByText('$250.75')).toBeInTheDocument();
+    expect(screen.getByText((content, element) => content.startsWith('Available: $') && content.includes('250.75'))).toBeInTheDocument();
   });
 
   it('renders "Loading..." when financialData is null or undefined (if applicable)', () => {
