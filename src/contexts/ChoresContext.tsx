@@ -1,24 +1,28 @@
 // src/contexts/ChoresContext.tsx
-import React, { createContext, useState, ReactNode, useContext } from 'react';
-import type { ChoreDefinition, ChoreInstance, SubTask } from '../types'; // Import SubTask
+import React, { createContext, useState, ReactNode, useContext, useEffect } from 'react';
+import type { ChoreDefinition, ChoreInstance, SubTask } from '../types'; // Added SubTask import
 import { useFinancialContext } from '../contexts/FinancialContext';
 import { generateChoreInstances } from '../utils/choreUtils';
 
-// Define the shape of the context value - MODIFIED
-interface ChoresContextType {
+// Define the storage key for chore definitions
+const CHORE_DEFINITIONS_STORAGE_KEY = 'familyTaskManagerChoreDefinitions';
+const CHORE_INSTANCES_STORAGE_KEY = 'familyTaskManagerChoreInstances'; // Separate key for instances
+
+// Define the shape of the context value
+export interface ChoresContextType {
   choreDefinitions: ChoreDefinition[];
   choreInstances: ChoreInstance[];
   addChoreDefinition: (choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete'>) => void;
   toggleChoreInstanceComplete: (instanceId: string) => void;
   getChoreDefinitionsForKid: (kidId: string) => ChoreDefinition[];
   generateInstancesForPeriod: (startDate: string, endDate: string) => void;
-  toggleSubTaskComplete: (choreDefinitionId: string, subTaskId: string) => void; // NEW
+  toggleSubTaskComplete: (choreDefinitionId: string, subTaskId: string) => void; // Include NEW subTask function
 }
 
 // Create the context
 export const ChoresContext = createContext<ChoresContextType | undefined>(undefined);
 
-// Custom hook for easier context consumption - Ensure return type matches new ChoresContextType
+// Custom hook for easier context consumption
 export const useChoresContext = (): ChoresContextType => {
   const context = useContext(ChoresContext);
   if (context === undefined) {
@@ -33,61 +37,102 @@ interface ChoresProviderProps {
 }
 
 export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
-  // MODIFIED: State for chore definitions
-  const [choreDefinitions, setChoreDefinitions] = useState<ChoreDefinition[]>([
-    {
-      id: 'cd1', title: 'Clean Room (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
-      rewardAmount: 1, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: '2023-12-05',
-      tags: ['cleaning', 'indoor'],
-      subTasks: [
-        { id: 'st1_1', title: 'Make bed', isComplete: false },
-        { id: 'st1_2', title: 'Tidy desk', isComplete: false },
-        { id: 'st1_3', title: 'Vacuum floor', isComplete: false }
-      ]
-    },
-    {
-      id: 'cd2', title: 'Walk the Dog (Weekly Sat)', assignedKidId: 'kid_b', dueDate: '2023-12-02',
-      rewardAmount: 3, isComplete: false, recurrenceType: 'weekly', recurrenceDay: 6, // Saturday
-      recurrenceEndDate: '2023-12-31',
-      tags: ['outdoor', 'pet care', 'morning'],
-      subTasks: [
-        { id: 'st2_1', title: 'Leash and harness', isComplete: false },
-        { id: 'st2_2', title: 'Walk for 30 mins', isComplete: false },
-      ]
-    },
-    {
-      id: 'cd3', title: 'Do Homework (One-off)', assignedKidId: 'kid_a', dueDate: '2023-12-15',
-      rewardAmount: 2, isComplete: false, recurrenceType: null
-      // No tags or subtasks for this one
-    },
-    {
-      id: 'cd4', title: 'Take out trash (Monthly 15th)', description: 'Before evening', rewardAmount: 1.5,
-      assignedKidId: 'kid_a', dueDate: '2023-12-01', isComplete: false, recurrenceType: 'monthly', recurrenceDay: 15,
-      recurrenceEndDate: '2024-02-01',
-      tags: ['household', 'evening']
-      // No subtasks
-    },
-    {
-      id: 'cd5', title: 'Feed Cat (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
-      rewardAmount: 0.5, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: null,
-      subTasks: [
-        { id: 'st5_1', title: 'Clean bowl', isComplete: false },
-        { id: 'st5_2', title: 'Fill with food', isComplete: false },
-        { id: 'st5_3', title: 'Check water', isComplete: true }, // Example pre-completed
-      ]
+  // State for chore definitions, loaded from localStorage with initial dummy data if empty
+  const [choreDefinitions, setChoreDefinitions] = useState<ChoreDefinition[]>(() => {
+    try {
+      const storedDefs = window.localStorage.getItem(CHORE_DEFINITIONS_STORAGE_KEY);
+      if (storedDefs) {
+        const parsedDefs = JSON.parse(storedDefs);
+        if (Array.isArray(parsedDefs)) {
+          // Basic validation for existing definitions, could add more detailed checks
+          return parsedDefs;
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing chore definitions from localStorage:', error);
     }
-  ]);
+    // Default initial definitions if nothing in storage or parsing fails - Merged from both, ensuring subtasks
+    return [
+      {
+        id: 'cd1', title: 'Clean Room (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
+        rewardAmount: 1, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: '2023-12-05',
+        tags: ['cleaning', 'indoor'],
+        subTasks: [ // Included from feature branch
+          { id: 'st1_1', title: 'Make bed', isComplete: false },
+          { id: 'st1_2', title: 'Tidy desk', isComplete: false },
+          { id: 'st1_3', title: 'Vacuum floor', isComplete: false }
+        ]
+      },
+      {
+        id: 'cd2', title: 'Walk the Dog (Weekly Sat)', assignedKidId: 'kid_b', dueDate: '2023-12-02',
+        rewardAmount: 3, isComplete: false, recurrenceType: 'weekly', recurrenceDay: 6, // Saturday
+        recurrenceEndDate: '2023-12-31',
+        tags: ['outdoor', 'pet care', 'morning'],
+        subTasks: [ // Included from feature branch
+          { id: 'st2_1', title: 'Leash and harness', isComplete: false },
+          { id: 'st2_2', title: 'Walk for 30 mins', isComplete: false },
+        ]
+      },
+      {
+        id: 'cd3', title: 'Do Homework (One-off)', assignedKidId: 'kid_a', dueDate: '2023-12-15',
+        rewardAmount: 2, isComplete: false, recurrenceType: 'one-time'
+        // No tags or subtasks for this one
+      },
+      {
+        id: 'cd4', title: 'Take out trash (Monthly 15th)', description: 'Before evening', rewardAmount: 1.5,
+        assignedKidId: 'kid_a', dueDate: '2023-12-01', isComplete: false, recurrenceType: 'monthly', recurrenceDay: 15,
+        recurrenceEndDate: '2024-02-01',
+        tags: ['household', 'evening']
+        // No subtasks
+      },
+      {
+        id: 'cd5', title: 'Feed Cat (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
+        rewardAmount: 0.5, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: null,
+        subTasks: [ // Included from feature branch
+          { id: 'st5_1', title: 'Clean bowl', isComplete: false },
+          { id: 'st5_2', title: 'Fill with food', isComplete: false },
+          { id: 'st5_3', title: 'Check water', isComplete: true }, // Example pre-completed
+        ]
+      }
+    ];
+  });
 
-  // NEW: State for chore instances
-  const [choreInstances, setChoreInstances] = useState<ChoreInstance[]>([
-    // Example: Some initial instances for testing. Real generation will occur later.
-    // { id: 'cd1_2023-12-01', choreDefinitionId: 'cd1', instanceDate: '2023-12-01', isComplete: false },
-    // { id: 'cd1_2023-12-02', choreDefinitionId: 'cd1', instanceDate: '2023-12-02', isComplete: true }, // Example of a completed one
-  ]);
+  // State for chore instances, loaded from localStorage
+  const [choreInstances, setChoreInstances] = useState<ChoreInstance[]>(() => {
+    try {
+      const storedInstances = window.localStorage.getItem(CHORE_INSTANCES_STORAGE_KEY);
+      if (storedInstances) {
+        const parsedInstances = JSON.parse(storedInstances);
+        if (Array.isArray(parsedInstances)) {
+          return parsedInstances;
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing chore instances from localStorage:', error);
+    }
+    return []; // Default to empty if nothing in storage or parsing fails
+  });
 
   const { addKidReward } = useFinancialContext();
 
-  // MODIFIED: Renamed and updated logic
+  // useEffect to save choreDefinitions to localStorage whenever they change
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CHORE_DEFINITIONS_STORAGE_KEY, JSON.stringify(choreDefinitions));
+    } catch (error) {
+      console.error('Error saving chore definitions to localStorage:', error);
+    }
+  }, [choreDefinitions]);
+
+  // useEffect to save choreInstances to localStorage whenever they change
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CHORE_INSTANCES_STORAGE_KEY, JSON.stringify(choreInstances));
+    } catch (error) {
+      console.error('Error saving chore instances to localStorage:', error);
+    }
+  }, [choreInstances]);
+
   const addChoreDefinition = (choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete'>) => {
     const newChoreDef: ChoreDefinition = {
       id: `cd${Date.now()}`, // Simple unique ID
@@ -97,7 +142,6 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     setChoreDefinitions(prevDefs => [newChoreDef, ...prevDefs]);
   };
 
-  // MODIFIED: Renamed and updated logic for instances
   const toggleChoreInstanceComplete = (instanceId: string) => {
     const instance = choreInstances.find(inst => inst.id === instanceId);
     if (!instance) {
@@ -123,12 +167,10 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     );
   };
 
-  // MODIFIED: Renamed and filters definitions
   const getChoreDefinitionsForKid = (kidId: string): ChoreDefinition[] => {
     return choreDefinitions.filter(def => def.assignedKidId === kidId);
   };
 
-  // MODIFIED: Instance generation logic using utility function
   const generateInstancesForPeriod = (periodStartDate: string, periodEndDate: string) => {
     console.log(`Generating instances for period: ${periodStartDate} to ${periodEndDate}`);
     const generatedForPeriod = generateChoreInstances(choreDefinitions, periodStartDate, periodEndDate);
@@ -138,11 +180,13 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       const outsideOfPeriod = prevInstances.filter(inst => {
         const instDate = new Date(inst.instanceDate);
         instDate.setUTCHours(0,0,0,0); // Normalize date for comparison
-        // Ensure periodStartDate and periodEndDate are also normalized if comparing Date objects
+
         const periodStartNorm = new Date(periodStartDate);
         periodStartNorm.setUTCHours(0,0,0,0);
         const periodEndNorm = new Date(periodEndDate);
         periodEndNorm.setUTCHours(0,0,0,0);
+        
+        // Keep instances that are outside the current generation period, regardless of completion status
         return instDate < periodStartNorm || instDate > periodEndNorm;
       });
 
@@ -155,6 +199,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
         return newInstance;
       });
 
+      // Combine the outside instances with the potentially updated generated ones
       return [...outsideOfPeriod, ...updatedGeneratedForPeriod];
     });
   };
@@ -163,7 +208,8 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     setChoreDefinitions(prevDefs =>
       prevDefs.map(def => {
         if (def.id === choreDefinitionId) {
-          const updatedSubTasks = def.subTasks?.map(st => {
+          // Ensure subTasks array exists before mapping
+          const updatedSubTasks = def.subTasks?.map((st: SubTask) => {
             if (st.id === subTaskId) {
               return { ...st, isComplete: !st.isComplete };
             }
@@ -176,7 +222,6 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     );
   };
 
-  // MODIFIED: Update provider value
   return (
     <ChoresContext.Provider value={{
       choreDefinitions,

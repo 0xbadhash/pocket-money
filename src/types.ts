@@ -1,5 +1,23 @@
 // src/types.ts
 
+export enum UserRole {
+  PARENT,
+  KID,
+  ADMIN,
+}
+
+export interface BaseUser {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+}
+
+export interface KidUser extends BaseUser {
+  role: UserRole.KID;
+  parentId?: string;
+}
+
 // Re-export Transaction type directly from FinancialContext
 export { type Transaction } from './contexts/FinancialContext';
 
@@ -7,53 +25,69 @@ export interface Kid {
   id: string;
   name: string;
   age?: number;
-  // Add other kid-specific fields here if needed later
 }
 
 export interface SubTask {
-  id: string;          // Unique ID for the sub-task (e.g., generated on client-side)
+  id: string;
   title: string;
   isComplete: boolean;
 }
 
-// Renamed from Chore
+export interface ParentUser extends BaseUser {
+  role: UserRole.PARENT;
+  kids: KidUser[];
+  // kycStatus?: 'pending' | 'verified' | 'rejected';
+  // mfaEnabled?: boolean;
+}
+
+export interface AdminUser extends BaseUser {
+  role: UserRole.ADMIN;
+  // permissions?: string[];
+}
+
+export type AppUser = ParentUser | KidUser | AdminUser;
+
+export type RecurrenceSetting =
+  | { type: 'daily' }
+  | { type: 'weekly'; dayOfWeek: number }
+  | { type: 'monthly'; dayOfMonth: number }
+  | { type: 'specificDays'; days: number[] }
+  | { type: 'one-time' }
+  | null;
+
 export interface ChoreDefinition {
-  id: string; // Unique ID for the chore definition
+  id: string;
   title: string;
   description?: string;
   assignedKidId?: string;
-  // For non-recurring, this is the due date.
-  // For recurring, this is the START date of recurrence.
-  dueDate?: string;
+  // For non-recurring chores, this is the exact due date.
+  // For recurring chores, this is the START date from which instances will be generated.
+  dueDate: string; // ISO date string (e.g., "YYYY-MM-DD")
   rewardAmount?: number;
-  // isComplete for a definition might mean "archived" or "template no longer active"
-  isComplete: boolean;
-  recurrenceType?: 'daily' | 'weekly' | 'monthly' | null; // 'none' can be represented by null
-  // For weekly: 0 (Sun) to 6 (Sat). For monthly: 1 to 31.
-  recurrenceDay?: number | null;
-  recurrenceEndDate?: string | null; // Date after which no more instances are generated
-  tags?: string[]; // New field for tags
-  subTasks?: SubTask[]; // New field for sub-tasks
+  isComplete: boolean; // Indicates if the definition itself is active/complete
+  recurrenceType?: 'daily' | 'weekly' | 'monthly' | 'one-time' | null;
+  recurrenceDay?: number | null; // For 'weekly' or 'monthly'
+  recurrenceEndDate?: string | null;
+  tags?: string[];
+  subTasks?: SubTask[]; // Added this
 }
 
 export interface ChoreInstance {
-  id: string; // Unique ID for this specific instance (e.g., choreDefId + '_' + instanceDate)
+  id: string;
   choreDefinitionId: string;
-  instanceDate: string; // The specific date this instance is due (YYYY-MM-DD)
+  instanceDate: string;
   isComplete: boolean;
-  // Optional: if reward is snapshotted per instance or can vary
-  // rewardAmount?: number;
+  title: string; // Added this from HEAD
+  assignedKidId?: string; // Kept from merge
+  rewardAmount?: number; // Kept from merge
 }
 
-// Keep existing Kanban types for now, they might need adjustment later
-// if they directly reference 'Chore' which is now 'ChoreDefinition'
 export type KanbanPeriod = 'daily' | 'weekly' | 'monthly';
 
 export interface KanbanColumn {
   id: string;
   title: string;
-  // This will eventually hold ChoreInstance[]
-  chores: ChoreInstance[]; // MODIFIED: Was Chore[], now ChoreInstance[]
+  chores: ChoreInstance[]; // Kept simpler version
 }
 
 export interface KidKanbanConfig {
@@ -62,4 +96,4 @@ export interface KidKanbanConfig {
   columns: KanbanColumn[];
 }
 
-export type ColumnThemeOption = 'default' | 'pastel' | 'ocean';
+export type ColumnThemeOption = 'default' | 'pastel' | 'ocean'; // Kept this

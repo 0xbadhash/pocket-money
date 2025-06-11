@@ -1,17 +1,16 @@
 // src/ui/ChoreManagementView.tsx
-import React from 'react'; // useContext might be needed if fetching kids here
 import AddChoreForm from './chore_components/AddChoreForm'; // Import AddChoreForm
 import ChoreList from './chore_components/ChoreList';       // Import ChoreList
 import { useChoresContext } from '../contexts/ChoresContext'; // Import useChoresContext
 // import { UserContext } from '../../contexts/UserContext'; // Only if passing kids explicitly
 
 const ChoreManagementView = () => {
-  const { chores } = useChoresContext(); // Get chores from context
+  const { choreInstances } = useChoresContext(); // Get chore instances from context
   // const userContext = useContext(UserContext); // Example if passing kids as prop
   // const kids = userContext?.user?.kids || [];
 
-  // For now, display all chores. Filtering can be added later.
-  const choresToDisplay = chores;
+  // For now, display all chore instances. Filtering can be added later.
+  const choresToDisplay = choreInstances;
 
   return (
     <div className="chore-management-view" style={{ padding: '16px' }}>

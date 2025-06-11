@@ -1,23 +1,19 @@
 // src/ui/funds_management_components/CurrentBalanceDisplay.tsx
-import React from 'react'; // useContext will be brought in by the custom hook
 import { useFinancialContext } from '../../contexts/FinancialContext'; // Import custom hook
 
 const CurrentBalanceDisplay = () => {
-  const { financialData } = useFinancialContext(); // Consume context
-
-  // Format the balance as currency.
-  // In a real app, you might use Intl.NumberFormat for more robust localization.
-  const formattedBalance = `$${financialData.currentBalance.toFixed(2)}`;
+  const { financialData } = useFinancialContext(); // Destructure financialData
+  const balance = financialData.currentBalance; // Get currentBalance
+  const formattedBalance = balance.toFixed(2); // Format it
 
   return (
     <div className="current-balance-display">
       <h2>Current Balance</h2>
-      {/* Display balance from context */}
-      <p className="balance-amount">{formattedBalance}</p>
-      {/* "Last updated" could be part of financialData in the future if needed */}
-      <p className="last-updated">Last updated: Just now (Live)</p>
+      {/* Display the actual general balance */}
+      <p className="balance-amount">${formattedBalance}</p> {/* Use formattedBalance */}
+      {/* The "Last updated" part might be dynamic later if you implement it */}
+      <p className="last-updated">Last updated: Just now</p>
     </div>
   );
 };
-
 export default CurrentBalanceDisplay;

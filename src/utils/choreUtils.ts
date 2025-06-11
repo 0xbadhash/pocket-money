@@ -1,6 +1,6 @@
 // src/utils/choreUtils.ts
 import type { ChoreDefinition, ChoreInstance } from '../types';
-import { getTodayDateString } from './dateUtils'; // Assuming you might need this or other date functions
+// Removed unused import: import { getTodayDateString } from './dateUtils';
 
 export function generateChoreInstances(
   definitions: ChoreDefinition[],
@@ -28,6 +28,7 @@ export function generateChoreInstances(
           instances.push({
             id: `${def.id}_${def.dueDate}`,
             choreDefinitionId: def.id,
+            title: def.title, // Added title
             instanceDate: def.dueDate,
             isComplete: false, // Default new instances to incomplete
           });
@@ -38,11 +39,11 @@ export function generateChoreInstances(
 
     // Recurring chores
     // Start date for iteration: Max of definition start date or period start date
-    let currentDate = definitionStartDate && definitionStartDate > periodStart ? new Date(definitionStartDate) : new Date(periodStart);
-    currentDate.setUTCHours(0,0,0,0);
-
     const definitionStartDate = def.dueDate ? new Date(def.dueDate) : null;
     if(definitionStartDate) definitionStartDate.setUTCHours(0,0,0,0);
+
+    let currentDate = definitionStartDate && definitionStartDate > periodStart ? new Date(definitionStartDate) : new Date(periodStart);
+    currentDate.setUTCHours(0,0,0,0);
 
 
     while (currentDate <= periodEnd) {
@@ -84,6 +85,7 @@ export function generateChoreInstances(
         instances.push({
           id: `${def.id}_${instanceDateStr}`,
           choreDefinitionId: def.id,
+          title: def.title, // Added title
           instanceDate: instanceDateStr,
           isComplete: false, // Default new instances to incomplete
         });
