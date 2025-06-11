@@ -114,8 +114,22 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition, isOverlay
                 boxSizing: 'border-box'
               }}
             >
+              {/**
+               * The visual fill of the progress bar.
+               * Includes ARIA attributes for accessibility:
+               * - `role="progressbar"`: Semantically identifies the element as a progress bar.
+               * - `aria-valuenow`: Current percentage of progress.
+               * - `aria-valuemin`/`aria-valuemax`: Defines the range of the progress bar.
+               * - `aria-label`: Provides an accessible name for the progress bar state.
+               * The `title` attribute on the parent `progress-bar-outline` also provides this info on hover.
+               */}
               <div
                 className="progress-bar-fill"
+                role="progressbar"
+                aria-valuenow={Math.round(progressPercent)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`Progress: ${Math.round(progressPercent)}%`} // Or use aria-labelledby with a hidden element
                 style={{
                   width: `${progressPercent}%`,
                   height: '100%',

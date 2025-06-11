@@ -63,15 +63,24 @@ describe('KanbanColumn', () => {
     vi.clearAllMocks();
   });
 
-  test('renders column title', () => {
-    render(
+  test('renders column title and applies ARIA attributes', () => {
+    const { container } = render(
       <KanbanColumn
         column={mockColumn}
         getDefinitionForInstance={mockGetDefinitionForInstance}
         theme="default"
       />
     );
-    expect(screen.getByText('Test Column Title')).toBeInTheDocument();
+    const titleElement = screen.getByText('Test Column Title');
+    expect(titleElement).toBeInTheDocument();
+    expect(titleElement).toHaveAttribute('id', `kanban-column-title-${mockColumn.id}`);
+
+    const columnDiv = container.querySelector('.kanban-column');
+    expect(columnDiv).toHaveAttribute('role', 'group');
+    expect(columnDiv).toHaveAttribute('aria-labelledby', `kanban-column-title-${mockColumn.id}`);
+
+    const cardsContainer = container.querySelector('.kanban-cards-container');
+    expect(cardsContainer).toHaveAttribute('aria-label', `Chores in ${mockColumn.title} column`);
   });
 
   test('renders KanbanCard for each chore and calls getDefinitionForInstance', () => {

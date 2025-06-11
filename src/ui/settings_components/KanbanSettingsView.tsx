@@ -94,13 +94,14 @@ const SortableColumnItem: React.FC<SortableColumnItemProps> = ({
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
+    <div ref={setNodeRef} style={style} {...attributes} role="listitem">
       {isEditing ? (
         <>
           <input
             type="text"
             value={currentEditTitle}
             onChange={(e) => onEditTitleChange(e.target.value)}
+            aria-label={`Edit title for column ${config.title}`}
             autoFocus
             style={{ flexGrow: 1, marginRight: '8px' }}
           />
@@ -110,7 +111,12 @@ const SortableColumnItem: React.FC<SortableColumnItemProps> = ({
       ) : (
         <>
           <span {...listeners} style={{ flexGrow: 1 }}>{config.title} (Order: {config.order})</span>
-          <div>
+          {/**
+           * @section Sortable Column Item Actions
+           * Container for action buttons (Edit, Delete) within a sortable column item.
+           * This class is targeted by responsive CSS to stack buttons on smaller screens.
+           */}
+          <div className="sortable-column-item-actions">
             <button onClick={() => onEdit(config)} style={{ marginRight: '4px' }}>Edit</button>
             <button onClick={() => onDelete(config.id)}>Delete</button>
           </div>
@@ -287,7 +293,14 @@ const KanbanSettingsView: React.FC = () => {
   return (
     <div>
       <h4>Manage Kanban Columns</h4>
-      <select onChange={handleKidSelection} value={selectedKidId || ''} style={{ marginBottom: '10px' }}>
+      <label htmlFor="kanban-kid-select" style={{ marginRight: '8px' }}>Select Kid:</label>
+      <select
+        id="kanban-kid-select"
+        onChange={handleKidSelection}
+        value={selectedKidId || ''}
+        style={{ marginBottom: '10px' }}
+        aria-label="Select a kid to manage their Kanban columns"
+      >
         <option value="">Select a Kid</option>
         {kids.map(kid => (
           <option key={kid.id} value={kid.id}>{kid.name}</option>
@@ -296,17 +309,21 @@ const KanbanSettingsView: React.FC = () => {
 
       {selectedKidId && (
         <div>
-          <h5>Add New Column for {kids.find(k => k.id === selectedKidId)?.name}</h5>
+          <h5 id={`add-column-heading-${selectedKidId}`}>Add New Column for {kids.find(k => k.id === selectedKidId)?.name}</h5>
+          <label htmlFor={`new-column-title-input-${selectedKidId}`} style={{display: 'none'}}>Title for new column</label> {/* Visually hidden label */}
           <input
+            id={`new-column-title-input-${selectedKidId}`}
             type="text"
             value={newColumnTitle}
             onChange={(e) => setNewColumnTitle(e.target.value)}
             placeholder="New column title"
+            aria-label="Title for new column" // Use aria-label if placeholder is not sufficient
+            aria-labelledby={`add-column-heading-${selectedKidId}`}
             style={{ marginRight: '8px' }}
           />
           <button onClick={handleAddColumn}>Add Column</button>
 
-          <h5 style={{ marginTop: '20px' }}>Existing Columns:</h5>
+          <h5 style={{ marginTop: '20px' }} id={`existing-columns-heading-${selectedKidId}`}>Existing Columns:</h5>
           {columnsForSelectedKid.length === 0 && (
             <div>
               <p>No custom columns defined for this kid.</p>
@@ -321,10 +338,15 @@ const KanbanSettingsView: React.FC = () => {
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
             >
-              <SortableContext items={columnsForSelectedKid.map(c => c.id)} strategy={verticalListSortingStrategy}>
-                {columnsForSelectedKid.map(config => (
-                  <SortableColumnItem
-                    key={config.id}
+              {/**
+               * This div acts as the list container for ARIA purposes,
+               * labelled by the "Existing Columns" heading.
+               */}
+              <div role="list" aria-labelledby={`existing-columns-heading-${selectedKidId}`}>
+                <SortableContext items={columnsForSelectedKid.map(c => c.id)} strategy={verticalListSortingStrategy}>
+                  {columnsForSelectedKid.map(config => (
+                    <SortableColumnItem
+                      key={config.id}
                     config={config}
                     onEdit={handleEditColumn}
                     onDelete={handleDeleteColumn}

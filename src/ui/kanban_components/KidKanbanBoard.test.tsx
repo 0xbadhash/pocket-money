@@ -213,6 +213,9 @@ describe('KidKanbanBoard - Rendering and Basic Interactions (Part 1)', () => {
     expect(screen.getByRole('heading', { name: 'Today - Active' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Today - Completed' })).toBeInTheDocument();
 
+    // Verify ARIA attributes for the columns container
+    expect(screen.getByLabelText('Kanban board columns')).toHaveAttribute('role', 'list');
+
     const activeColumn = screen.getByTestId('mock-kanban-column-daily_active');
     expect(within(activeColumn).getByTestId('chore-inst1')).toHaveTextContent('inst1 (A)');
     expect(within(activeColumn).getByTestId('chore-inst3')).toHaveTextContent('inst3 (A)');
@@ -597,6 +600,9 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
     // Expected ASC title order: ChoreX, ChoreY, ChoreZ, DoHomework, WalkDog
     activeColumn = mockKanbanColumn.mock.calls.find(call => call[0].column.id === activeColumnId)[0].column;
     expect(activeColumn.chores.map((c: ChoreInstance) => c.id)).toEqual(['instX', 'instY', 'instZ', 'inst3', 'inst1']);
+
+    // Verify ARIA attributes for the columns container
+    expect(screen.getByLabelText('Kanban board columns')).toHaveAttribute('role', 'list');
   });
 
   test('after explicit sort clears custom order, switching back to "My Order" uses default sort', async () => {
@@ -644,6 +650,9 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
     mockGetKanbanColumnConfigs.mockReturnValue(userCols); // Mock UserContext to return these columns
 
     renderKidKanbanBoard(kidId);
+
+    // Verify ARIA attributes for the columns container
+    expect(screen.getByLabelText('Kanban board columns')).toHaveAttribute('role', 'list');
 
     const todayStr = getTodayDateString();
     // Expect generateInstancesForPeriod to be called with the ID of the first column ('col1_todo')

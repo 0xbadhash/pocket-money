@@ -1024,4 +1024,122 @@ h6 { font-size: var(--font-size-lg); font-weight: var(--font-weight-medium); }
   scrollbar-color: var(--text-color-secondary, #888) var(--surface-color, #f1f1f1);
 } */
 
-[end of src/styles.css]
+/**
+ * @section Responsive Adjustments
+ * Contains media queries and styles for adapting the layout and appearance
+ * of components on different screen sizes.
+ */
+
+/**
+ * @subsection Kanban Columns Horizontal Scrolling
+ * Ensures the container for Kanban columns allows horizontal scrolling on overflow,
+ * essential for viewing multiple columns on smaller screens.
+ */
+.kanban-columns {
+  /* display: flex; and gap: 10px; should already be defined from KidKanbanBoard.tsx inline styles or its own class */
+  overflow-x: auto; /* Enable horizontal scrolling */
+  padding-bottom: 10px; /* Space for scrollbar if it's outside content */
+  /* Consider adding padding to .kid-kanban-board or .kanban-view if columns touch screen edges */
+}
+
+/**
+ * @section Responsive Styles for Kanban Board Controls
+ * On screens up to 768px wide, stack controls vertically for better usability.
+ */
+@media (max-width: 768px) { /* Tablet and smaller */
+  /**
+   * @subsection KidKanbanBoard - Controls (.kanban-controls) - Small Screens
+   * Stacks control elements vertically on smaller screens for better usability.
+   * Makes form elements and buttons full-width within their stacked group.
+   */
+  .kanban-controls {
+    flex-direction: column; /* Stack controls vertically */
+    align-items: stretch; /* Stretch items to fill width */
+    gap: var(--spacing-md, 16px); /* Adjust gap for vertical layout */
+  }
+
+  /* Each direct child div of .kanban-controls becomes a block */
+  .kanban-controls > div {
+    width: 100%;
+    display: flex;
+    flex-direction: column; /* Stack label and select/button if they are direct children */
+    gap: var(--spacing-xs, 4px); /* Space between label and its control */
+  }
+
+  .kanban-controls > div > label {
+    display: block; /* Make label take full line */
+    margin-bottom: 0; /* Rely on parent gap */
+    font-weight: var(--font-weight-medium);
+  }
+
+  .kanban-controls > div > select,
+  .kanban-controls > div > button:not(.theme-toggle-button) { /* Exclude theme toggle if it should stay small */
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* For groups of buttons like period selection, make them distribute space */
+  .kanban-controls > div.period-controls { /* Assuming period buttons are in a div with this class */
+    flex-direction: row; /* Keep period buttons in a row */
+    flex-wrap: wrap; /* Allow wrapping if too many buttons */
+  }
+  .kanban-controls > div.period-controls > button {
+    flex-grow: 1; /* Allow buttons to grow and share space */
+    min-width: 80px; /* Prevent buttons from becoming too small */
+  }
+
+  /**
+   * @section Responsive Styles for Kanban Settings View
+   * On screens up to 768px wide, make form elements full-width.
+   */
+  /**
+   * @subsection KanbanSettingsView - Small Screens
+   * Adjusts layout for settings view on smaller screens.
+   * Makes form elements like inputs and buttons full-width for easier interaction.
+   */
+  /* Assuming KanbanSettingsView has a root class like '.kanban-settings-view'
+     or specific classes for its form elements.
+     These are general rules; specific component structure might need more targeted selectors.
+  */
+  .kanban-settings-view .settings-form-element input[type="text"],
+  .kanban-settings-view .settings-form-element button,
+  .kanban-settings-view .kid-selection-form select, /* Target kid selection select */
+  .kanban-settings-view .add-column-form input[type="text"], /* Target add column input */
+  .kanban-settings-view .add-column-form button { /* Target add column button */
+    width: 100%;
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+    margin-bottom: var(--spacing-md, 16px); /* Add some space below full-width elements */
+  }
+
+  /* If .settings-form-element is a wrapper around label + input, make it column */
+  .kanban-settings-view .settings-form-element {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+
+  /* Adjustments for the list of configurable columns in settings */
+  /* .kanban-settings-view .column-config-list-item (if such a class exists on SortableColumnItem) */
+  /* This might involve making the internal buttons stack or take full width. */
+  /**
+   * @subsection Responsive Action Buttons in Sortable Column Items
+   * Stacks action buttons (Edit, Delete) vertically on small screens within the
+   * Kanban column settings list items.
+   */
+  /* For example, if SortableColumnItem uses a div for its buttons: */
+  .kanban-settings-view .sortable-column-item-actions { /* Assuming a class for the button container */
+    display: flex;
+    flex-direction: column; /* Stack buttons vertically */
+    gap: var(--spacing-sm, 8px);
+    width: 100%; /* Make button container full width */
+    margin-top: var(--spacing-sm, 8px); /* Add space above stacked buttons */
+  }
+  .kanban-settings-view .sortable-column-item-actions button {
+    width: 100%; /* Make buttons full width */
+  }
+
+  /* Ensure the main settings view container allows for vertical scrolling if content overflows */
+  .settings-view { /* Assuming this is the main container for KanbanSettingsView */
+    overflow-y: auto; /* Enable vertical scrolling if needed */
+  }
+}

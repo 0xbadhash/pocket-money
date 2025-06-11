@@ -151,11 +151,18 @@ describe('KanbanCard', () => {
     expect(subtask2).toBeChecked();
   });
 
-  test('progress bar reflects sub-task completion (1 of 2 complete = 50%)', () => {
-    renderCardWithSpecificDndState();
-    const progressBarContainer = screen.getByTitle('Progress: 50% (1/2)');
+  test('progress bar reflects sub-task completion and has correct ARIA attributes (1 of 2 complete = 50%)', () => {
+    renderCardWithSpecificDndState(); // Uses mockDefinition with 1 of 2 subTasks complete
+    const progressBarContainer = screen.getByTitle('Progress: 50% (1/2)'); // The outline div has the title
     const progressBarFill = progressBarContainer.querySelector('.progress-bar-fill');
+
+    expect(progressBarFill).toBeInTheDocument();
     expect(progressBarFill).toHaveStyle('width: 50%');
+    expect(progressBarFill).toHaveAttribute('role', 'progressbar');
+    expect(progressBarFill).toHaveAttribute('aria-valuenow', '50');
+    expect(progressBarFill).toHaveAttribute('aria-valuemin', '0');
+    expect(progressBarFill).toHaveAttribute('aria-valuemax', '100');
+    expect(progressBarFill).toHaveAttribute('aria-label', 'Progress: 50%');
   });
 
 

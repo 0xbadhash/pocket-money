@@ -114,27 +114,36 @@ describe('KanbanSettingsView', () => {
 
     render(<KanbanSettingsView />, { wrapper: wrapper(mockUserKids) });
 
-    const kidSelect = screen.getByRole('combobox');
+    const kidSelect = screen.getByLabelText('Select a kid to manage their Kanban columns');
     expect(kidSelect).toBeInTheDocument();
-    expect(screen.getByText('Select a Kid')).toBeInTheDocument();
+    expect(kidSelect).toHaveRole('combobox');
+    // expect(screen.getByText('Select a Kid')).toBeInTheDocument(); // This might be the default option, not a label
 
     await user.selectOptions(kidSelect, 'kid1');
 
     expect(mockGetKanbanColumnConfigs).toHaveBeenCalledWith('kid1');
     await waitFor(() => {
-      expect(screen.getByText(/To Do/i)).toBeInTheDocument(); // Part of SortableColumnItem display
+      expect(screen.getByText(/To Do/i)).toBeInTheDocument();
       expect(screen.getByText(/Done/i)).toBeInTheDocument();
     });
+
+    // Verify column list ARIA attributes
+    const columnList = screen.getByRole('list', { name: /Kanban columns for Kid Alpha/i });
+    expect(columnList).toBeInTheDocument();
+    // Verify list items (assuming SortableColumnItem renders with role="listitem")
+    const columnItems = screen.getAllByRole('listitem');
+    expect(columnItems.length).toBe(kid1Configs.length);
   });
 
   test('adds a new column when form is submitted', async () => {
     const user = userEvent.setup();
     render(<KanbanSettingsView />, { wrapper: wrapper(mockUserKids) });
 
-    const kidSelect = screen.getByRole('combobox');
+    const kidSelect = screen.getByLabelText('Select a kid to manage their Kanban columns');
     await user.selectOptions(kidSelect, 'kid1');
 
-    const titleInput = screen.getByPlaceholderText('New column title');
+    const titleInput = screen.getByLabelText('Title for new column');
+    expect(titleInput).toBeInTheDocument();
     const addButton = screen.getByRole('button', { name: 'Add Column' });
 
     await user.type(titleInput, 'Backlog');
@@ -167,7 +176,10 @@ describe('KanbanSettingsView', () => {
     const editButtons = screen.getAllByRole('button', { name: 'Edit' });
     await user.click(editButtons[0]);
 
-    const editInput = screen.getByDisplayValue('To Do');
+    const editInput = screen.getByLabelText(`Edit title for column ${kid1Configs[0].title}`);
+    expect(editInput).toBeInTheDocument();
+    expect(editInput).toHaveValue(kid1Configs[0].title); // Ensure it's the correct input
+
     await user.clear(editInput);
     await user.type(editInput, 'My Tasks');
     await user.click(screen.getByRole('button', { name: 'Save' }));
@@ -239,16 +251,21 @@ describe('KanbanSettingsView', () => {
 
     // Simulate drag end: move Column C (cfgC) to the position of Column A (cfgA)
     // Original order: A, B, C. New order: C, A, B
-    const dragEndEvent: DragEndEvent = {
-      active: { id: 'cfgC' } as any, // Dragged item
-      over: { id: 'cfgA' } as any,   // Dropped over item
-      delta: {x:0, y:0}, collisions: null
+    const dragEndEvent: DragEndEvent = { // Type DragEndEvent from @dnd-kit/core
+      active: { id: 'cfgC', data: { current: { sortable: { index: 2, containerId: kid1Id } } } } as any,
+      over: { id: 'cfgA', data: { current: { sortable: { index: 0, containerId: kid1Id } } } } as any,
+      delta: {x:0, y:0}, collisions: null,
     };
 
     // Manually call onDragEnd captured from DndContext mock
-    act(() => {
-      dndContextProps.onDragEnd(dragEndEvent);
-    });
+    // Ensure onDragEnd is defined before calling
+    if (dndContextProps.onDragEnd) {
+        act(() => {
+            dndContextProps.onDragEnd(dragEndEvent);
+        });
+    } else {
+        throw new Error("onDragEnd is not defined on dndContextProps");
+    }
 
     // Expected reordered array (cfgC, cfgA, cfgB) with updated order properties
     const expectedReorderedConfigs = [
@@ -256,7 +273,13 @@ describe('KanbanSettingsView', () => {
       expect.objectContaining({ id: 'cfgA', order: 1 }),
       expect.objectContaining({ id: 'cfgB', order: 2 }),
     ];
-    expect(mockReorderKanbanColumnConfigs).toHaveBeenCalledWith(kidId, expect.arrayContaining(expectedReorderedConfigs));
+    expect(mockReorderKanbanColumnConfigs).toHaveBeenCalledWith(kid1Id, expect.arrayContaining(expectedReorderedConfigs));
+
+    // Verify column list ARIA attributes after reorder
+    const columnList = screen.getByRole('list', { name: /Kanban columns for Kid Alpha/i });
+    expect(columnList).toBeInTheDocument();
+    const columnItems = screen.getAllByRole('listitem');
+    expect(columnItems.length).toBe(initialConfigs.length);
   });
 
   test('shows "Setup Default Columns" button and calls add multiple times on click', async () => {

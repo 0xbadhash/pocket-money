@@ -154,8 +154,20 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   }, [kidId, currentPeriodDateRange, generateInstancesForPeriod, getKanbanColumnConfigs, choreDefinitions]);
 
   /**
-   * Main effect hook for processing chore instances and building the displayable Kanban columns.
-   * It depends on various states and context values to correctly filter, sort, and categorize chores.
+   * Main effect hook for processing chore instances from context and building the displayable Kanban columns.
+   * It filters instances by kid and selected period, then by reward filter.
+   * It then iterates through the user-configured Kanban columns (from UserContext),
+   * assigning chores to their respective columns based on `choreInstance.kanbanColumnId`
+   * (defaulting unassigned chores to the first configured column).
+   * Finally, it applies sorting logic (custom drag-and-drop order or explicit sorts)
+   * to the chores within each column before updating the `columns` state.
+   *
+   * Note: If data fetching/processing within this effect were to become asynchronous
+   * or significantly time-consuming (e.g., with backend calls or very large datasets),
+   * introducing an `isLoading` state that's set to true at the beginning and false at
+   * the end of this effect would be advisable to provide user feedback.
+   * Currently, with synchronous operations on local data, it's typically fast enough
+   * not to require an explicit loading indicator for these re-calculations.
    */
   useEffect(() => {
     if (!kidId) {
@@ -413,7 +425,12 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
           </div>
         )}
 
-        <div className="kanban-columns" style={{ display: 'flex', gap: '10px' }}>
+        <div
+          className="kanban-columns"
+          style={{ display: 'flex', gap: '10px' }}
+          role="list" // Changed from group, as it's a list of columns (which are groups)
+          aria-label="Kanban board columns"
+        >
           {columns.map(col => (
             <KanbanColumn
               key={col.id}
