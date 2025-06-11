@@ -1,5 +1,5 @@
 // src/App.tsx
-import { useState, useEffect } from 'react'; // Import useState, useEffect
+import React, { useState, useEffect } from 'react'; // Import useState, useEffect
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import DashboardView from './ui/DashboardView';
 import FundsManagementView from './ui/FundsManagementView';

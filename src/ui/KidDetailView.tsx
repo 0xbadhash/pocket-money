@@ -1,8 +1,8 @@
 // src/ui/KidDetailView.tsx
-import { useContext } from 'react';
+import React, { useContext } from 'react';
 import { useParams, Link } from 'react-router-dom'; // Import Link for a back button
 import { UserContext } from '../contexts/UserContext';
-// Assuming Kid type is in ../types (but not directly used here after inspection)
+import type { Kid } from '../types'; // Assuming Kid type is in ../types
 
 const KidDetailView = () => {
   const { kidId } = useParams<{ kidId: string }>();
