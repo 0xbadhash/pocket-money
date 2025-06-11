@@ -365,6 +365,7 @@ const KanbanSettingsView: React.FC = () => {
                   </div>
                 ) : null}
               </DragOverlay>
+              </div>
             </DndContext>
           )}
         </div>
