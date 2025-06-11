@@ -15,9 +15,7 @@ import {
   closestCenter,
   DragEndEvent,
   DragStartEvent,
-  DragOverlay,
-  Active,
-  Over
+  DragOverlay
 } from '@dnd-kit/core';
 import {
   SortableContext,
