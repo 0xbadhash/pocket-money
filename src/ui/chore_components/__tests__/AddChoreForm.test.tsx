@@ -260,12 +260,14 @@ describe('AddChoreForm', () => {
       const user = userEvent.setup();
       renderFormComponent();
 
-      // Ensure title is empty by not typing into it.
-      // Removed typing into description to simplify and isolate the title validation.
-      // await user.type(screen.getByLabelText(/Description \(Optional\)/i), 'No title chore');
+      const titleInput = screen.getByLabelText(/Title/i);
+      fireEvent.change(titleInput, { target: { value: '' } }); // Explicitly empty
 
-      const submitButton = screen.getByRole('button', { name: /Add Chore/i });
-      await user.click(submitButton);
+      // Find the form element and trigger submit on it
+      const formElement = screen.getByRole('form'); // <form> elements have this implicit role
+      fireEvent.submit(formElement);
+      // const submitButton = screen.getByRole('button', { name: /Add Chore/i }); // Keep for reference
+      // await user.click(submitButton); // Replaced by fireEvent.submit
 
       expect(mockAddChoreDefinition).not.toHaveBeenCalled();
       expect(window.alert).toHaveBeenCalledWith('Please enter a chore title.');

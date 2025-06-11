@@ -49,3 +49,12 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     </UserContext.Provider>
   );
 };
+
+// Custom hook for easier context consumption
+export const useUserContext = () => {
+  const context = React.useContext(UserContext); // React is already imported
+  if (context === undefined) {
+    throw new Error('useUserContext must be used within a UserProvider');
+  }
+  return context;
+};
