@@ -1,6 +1,6 @@
 // src/contexts/ChoresContext.tsx
 import React, { createContext, useState, ReactNode, useContext, useEffect } from 'react';
-import type { ChoreDefinition, ChoreInstance } from '../types'; // Removed redundant SubTask import, as it should be part of ChoreDefinition now
+import type { ChoreDefinition, ChoreInstance, SubTask } from '../types'; // Added SubTask import
 import { useFinancialContext } from '../contexts/FinancialContext';
 import { generateChoreInstances } from '../utils/choreUtils';
 
@@ -9,7 +9,7 @@ const CHORE_DEFINITIONS_STORAGE_KEY = 'familyTaskManagerChoreDefinitions';
 const CHORE_INSTANCES_STORAGE_KEY = 'familyTaskManagerChoreInstances'; // Separate key for instances
 
 // Define the shape of the context value
-interface ChoresContextType {
+export interface ChoresContextType {
   choreDefinitions: ChoreDefinition[];
   choreInstances: ChoreInstance[];
   addChoreDefinition: (choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete'>) => void;
@@ -209,7 +209,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       prevDefs.map(def => {
         if (def.id === choreDefinitionId) {
           // Ensure subTasks array exists before mapping
-          const updatedSubTasks = def.subTasks?.map(st => {
+          const updatedSubTasks = def.subTasks?.map((st: SubTask) => {
             if (st.id === subTaskId) {
               return { ...st, isComplete: !st.isComplete };
             }

@@ -1,6 +1,6 @@
 // src/ui/kanban_components/KanbanCard.tsx
 import React from 'react';
-import type { ChoreInstance, ChoreDefinition } from '../../types'; // Updated import
+import type { ChoreInstance, ChoreDefinition, SubTask } from '../../types'; // Updated import
 import { useChoresContext } from '../../contexts/ChoresContext';
 
 interface KanbanCardProps { // Updated props
@@ -45,7 +45,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition }) => {
 
       {/* Progress Indicator */}
       {definition.subTasks && definition.subTasks.length > 0 && (() => {
-        const completedCount = definition.subTasks.filter(st => st.isComplete).length;
+        const completedCount = definition.subTasks.filter((st: SubTask) => st.isComplete).length;
         const progressPercent = (definition.subTasks.length > 0) ? (completedCount / definition.subTasks.length) * 100 : 0;
 
         return (
@@ -113,7 +113,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition }) => {
       {definition.subTasks && definition.subTasks.length > 0 && (
         <div className="sub-tasks-list" style={{ marginTop: '10px', borderTop: '1px solid #eee', paddingTop: '8px' }}>
           <h5 style={{ fontSize: '0.9em', marginBottom: '5px', color: '#666', marginTop: '0' }}>Sub-tasks:</h5>
-          {definition.subTasks.map(subTask => (
+          {definition.subTasks.map((subTask: SubTask) => (
             <div
               key={subTask.id}
               className="sub-task"

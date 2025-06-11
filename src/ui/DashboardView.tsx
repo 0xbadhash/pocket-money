@@ -1,7 +1,6 @@
-<<<<<<< HEAD
 // src/ui/DashboardView.tsx
 import React, { useState, useEffect } from 'react';
-import { useUser } from '../contexts/UserContext';
+import { useUserContext } from '../contexts/UserContext'; // Changed useUser to useUserContext
 import { useChoresContext } from '../contexts/ChoresContext';
 import { UserRole, ParentUser as ParentUserType, KidUser, ChoreDefinition, ChoreInstance } from '../types';
 import { AddChoreForm } from '../components/AddChoreForm';
@@ -20,9 +19,11 @@ const formatChoreDefinitionRecurrence = (choreDef: ChoreDefinition): string => {
 };
 
 const DashboardView: React.FC = () => {
-  const { currentUser } = useUser();
+  const { user: currentUser, loading } = useUserContext(); // Changed useUser and destructuring
   // Destructure both choreDefinitions and choreInstances as planned
-  const { choresDefinitions, choreInstances, toggleChoreInstanceComplete, deleteChoreDefinition } = useChoresContext();
+  // choresDefinitions renamed to choreDefinitions
+  // deleteChoreDefinition is not in context (commented out below)
+  const { choreDefinitions, choreInstances, toggleChoreInstanceComplete /*, deleteChoreDefinition */ } = useChoresContext();
 
   const containerStyle: React.CSSProperties = {
     padding: '20px',
@@ -66,6 +67,15 @@ const DashboardView: React.FC = () => {
     cursor: 'pointer',
     fontSize: '0.9em',
   };
+
+  if (loading) { // Added loading state check
+    return (
+      <div style={containerStyle}>
+        <h1 style={headerStyle}>Dashboard</h1>
+        <p>Loading user data...</p>
+      </div>
+    );
+  }
 
   if (!currentUser) {
     return (
@@ -199,7 +209,7 @@ const DashboardView: React.FC = () => {
                 <div>
                   {/* The Edit button is commented out until EditChoreForm is updated */}
                   {/* <button onClick={() => handleEdit(choreDef)} style={{ marginRight: '10px', padding: '5px 10px', fontSize: '0.9em' }}>Edit</button> */}
-                  <button onClick={() => deleteChoreDefinition(choreDef.id)} style={{ padding: '5px 10px', fontSize: '0.9em', backgroundColor: '#dc3545', color: 'white', border: 'none' }}>Delete Definition</button>
+                  {/* <button onClick={() => deleteChoreDefinition(choreDef.id)} style={{ padding: '5px 10px', fontSize: '0.9em', backgroundColor: '#dc3545', color: 'white', border: 'none' }}>Delete Definition</button> */}
                 </div>
               </li>
             ))}
@@ -215,28 +225,6 @@ const DashboardView: React.FC = () => {
               <button style={buttonStyle}>Go to Kanban Board</button>
           </Link>
       </div>
-=======
-// /tmp/vite_init_area/temp_pocket_money_app/src/ui/DashboardView.tsx
-import TotalFundsSummary from './dashboard_components/TotalFundsSummary';
-import QuickActions from './dashboard_components/QuickActions';
-import RecentActivityFeed from './dashboard_components/RecentActivityFeed';
-
-const DashboardView = () => {
-  return (
-    <div className="dashboard-view">
-      <header className="dashboard-header">
-        <h1>Parent Dashboard</h1>
-      </header>
-      <section className="dashboard-summary">
-        <TotalFundsSummary />
-      </section>
-      <section className="dashboard-quick-actions">
-        <QuickActions />
-      </section>
-      <section className="dashboard-activity-feed">
-        <RecentActivityFeed />
-      </section>
->>>>>>> dc0fa03e3ba2becad1e82c7d2a0cd939732cb3d1
     </div>
   );
 };

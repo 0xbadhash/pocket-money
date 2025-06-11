@@ -3,6 +3,7 @@ import React, { useState, useContext } from 'react';
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { UserContext } from '../../contexts/UserContext'; // To get kids for dropdown
 import type { Kid, SubTask } from '../../types'; // Import Kid and SubTask type
+import { getTodayDateString } from '../../utils/dateUtils'; // Import date utility
 
 const AddChoreForm = () => {
   const [title, setTitle] = useState('');
@@ -33,7 +34,7 @@ const AddChoreForm = () => {
       title: title.trim(),
       description: description.trim() || undefined,
       assignedKidId: assignedKidId || undefined,
-      dueDate: dueDate || undefined,
+      dueDate: dueDate || getTodayDateString(), // Ensure dueDate is always a string
       rewardAmount: rewardAmount ? parseFloat(String(rewardAmount)) : undefined,
       // Add recurrence data
       recurrenceType: recurrenceType === 'none' ? null : recurrenceType,
