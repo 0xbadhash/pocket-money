@@ -28,6 +28,7 @@ export function generateChoreInstances(
           instances.push({
             id: `${def.id}_${def.dueDate}`,
             choreDefinitionId: def.id,
+            title: def.title, // Added title
             instanceDate: def.dueDate,
             isComplete: false, // Default new instances to incomplete
           });
@@ -84,6 +85,7 @@ export function generateChoreInstances(
         instances.push({
           id: `${def.id}_${instanceDateStr}`,
           choreDefinitionId: def.id,
+          title: def.title, // Added title
           instanceDate: instanceDateStr,
           isComplete: false, // Default new instances to incomplete
         });

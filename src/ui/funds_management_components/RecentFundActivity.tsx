@@ -2,12 +2,13 @@
 import { useContext } from 'react';
 import { useFinancialContext } from '../../contexts/FinancialContext';
 import { UserContext } from '../../contexts/UserContext';
-import { Transaction } from '../../types'; // Assuming Transaction type is defined in types.ts
+import { Transaction, AppUser, Kid } from '../../types'; // Added Kid
 
 const RecentFundActivity = () => {
-  const { transactions } = useFinancialContext();
+  const { financialData } = useFinancialContext(); // Changed to financialData
   const userContext = useContext(UserContext);
-  const users = userContext?.allUsers || []; // Assuming allUsers is available or you have a way to map user IDs to names
+  // Changed to use user.kids, as allUsers is not on UserContextType
+  const kidsList: Kid[] = userContext?.user?.kids || [];
 
   // Helper to format date for display
   const formatDate = (dateString: string): string => {
@@ -19,14 +20,19 @@ const RecentFundActivity = () => {
   // Helper to get user name from ID
   const getUserName = (userId: string | undefined): string => {
     if (!userId) return 'N/A';
-    const user = users.find(u => u.id === userId);
-    return user ? user.name : 'Unknown User';
+    // Now finds from kidsList
+    const kid = kidsList.find((k: Kid) => k.id === userId);
+    if (kid) return kid.name;
+    // Fallback for user IDs that are not kids (e.g. parent, if transactions involve them directly)
+    // This part is a placeholder as we don't have a list of all AppUsers easily available.
+    if (userContext?.user?.id === userId) return userContext.user.name; // Check if it's the current user
+    return 'Unknown User'; // Default
   };
 
   // Filter and limit recent transactions (e.g., last 5)
   // Sort by date (most recent first)
-  const recentTransactions = transactions
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  const recentTransactions = financialData.transactions // Use financialData.transactions
+    .sort((a: Transaction, b: Transaction) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5); // Display last 5 transactions
 
   return (
@@ -38,11 +44,11 @@ const RecentFundActivity = () => {
         <ul>
           {recentTransactions.map((transaction: Transaction) => (
             <li key={transaction.id}>
-              {transaction.amount >= 0 ? '+' : '-'} ${Math.abs(transaction.amount).toFixed(2)} {transaction.description} (
-              {transaction.type === 'deposit' && `From ${getUserName(transaction.fromUserId)}`}
-              {transaction.type === 'withdrawal' && `To ${getUserName(transaction.toUserId)}`}
-              {transaction.type === 'transfer' && `From ${getUserName(transaction.fromUserId)} to ${getUserName(transaction.toUserId)}`}
-              ) - {formatDate(transaction.date)}
+              {transaction.amount >= 0 ? '+' : '-'} ${Math.abs(transaction.amount).toFixed(2)} {transaction.description}
+              {/* Simplified display due to missing properties on Transaction type */}
+              {transaction.kidId && ` (Kid: ${getUserName(transaction.kidId)})`}
+              {' - '}
+              {formatDate(transaction.date)}
             </li>
           ))}
         </ul>

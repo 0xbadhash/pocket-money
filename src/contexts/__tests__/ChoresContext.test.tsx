@@ -1,13 +1,11 @@
-// src/contexts/__tests__/ChoresContext.test.tsx
 import { renderHook, act } from '@testing-library/react';
 import React from 'react';
 import { ChoresContext, ChoresContextType, useChoresContext } from '../ChoresContext';
 import { FinancialContext, FinancialContextType } from '../FinancialContext';
 import { UserContext, UserContextType } from '../UserContext';
 import { vi } from 'vitest'; // Import vi
-
-// Import the module containing generateChoreInstances to mock it
-import * as choreUtils from '../../utils/choreUtils'; // Assuming generateChoreInstances is in choreUtils.ts
+import type { ChoreDefinition, ChoreInstance, SubTask } from '../../types'; // Essential types
+import * as choreUtils from '../../utils/choreUtils'; // For mocking generateChoreInstances
 
 // Mock localStorage
 const localStorageMock = (() => {

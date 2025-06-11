@@ -3,6 +3,7 @@ import React, { useState, useContext } from 'react';
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { UserContext } from '../../contexts/UserContext';
 import type { Kid, SubTask } from '../../types';
+import { getTodayDateString } from '../../utils/dateUtils'; // Import date utility
 
 const AddChoreForm = () => {
   const [title, setTitle] = useState('');
@@ -50,9 +51,8 @@ const AddChoreForm = () => {
       title: title.trim(),
       description: description.trim() || undefined,
       assignedKidId: assignedKidId || undefined,
-      dueDate: dueDate || undefined,
-      rewardAmount: rewardAmount ? Number(rewardAmount) : undefined, // Use Number() for clarity
-
+      dueDate: dueDate || getTodayDateString(), // Prioritize the incoming change as it provides a default
+      rewardAmount: rewardAmount ? Number(rewardAmount) : undefined, // Using Number() is generally robust
       // Recurrence data
       recurrenceType: recurrenceType === 'none' ? null : recurrenceType,
       recurrenceDay: (recurrenceType === 'weekly' || recurrenceType === 'monthly') && recurrenceDay
