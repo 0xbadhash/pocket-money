@@ -11,6 +11,12 @@
   --secondary-color-positive: #8BC34A; /* GoHenry Green */
   --secondary-color-positive-dark: #7CB342; /* Darker Lively Green */
 
+  /* Success colors for feedback messages */
+  --success-color: #198754; /* Bootstrap success green */
+  --success-color-light: #d1e7dd;
+  --success-color-dark: #0a3622;
+
+
   /* Attention (Keep existing or update if GoHenry has a specific one) */
   --secondary-color-attention: #FFC107; /* Amber 500 - Kept from previous */
   --secondary-color-attention-dark: #FFA000; /* Amber 700 - Kept */
@@ -28,6 +34,7 @@
   /* Text Colors */
   --text-color-primary: #424242;    /* GoHenry Dark Grey */
   --text-color-secondary: #757575;  /* Standard Medium Grey for secondary text */
+  --text-color-disabled: #adb5bd; /* For disabled elements or less important text */
   --text-color-on-primary: #FFFFFF; /* White text on GoHenry Blue */
   --text-color-on-secondary-positive: #FFFFFF; /* White text on GoHenry Green (check contrast, could be dark) */
   --text-color-on-accent: #FFFFFF;  /* White text on playful accent */
@@ -91,6 +98,11 @@
   --secondary-color-positive: #AED581; /* Lighter Green (Material Light Green 300) */
   --secondary-color-positive-dark: #9CCC65; /* Slightly darker Light Green (Material Light Green 400) */
 
+  /* Success colors for feedback messages - Dark Theme */
+  --success-color: #20c997; /* A slightly brighter teal for dark mode success */
+  --success-color-light: #16483a; /* Darker background for light text */
+  --success-color-dark: #96f3d9; /* Light text for contrast */
+
   /* Attention (Keep existing dark theme versions or adapt if GoHenry has specific dark ones) */
   --secondary-color-attention: #FFD54F; /* Amber 300 - Kept from previous dark theme */
   --secondary-color-attention-dark: #FFCA28; /* Amber 400 - Kept */
@@ -108,6 +120,7 @@
   /* Text Colors - Dark Theme */
   --text-color-primary: #E0E0E0;    /* Light Grey for primary text */
   --text-color-secondary: #BDBDBD;  /* Medium Light Grey for secondary text */
+  --text-color-disabled: #6c757d;   /* Darker disabled text for light backgrounds */
   --text-color-on-primary: #000000; /* Black text on the light Cyan primary */
   --text-color-on-secondary-positive: #000000; /* Black text on the light Green positive */
   --text-color-on-accent: #000000;  /* Black text on the light Purple accent */
@@ -690,7 +703,73 @@ h6 { font-size: var(--font-size-lg); font-weight: var(--font-weight-medium); }
   margin-top: 0;
   font-size: 1.1em;
   font-weight: 600;
+  /* font-size: var(--font-size-lg); /* Make card titles slightly larger */ /* This was for card title */
+  /* margin-bottom: var(--spacing-xs); */ /* This was for card title */
+  /* margin-top: 0; */ /* This was for card title */
 }
+
+/* General paragraph styling within Kanban cards */
+/* These will apply to description, due date, reward, status, recurrence info unless overridden by more specific inline styles */
+/* .kanban-card p {
+  font-size: var(--font-size-sm);
+  color: var(--text-color-secondary);
+  margin-top: 0;
+  margin-bottom: 0;
+  line-height: var(--line-height-base);
+} */
+
+/* Example for specific p if needed, but inline styles in component might already handle this fine. */
+/* .kanban-card p.description { ... } */
+/* .kanban-card p.due-date, .kanban-card p.reward-info { font-weight: var(--font-weight-medium); } */
+
+
+/* Tags styling */
+/* .chore-tags-container {
+  margin-top: var(--spacing-xs);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.chore-tag {
+  padding: 3px 8px;
+  font-size: 0.75em;
+  border-radius: var(--border-radius-sm);
+  background-color: var(--surface-color-hover);
+  color: var(--text-color-secondary);
+  font-weight: var(--font-weight-medium);
+} */
+
+/* Sub-tasks list styling */
+/* .sub-tasks-list {
+  margin-top: var(--spacing-sm);
+  border-top: var(--border-width) solid var(--border-color);
+  padding-top: var(--spacing-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.sub-tasks-list h5 {
+  font-size: var(--font-size-base);
+  color: var(--text-color-secondary);
+  margin-top: 0;
+  margin-bottom: 0;
+  font-weight: var(--font-weight-medium);
+}
+
+.sub-task {
+  display: flex;
+  align-items: center;
+}
+.sub-task label {
+  font-size: var(--font-size-sm);
+}
+.sub-task input[type="checkbox"] {
+  margin-right: var(--spacing-sm);
+  cursor: pointer;
+} */
+
 
 .kanban-cards-container {
   min-height: 100px;
@@ -699,13 +778,134 @@ h6 { font-size: var(--font-size-lg); font-weight: var(--font-weight-medium); }
   gap: 10px; /* Space between cards */
 }
 
+/**
+ * @section Kanban Card Base Styling
+ * Base styles for individual chore cards.
+ * - Uses flexbox for internal layout of direct children (e.g., title, description, tags, sub-tasks).
+ * - Includes basic padding, border, shadow, and transitions for hover effects.
+ */
 .kanban-card {
-  border: 1px solid #ddd;
-  padding: 10px;
+  border: 1px solid var(--border-color); /* Use theme variable */
+  padding: var(--spacing-sm); /* Use theme variable */
   border-radius: var(--border-radius-md, 6px);
-  background-color: #fff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  background-color: var(--surface-color);
+  box-shadow: var(--box-shadow-sm); /* Use theme variable for consistency */
+  /* Update transition to include transform for hover effect */
+  transition: opacity 0.2s ease-in-out, box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out;
+  /* dnd-kit's useSortable provides its own transform and transition for D&D movement */
+  display: flex; /* Enable flex for internal spacing if needed */
+  flex-direction: column; /* Stack card content vertically */
+  gap: var(--spacing-xs); /* Add small gap between direct children of card */
 }
+
+/**
+ * @subsection Kanban Card Title
+ * Styling for the main title (h4) within a Kanban card.
+ */
+.kanban-card h4 {
+  font-weight: var(--font-weight-bold); /* Ensure title is bold */
+  font-size: var(--font-size-lg);
+  margin-bottom: 0; /* Rely on parent gap */
+  margin-top: 0;
+}
+
+/**
+ * @subsection Kanban Card Paragraphs
+ * General styling for paragraph text within cards (description, due date, reward, status).
+ * Uses theme variables for consistent sizing and color. Margins are minimal due to parent flex gap.
+ */
+.kanban-card p {
+  font-size: var(--font-size-sm);
+  color: var(--text-color-secondary);
+  margin-top: 0;
+  margin-bottom: 0;
+  line-height: var(--line-height-base);
+}
+
+/**
+ * @subsection Kanban Card Tags
+ * Styling for chore tags and their container.
+ * Tags are styled to be distinct but not overly prominent.
+ */
+.chore-tags-container {
+  margin-top: var(--spacing-xs);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.chore-tag {
+  padding: 3px 8px;
+  font-size: 0.75em;
+  border-radius: var(--border-radius-sm);
+  background-color: var(--surface-color-hover);
+  color: var(--text-color-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+/**
+ * @subsection Kanban Card Sub-tasks
+ * Styling for the sub-tasks section within a card.
+ * Includes styling for the sub-task list title and individual sub-task items.
+ */
+.sub-tasks-list {
+  margin-top: var(--spacing-sm);
+  border-top: var(--border-width) solid var(--border-color);
+  padding-top: var(--spacing-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.sub-tasks-list h5 {
+  font-size: var(--font-size-base);
+  color: var(--text-color-secondary);
+  margin-top: 0;
+  margin-bottom: 0;
+  font-weight: var(--font-weight-medium);
+}
+
+.sub-task {
+  display: flex;
+  align-items: center;
+}
+.sub-task label {
+  font-size: var(--font-size-sm);
+  /* Note: text-decoration and color for completed sub-tasks are handled by inline styles in KanbanCard.tsx */
+}
+.sub-task input[type="checkbox"] {
+  margin-right: var(--spacing-sm);
+  cursor: pointer;
+}
+
+
+/**
+ * @subsection Kanban Card Hover Effect
+ * Provides a "lift" effect and enhanced shadow when hovering over a card,
+ * unless the card is being dragged (placeholder) or is a drag overlay clone.
+ */
+.kanban-card:not(.dragging):not(.is-overlay):hover {
+  transform: translateY(-3px); /* Lift effect on hover */
+  box-shadow: var(--box-shadow-md); /* Enhance shadow on hover for depth */
+}
+
+/* Styling for the original card when it's being dragged (placeholder) */
+.kanban-card.dragging {
+  opacity: 0.4 !important; /* Ensure this overrides inline style if necessary, or manage opacity in one place */
+  outline: 2px dashed var(--primary-color-light, #b2ebf2); /* Use a theme variable */
+  outline-offset: 2px;
+  box-shadow: none;
+  background-color: var(--surface-color-hover, #e9ecef); /* Make placeholder more distinct */
+}
+
+/* Styling for the card clone when rendered in DragOverlay */
+.kanban-card.is-overlay {
+  cursor: grabbing;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.15); /* More pronounced shadow */
+  /* transform: scale(1.03); */ /* Optional: Be cautious with this, test thoroughly as it can interfere with dnd-kit transforms */
+  z-index: 1000; /* Ensure it's above other elements; DragOverlay might handle this too */
+}
+
 
 /* Kanban Column Themes */
 .kanban-column-theme-default {
@@ -716,6 +916,8 @@ h6 { font-size: var(--font-size-lg); font-weight: var(--font-weight-medium); }
 .kanban-column-theme-default h3 {
   color: #333; /* Dark grey text for header */
   border-bottom: 1px solid #d9d9d9;
+  padding-left: 12px; /* Added horizontal padding */
+  padding-right: 12px; /* Added horizontal padding */
 }
 
 .kanban-column-theme-pastel {
@@ -726,6 +928,8 @@ h6 { font-size: var(--font-size-lg); font-weight: var(--font-weight-medium); }
 .kanban-column-theme-pastel h3 {
   color: #5c4b8b; /* Darker purple for text, good contrast */
   border-bottom: 1px solid #c9c0e0;
+  padding-left: 12px; /* Added horizontal padding */
+  padding-right: 12px; /* Added horizontal padding */
 }
 
 .kanban-column-theme-ocean {
@@ -736,6 +940,88 @@ h6 { font-size: var(--font-size-lg); font-weight: var(--font-weight-medium); }
 .kanban-column-theme-ocean h3 {
   color: #005f73; /* Deep blue/teal for text */
   border-bottom: 1px solid #a9d8e6;
+  padding-left: 12px; /* Added horizontal padding */
+  padding-right: 12px; /* Added horizontal padding */
 }
+
+/**
+ * @section Kanban Column Empty State
+ * Styles for the placeholder shown within a Kanban column when it has no chores.
+ * Provides visual feedback that the column is empty and can accept items.
+ */
+.kanban-column-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  text-align: center;
+  color: var(--text-color-secondary, #6c757d);
+  border: 2px dashed var(--border-color, #dee2e6);
+  border-radius: var(--border-radius-md, 6px);
+  min-height: 100px; /* Match .kanban-cards-container min-height */
+  height: 100%;
+  box-sizing: border-box;
+  margin-top: 10px; /* Add some space if it's the only thing in cards container */
+}
+.kanban-column-empty-state p {
+  margin: 0;
+  font-size: 0.95em;
+}
+
+/**
+ * @section Kanban Action Feedback Message
+ * Styles for the temporary message displayed after certain Kanban actions (e.g., moving a chore).
+ */
+.kanban-action-feedback {
+  padding: 10px 15px;
+  background-color: var(--success-color-light, #d1e7dd);
+  color: var(--success-color-dark, #0a3622);
+  border: 1px solid var(--success-color, #badbcc);
+  border-radius: var(--border-radius-md, 6px);
+  margin-bottom: 15px;
+  text-align: center;
+  font-size: 0.9em;
+  opacity: 1;
+  transition: opacity 0.5s ease-in-out; /* For potential fade-out if used */
+}
+
+
+/**
+ * @section Global Custom Scrollbar Styling (Webkit)
+ * Provides a more subtle and modern scrollbar appearance for Webkit-based browsers
+ * (Chrome, Safari, Edge, etc.) across the application.
+ *
+ * - ::-webkit-scrollbar: Defines the general width/height of the scrollbar.
+ * - ::-webkit-scrollbar-track: Styles the track (the path scrollbar moves along).
+ *   Here, it's transparent.
+ * - ::-webkit-scrollbar-thumb: Styles the draggable scrolling handle.
+ *   Styled with theme variables for color and a border to create a "padding" effect.
+ * - ::-webkit-scrollbar-thumb:hover: Darkens the thumb on hover for better feedback.
+ */
+::-webkit-scrollbar {
+  width: 8px;  /* Width of vertical scrollbar */
+  height: 8px; /* Height of horizontal scrollbar */
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--text-color-disabled, #ccc); /* Use a theme variable */
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-color-secondary, #888); /* Use a theme variable */
+}
+
+/* For Firefox - basic theming */
+/* Consider scoping this to specific scrollable elements if global is too much */
+/* html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-color-secondary, #888) var(--surface-color, #f1f1f1);
+} */
 
 [end of src/styles.css]

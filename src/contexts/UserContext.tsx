@@ -34,13 +34,23 @@ export interface UserContextType {
   deleteKid: (kidId: string) => void;
 
   // Kanban Column Config functions
+  /** Retrieves all Kanban column configurations for a specific kid, sorted by their 'order' property. */
   getKanbanColumnConfigs: (kidId: string) => KanbanColumnConfig[];
+  /** Adds a new Kanban column configuration for a specific kid. */
   addKanbanColumnConfig: (kidId: string, title: string) => Promise<void>;
+  /** Updates an existing Kanban column configuration. */
   updateKanbanColumnConfig: (updatedConfig: KanbanColumnConfig) => Promise<void>;
+  /** Deletes a Kanban column configuration for a specific kid and re-calculates order of remaining. */
   deleteKanbanColumnConfig: (kidId: string, configId: string) => Promise<void>;
+  /** Reorders the Kanban column configurations for a specific kid and updates their 'order' property. */
   reorderKanbanColumnConfigs: (kidId: string, orderedConfigs: KanbanColumnConfig[]) => Promise<void>;
 }
 
+/**
+ * Context for managing user data, including authentication state, user profile,
+ * kid profiles, and settings like custom Kanban column configurations.
+ * Provides functions to interact with and modify this data.
+ */
 export const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const useUserContext = (): UserContextType => {
@@ -161,14 +171,28 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     });
   };
 
+  /**
+   * Retrieves all Kanban column configurations for a specific kid, sorted by their 'order' property.
+   * @param {string} kidId - The ID of the kid whose column configurations are to be retrieved.
+   * @returns {KanbanColumnConfig[]} An array of sorted Kanban column configurations, or an empty array if none found.
+   */
   const getKanbanColumnConfigs = (kidId: string): KanbanColumnConfig[] => {
     const kid = user?.kids.find(k => k.id === kidId);
     if (kid && kid.kanbanColumnConfigs) {
+      // Return a new sorted array to prevent direct mutation of state if the consumer modifies the array
       return [...kid.kanbanColumnConfigs].sort((a, b) => a.order - b.order);
     }
     return [];
   };
 
+  /**
+   * Adds a new Kanban column configuration for a specific kid.
+   * The new column is added to the end of the existing columns.
+   * Timestamps (`createdAt`, `updatedAt`) are automatically set.
+   * @param {string} kidId - The ID of the kid for whom to add the column.
+   * @param {string} title - The title for the new Kanban column.
+   * @returns {Promise<void>} A promise that resolves when the operation is complete.
+   */
   const addKanbanColumnConfig = async (kidId: string, title: string): Promise<void> => {
     setUser(prevUser => {
       if (!prevUser) return null;
@@ -194,6 +218,13 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     });
   };
 
+  /**
+   * Updates an existing Kanban column configuration for a kid.
+   * The `updatedAt` timestamp of the configuration is automatically updated.
+   * @param {KanbanColumnConfig} updatedConfig - The KanbanColumnConfig object with updated values.
+   *                                            The `id` and `kidId` properties are used to find the target.
+   * @returns {Promise<void>} A promise that resolves when the operation is complete.
+   */
   const updateKanbanColumnConfig = async (updatedConfig: KanbanColumnConfig): Promise<void> => {
     setUser(prevUser => {
       if (!prevUser) return null;
@@ -213,6 +244,13 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     });
   };
 
+  /**
+   * Deletes a Kanban column configuration for a specific kid.
+   * After deletion, the `order` property of the remaining configurations is recalculated to maintain consistency.
+   * @param {string} kidId - The ID of the kid from whom the column configuration will be deleted.
+   * @param {string} configId - The ID of the Kanban column configuration to delete.
+   * @returns {Promise<void>} A promise that resolves when the operation is complete.
+   */
   const deleteKanbanColumnConfig = async (kidId: string, configId: string): Promise<void> => {
     setUser(prevUser => {
       if (!prevUser) return null;
@@ -234,7 +272,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
   const reorderKanbanColumnConfigs = async (kidId: string, orderedConfigsWithNewOrder: KanbanColumnConfig[]): Promise<void> => {
     // orderedConfigsWithNewOrder is assumed to be the full list of configs for the kid,
-    // already in the desired visual order, but their 'order' property might need updating.
+    // already in the desired visual order. This function updates their 'order' property
+    // to match their new index in the array and sets their `updatedAt` timestamp.
+    // It's crucial that `orderedConfigsWithNewOrder` contains all configurations for the kid.
     setUser(prevUser => {
       if (!prevUser) return null;
       const newKidsArray = prevUser.kids.map(kid => {

@@ -251,10 +251,10 @@ This document tracks the status, priority, and progress of key features and task
 -   **Feature**: Kid-Specific Kanban Board View.
     -   Status: Done
     -   Priority: High (Enhancement to chore tracking)
-    -   Notes: Provides a visual Kanban interface (`KanbanView.tsx`) for a selected kid's chores. Displays chores in 'Active' and 'Completed' columns for daily, weekly, or monthly periods. Supports drag-and-drop to reorder chores and move them between columns (which updates their completion status). Features include column theming, filtering by reward status, and sorting by due date, title, or reward. Comprehensive tests (unit, component, integration) and JSDoc comments have been added for this feature.
+    -   Notes: Provides a visual Kanban interface (`KanbanView.tsx`) for a selected kid's chores. Displays chores in **user-configurable columns (e.g., "To Do", "In Progress", "Done", managed in Settings)** for daily, weekly, or monthly periods. Supports drag-and-drop to reorder chores within columns and move them between these dynamic columns (updating `choreInstance.kanbanColumnId`), with enhanced visual feedback during drag operations using a drag overlay. Chore completion status is managed independently on each card. Features include column theming, filtering by reward status, and various sorting options. Comprehensive tests (unit, component, integration) and JSDoc comments have been added for this feature.
     -   **Sub-Feature**: Persist Custom Chore Order.
         -   Status: Done
-        -   Notes: Allows users to manually reorder chores within a Kanban column via drag-and-drop. This custom order is saved (in localStorage via ChoresContext) and reapplied when the board is viewed with the "My Order / Due Date" sort setting. Applying an explicit sort (e.g., by Title, Reward) will clear the custom order for the currently viewed columns, allowing the explicit sort to take precedence.
+        -   Notes: Allows users to manually reorder chores within a user-defined Kanban column via drag-and-drop. This custom order is saved (in localStorage via ChoresContext using a `${kidId}-${columnConfigId}` key) and reapplied when the board is viewed with the "My Order / Due Date" sort setting. Applying an explicit sort (e.g., by Title, Reward) will clear the custom order for all configured columns for the current kid, allowing the explicit sort to take precedence.
 
 ### Task 7.2: Earning Integration (Chore Tracking)
 *Led by Google Calendar / Google Tasks / AI/ML Team*

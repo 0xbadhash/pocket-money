@@ -29,19 +29,37 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 /**
- * Represents a single sortable Kanban column configuration item in the settings UI.
+ * @interface SortableColumnItemProps
+ * Props for the `SortableColumnItem` component, which represents a single,
+ * editable, and deletable Kanban column configuration in a sortable list.
  */
 interface SortableColumnItemProps {
+  /** The Kanban column configuration object to display and manage. */
   config: KanbanColumnConfig;
+  /** Callback function triggered when the 'Edit' button for a column is clicked. */
   onEdit: (config: KanbanColumnConfig) => void;
+  /** Callback function triggered when the 'Delete' button for a column is clicked. */
   onDelete: (configId: string) => void;
+  /** Boolean indicating if this specific column item is currently in edit mode. */
   isEditing: boolean;
+  /** The current value of the title input field when this item is in edit mode. */
   currentEditTitle: string;
+  /** Callback to update the `currentEditTitle` state as the user types in the edit input. */
   onEditTitleChange: (title: string) => void;
+  /** Callback triggered when the 'Save' button is clicked after editing a title. */
   onSaveEdit: () => void;
+  /** Callback triggered when the 'Cancel' button is clicked during an edit. */
   onCancelEdit: () => void;
 }
 
+/**
+ * SortableColumnItem component.
+ * Renders a single item in the list of Kanban column configurations.
+ * Provides functionality for inline editing of the title, deleting the column,
+ * and drag handles for reordering.
+ * @param {SortableColumnItemProps} props - The component props.
+ * @returns {JSX.Element} A sortable list item representing a Kanban column configuration.
+ */
 const SortableColumnItem: React.FC<SortableColumnItemProps> = ({
   config,
   onEdit,
@@ -119,15 +137,26 @@ const KanbanSettingsView: React.FC = () => {
     reorderKanbanColumnConfigs
   } = useUserContext();
 
+  /** State for the ID of the currently selected kid whose columns are being managed. */
   const [selectedKidId, setSelectedKidId] = useState<string | null>(null);
+  /** State holding the array of Kanban column configurations for the `selectedKidId`. */
   const [columnsForSelectedKid, setColumnsForSelectedKid] = useState<KanbanColumnConfig[]>([]);
+  /** State for the column configuration object currently being edited (if any). */
   const [editingColumn, setEditingColumn] = useState<KanbanColumnConfig | null>(null);
+  /** State for the title input when editing an existing column. */
   const [currentEditTitle, setCurrentEditTitle] = useState<string>('');
+  /** State for the title input when adding a new column. */
   const [newColumnTitle, setNewColumnTitle] = useState<string>('');
+  /** State for the ID of the column configuration item currently being dragged for reordering. */
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
 
   const kids = user?.kids || [];
 
+  /**
+   * Effect hook to fetch and update the list of `columnsForSelectedKid`
+   * whenever the `selectedKidId` changes or the main `user` data (which might include
+   * updated column configs from context operations) changes.
+   */
   useEffect(() => {
     if (selectedKidId) {
       const configs = getKanbanColumnConfigs(selectedKidId);
@@ -144,25 +173,42 @@ const KanbanSettingsView: React.FC = () => {
     })
   );
 
+  /**
+   * Handles changes to the kid selection dropdown.
+   * Updates `selectedKidId` and resets any ongoing column edit.
+   * @param {React.ChangeEvent<HTMLSelectElement>} event - The select change event.
+   */
   const handleKidSelection = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const kidId = event.target.value;
     setSelectedKidId(kidId || null);
-    setEditingColumn(null); // Reset editing state
+    setEditingColumn(null); // Reset editing state when kid changes
   };
 
+  /**
+   * Handles adding a new Kanban column for the selected kid.
+   * Calls `addKanbanColumnConfig` from UserContext and clears the input field.
+   */
   const handleAddColumn = async () => {
     if (selectedKidId && newColumnTitle.trim()) {
       await addKanbanColumnConfig(selectedKidId, newColumnTitle.trim());
       setNewColumnTitle('');
-      // Data will refresh via useEffect listening to 'user' context changes
+      // `columnsForSelectedKid` will auto-update via useEffect watching `user` context.
     }
   };
 
+  /**
+   * Sets a column configuration into edit mode.
+   * @param {KanbanColumnConfig} config - The column configuration to edit.
+   */
   const handleEditColumn = (config: KanbanColumnConfig) => {
     setEditingColumn(config);
     setCurrentEditTitle(config.title);
   };
 
+  /**
+   * Saves changes to an edited column's title.
+   * Calls `updateKanbanColumnConfig` from UserContext and exits edit mode.
+   */
   const handleSaveEdit = async () => {
     if (editingColumn && currentEditTitle.trim()) {
       await updateKanbanColumnConfig({ ...editingColumn, title: currentEditTitle.trim() });
@@ -171,33 +217,55 @@ const KanbanSettingsView: React.FC = () => {
     }
   };
 
+  /**
+   * Cancels the current column edit operation.
+   */
   const handleCancelEdit = () => {
     setEditingColumn(null);
     setCurrentEditTitle('');
   };
 
+  /**
+   * Handles deleting a Kanban column configuration for the selected kid.
+   * Prompts for confirmation before calling `deleteKanbanColumnConfig` from UserContext.
+   * Includes a TODO comment regarding chore reassignment logic.
+   * @param {string} configId - The ID of the column configuration to delete.
+   */
   const handleDeleteColumn = async (configId: string) => {
-    if (selectedKidId && window.confirm('Are you sure you want to delete this column? Chores in this column will need to be reassigned.')) {
+    if (selectedKidId && window.confirm('Are you sure you want to delete this column? Chores currently in this column will need to be manually reassigned from the Kanban board or they might become hidden.')) {
       await deleteKanbanColumnConfig(selectedKidId, configId);
-      // TODO: Implement UI for chore reassignment or automatic reassignment to a default column.
-      // For now, KidKanbanBoard will need to handle instances with missing kanbanColumnId.
+      // TODO: Future: Implement UI for chore reassignment or automatic reassignment to a default column
+      // when a column is deleted. KidKanbanBoard currently defaults unassigned chores to the first column.
     }
   };
 
+  /**
+   * Sets up a default set of Kanban columns ("To Do", "In Progress", "Done")
+   * for the selected kid if they have no columns configured.
+   */
   const handleSetupDefaultColumns = async () => {
     if (!selectedKidId) return;
     const defaultTitles = ["To Do", "In Progress", "Done"];
-    // Ensure operations are sequential or UserContext handles batching if setUser is async
+    // Assuming addKanbanColumnConfig updates context and triggers re-fetch via useEffect
     for (const title of defaultTitles) {
         await addKanbanColumnConfig(selectedKidId, title);
     }
-    // Re-fetch or rely on context update
   };
 
+  /**
+   * Handles the start of a drag operation for reordering column configurations.
+   * Sets the ID of the actively dragged item.
+   * @param {DragStartEvent} event - The drag start event from dnd-kit.
+   */
   const handleDragStart = (event: DragStartEvent) => {
     setActiveDragId(event.active.id as string);
   };
 
+  /**
+   * Handles the end of a drag operation for reordering column configurations.
+   * Calculates the new order and calls `reorderKanbanColumnConfigs` from UserContext.
+   * @param {DragEndEvent} event - The drag end event from dnd-kit.
+   */
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveDragId(null);
     const { active, over } = event;

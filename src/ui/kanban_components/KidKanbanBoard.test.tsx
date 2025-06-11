@@ -674,4 +674,58 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
     expect(mockGenerateInstancesForPeriod).toHaveBeenCalledWith(todayStr, todayStr, undefined);
   });
 
+  test('displays and clears action feedback message on successful inter-column drag', async () => {
+    vi.useFakeTimers(); // Use fake timers for this test
+
+    const kidId = 'kid1';
+    const dynamicCol1: KanbanColumnConfig = { id: 'dynCol1', kidId, title: 'Column Alpha', order: 0, createdAt: 't', updatedAt: 't' };
+    const dynamicCol2: KanbanColumnConfig = { id: 'dynCol2', kidId, title: 'Column Beta', order: 1, createdAt: 't', updatedAt: 't' };
+    mockGetKanbanColumnConfigs.mockReturnValue([dynamicCol1, dynamicCol2]);
+
+    // Ensure instX is in dynCol1 initially and has a definition for its title
+    mockChoreInstancesData = mockChoreInstancesData.map(inst =>
+      inst.id === 'instX' ? { ...inst, kanbanColumnId: dynamicCol1.id } : inst
+    );
+    const choreDefForInstX = mockChoreDefinitions.find(d => d.id === 'def5'); // 'Chore X (for custom order)'
+
+    renderKidKanbanBoard(kidId, mockContextValueFactory(mockKanbanChoreOrdersData));
+
+    // 1. Simulate Drag Start to populate activeDragItem
+    const dragStartEvent: DragStartEvent = {
+      active: createMockActive('instX', dynamicCol1.id),
+    };
+    act(() => {
+      dndContextProps.onDragStart(dragStartEvent);
+    });
+
+    // 2. Simulate Drag End (moving instX from dynCol1 to dynCol2)
+    const dragEndEvent: DragEndEvent = {
+      active: createMockActive('instX', dynamicCol1.id),
+      over: createMockOver(dynamicCol2.id, dynamicCol2.id), // Drop on dynCol2
+      delta: { x: 0, y: 0 },
+      collisions: null,
+    };
+
+    act(() => {
+      dndContextProps.onDragEnd(dragEndEvent);
+    });
+
+    // 3. Verify feedback message appears
+    const feedbackMessage = await screen.findByRole('status'); // role="status" was added
+    expect(feedbackMessage).toBeInTheDocument();
+    expect(feedbackMessage).toHaveTextContent(`${choreDefForInstX!.title} moved to ${dynamicCol2.title}.`);
+    expect(feedbackMessage).toHaveClass('kanban-action-feedback');
+
+    // 4. Advance timers to trigger message clearance
+    act(() => {
+      vi.advanceTimersByTime(3000); // Match the setTimeout duration in KidKanbanBoard
+    });
+
+    // 5. Verify feedback message is gone
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByText(`${choreDefForInstX!.title} moved to ${dynamicCol2.title}.`)).not.toBeInTheDocument();
+
+    vi.useRealTimers(); // Restore real timers
+  });
+
 });

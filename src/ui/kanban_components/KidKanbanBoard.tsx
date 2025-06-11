@@ -1,7 +1,9 @@
 /**
  * @file KidKanbanBoard.tsx
  * Displays a Kanban board for a specific kid, showing their chores.
- * Uses user-defined columns and supports drag-and-drop for chore reordering and column changes.
+ * Uses user-defined columns from UserContext and supports drag-and-drop
+ * for chore reordering (persisted via ChoresContext) and moving chores
+ * between these dynamic columns (updating choreInstance.kanbanColumnId via ChoresContext).
  */
 import React, { useState, useEffect, useMemo } from 'react';
 import { useChoresContext } from '../../contexts/ChoresContext';
@@ -23,46 +25,98 @@ import {
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { getTodayDateString, getWeekRange, getMonthRange } from '../../utils/dateUtils';
 
+// Types for filter and sort state
 type RewardFilterOption = 'any' | 'has_reward' | 'no_reward';
 type SortByOption = 'instanceDate' | 'title' | 'rewardAmount'; // 'instanceDate' is also "My Order"
 type SortDirectionOption = 'asc' | 'desc';
 
+/**
+ * @interface ActiveDragItem
+ * Represents the data associated with the currently dragged Kanban card.
+ * Used by DragOverlay to render a preview of the card being dragged.
+ */
 interface ActiveDragItem {
+  /** The chore instance being dragged. */
   instance: ChoreInstance;
+  /** The definition of the chore being dragged. */
   definition: ChoreDefinition;
 }
 
+/**
+ * @interface KidKanbanBoardProps
+ * Props for the KidKanbanBoard component.
+ */
 interface KidKanbanBoardProps {
+  /** The ID of the kid whose Kanban board is to be displayed. */
   kidId: string;
 }
 
+/**
+ * KidKanbanBoard component.
+ * Renders a customizable Kanban board for a specific kid, displaying their chores
+ * based on user-defined columns. Features period selection, filtering, sorting (including custom order),
+ * theming, and drag-and-drop functionality for chore management.
+ * @param {KidKanbanBoardProps} props - The component props.
+ * @returns {JSX.Element} The KidKanbanBoard UI.
+ */
 const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   const {
     choreDefinitions,
     choreInstances,
     generateInstancesForPeriod,
-    // toggleChoreInstanceComplete, // Not used directly for column moves anymore
     updateKanbanChoreOrder,
     kanbanChoreOrders,
     updateChoreInstanceColumn
   } = useChoresContext();
   const { getKanbanColumnConfigs } = useUserContext();
 
+  /** State for the selected time period (daily, weekly, monthly) for displaying chores. */
   const [selectedPeriod, setSelectedPeriod] = useState<KanbanPeriod>('daily');
+  /** State representing the dynamically configured columns and the chores within them for the Kanban board. */
   const [columns, setColumns] = useState<KanbanColumnType[]>([]);
+  /** State holding the active chore instance and definition being dragged, for DragOverlay. */
   const [activeDragItem, setActiveDragItem] = useState<ActiveDragItem | null>(null);
+  /**
+   * State for displaying temporary feedback messages to the user,
+   * such as when a chore is moved to a new column. Null if no message is active.
+   * @type {[string | null, React.Dispatch<React.SetStateAction<string | null>>]}
+   */
+  const [actionFeedbackMessage, setActionFeedbackMessage] = useState<string | null>(null);
+
+  /** State for filtering chores by reward status. */
   const [rewardFilter, setRewardFilter] = useState<RewardFilterOption>('any');
-  const [sortBy, setSortBy] = useState<SortByOption>('instanceDate'); // Default to 'instanceDate' for custom order
+  /**
+   * State for the criteria used to sort chores.
+   * 'instanceDate' also serves as the "My Order" option, respecting drag-and-drop persisted order.
+   */
+  const [sortBy, setSortBy] = useState<SortByOption>('instanceDate');
+  /** State for the direction of sorting (ascending or descending). */
   const [sortDirection, setSortDirection] = useState<SortDirectionOption>('asc');
+  /** State for the selected visual theme for Kanban columns. Persisted in localStorage. */
   const [selectedColumnTheme, setSelectedColumnTheme] = useState<ColumnThemeOption>(() => {
     const storedTheme = localStorage.getItem('kanban_columnTheme') as ColumnThemeOption | null;
     return storedTheme || 'default';
   });
 
+  /** Effect to save selected column theme to localStorage. */
   useEffect(() => {
     localStorage.setItem('kanban_columnTheme', selectedColumnTheme);
   }, [selectedColumnTheme]);
 
+  /**
+   * Effect to auto-clear the `actionFeedbackMessage` after a 3-second delay.
+   * This ensures feedback messages are temporary and don't clutter the UI.
+   */
+  useEffect(() => {
+    if (actionFeedbackMessage) {
+      const timer = setTimeout(() => {
+        setActionFeedbackMessage(null);
+      }, 3000); // Clear after 3 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [actionFeedbackMessage]);
+
+  /** Memoized calculation of the date range for the selected period. */
   const currentPeriodDateRange = useMemo(() => {
     const today = new Date();
     if (selectedPeriod === 'daily') {
@@ -77,12 +131,20 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     }
   }, [selectedPeriod]);
 
+  /**
+   * Effect to trigger chore instance generation in `ChoresContext`.
+   * This is called when the period, kid, or chore definitions change.
+   * It fetches the kid's column configurations to pass the ID of the first column
+   * as the default column for newly generated instances.
+   */
   useEffect(() => {
+    if (!kidId) return;
     const userColumnConfigs = getKanbanColumnConfigs(kidId);
-    const defaultKanbanColumnId = userColumnConfigs.length > 0
-                                  ? [...userColumnConfigs].sort((a,b) => a.order - b.order)[0].id
+    const sortedUserColumnConfigs = [...userColumnConfigs].sort((a,b) => a.order - b.order);
+    const defaultKanbanColumnId = sortedUserColumnConfigs.length > 0
+                                  ? sortedUserColumnConfigs[0].id
                                   : undefined;
-    if (currentPeriodDateRange.start && currentPeriodDateRange.end && kidId) { // Ensure kidId is present
+    if (currentPeriodDateRange.start && currentPeriodDateRange.end) {
       generateInstancesForPeriod(
         currentPeriodDateRange.start,
         currentPeriodDateRange.end,
@@ -91,16 +153,16 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     }
   }, [kidId, currentPeriodDateRange, generateInstancesForPeriod, getKanbanColumnConfigs, choreDefinitions]);
 
+  /**
+   * Main effect hook for processing chore instances and building the displayable Kanban columns.
+   * It depends on various states and context values to correctly filter, sort, and categorize chores.
+   */
   useEffect(() => {
-    const userColumnConfigs = getKanbanColumnConfigs(kidId).sort((a, b) => a.order - b.order);
-
     if (!kidId) {
         setColumns([]);
         return;
     }
-    // If no columns configured for the kid, KidKanbanBoard will show a message via its render logic.
-    // generateInstancesForPeriod would have been called with undefined defaultKanbanColumnId.
-    // Chores without a kanbanColumnId will be handled by the column building logic below.
+    const userColumnConfigs = getKanbanColumnConfigs(kidId).sort((a, b) => a.order - b.order);
 
     const kidAndPeriodInstances = choreInstances.filter(instance => {
       const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
@@ -158,7 +220,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     const newKanbanColumns = userColumnConfigs.map(config => {
       const choresForThisColumn = filteredInstancesOverall.filter(instance =>
         instance.kanbanColumnId === config.id ||
-        (!instance.kanbanColumnId && config.id === userColumnConfigs[0]?.id) // Assign unassigned to first column
+        (!instance.kanbanColumnId && config.id === userColumnConfigs[0]?.id)
       );
       const sortedChores = applySortLogic(choresForThisColumn, config.id);
       return { id: config.id, title: config.title, chores: sortedChores };
@@ -185,6 +247,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     const instance = choreInstances.find(inst => inst.id === active.id.toString());
     if (instance) {
       const definition = getDefinitionForInstance(instance);
+      // Store the instance and its definition in activeDragItem for use in DragOverlay and handleDragEnd.
       if (definition) setActiveDragItem({ instance, definition });
       else setActiveDragItem(null);
     } else {
@@ -193,6 +256,8 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   }
 
   function handleDragEnd(event: DragEndEvent) {
+    // Capture activeDragItem before clearing it, to use its data for feedback message.
+    const currentActiveDragItem = activeDragItem;
     setActiveDragItem(null);
     const { active, over } = event;
 
@@ -227,18 +292,21 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
 
       if (!activeColumn || !overColumn) return prev;
 
-      if (activeContainerId === overContainerId) { // Same column reorder
+      if (activeContainerId === overContainerId) {
         const oldIndex = activeColumn.chores.findIndex(item => item.id === activeId);
         const newIndex = activeColumn.chores.findIndex(item => item.id === overId);
         if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
           const updatedChores = arrayMove(activeColumn.chores, oldIndex, newIndex);
           updateKanbanChoreOrder(kidId, activeContainerId, updatedChores.map(c => c.id));
+          // No specific feedback for same-column reorder, but could be added.
+          // Example: setActionFeedbackMessage(`${currentActiveDragItem?.definition.title || 'Chore'} reordered in ${activeColumn.title}.`);
           return prev.map(col => col.id === activeContainerId ? { ...col, chores: updatedChores } : col);
         }
-      } else { // Different columns
+      } else {
         const sourceChores = [...activeColumn.chores];
         const destChores = [...overColumn.chores];
         const activeItemIndex = sourceChores.findIndex(item => item.id === activeId);
+
         if (activeItemIndex === -1) return prev;
 
         const [movedItemOriginal] = sourceChores.splice(activeItemIndex, 1);
@@ -246,8 +314,12 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
 
         updateChoreInstanceColumn(itemToMove.id, overColumn.id);
 
+        // Set feedback message for inter-column move.
+        const title = currentActiveDragItem?.definition?.title || 'Chore'; // Use title from captured activeDragItem
+        setActionFeedbackMessage(`${title} moved to ${overColumn.title}.`);
+
         let overIndex = destChores.findIndex(item => item.id === overId);
-        if (overId === overColumn.id || overIndex === -1) { // Dropped on column or empty space
+        if (overId === overColumn.id || overIndex === -1) {
           overIndex = destChores.length;
         }
         destChores.splice(overIndex, 0, itemToMove);
@@ -277,6 +349,13 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
       onDragCancel={handleDragCancel}
     >
       <div className="kid-kanban-board">
+        {/* Action feedback message display area.
+            Role "status" and aria-live "polite" make it an announcement region for screen readers. */}
+        {actionFeedbackMessage && (
+          <div className="kanban-action-feedback" role="status" aria-live="polite">
+            {actionFeedbackMessage}
+          </div>
+        )}
         <div className="period-selector" style={{ marginBottom: '15px' }}>
           <button onClick={() => setSelectedPeriod('daily')} disabled={selectedPeriod === 'daily'}>Daily</button>
           <button onClick={() => setSelectedPeriod('weekly')} disabled={selectedPeriod === 'weekly'}>Weekly</button>
@@ -300,7 +379,8 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
                 if (newSortBy === 'rewardAmount') setSortDirection('desc');
                 else setSortDirection('asc');
                 if (newSortBy !== 'instanceDate') {
-                  userColumnConfigs.forEach(config => { // Use userColumnConfigs from outer scope
+                  const currentKidColumns = getKanbanColumnConfigs(kidId);
+                  currentKidColumns.forEach(config => {
                     updateKanbanChoreOrder(kidId, config.id, []);
                   });
                 }
@@ -342,7 +422,6 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
               theme={selectedColumnTheme}
             />
           ))}
-          {/* The message below might be redundant if the above message for no configs is shown */}
           {kidId && userColumnConfigs.length > 0 && columns.every(col => col.chores.length === 0) &&
             <p style={{padding: '20px'}}>No chores to display for this period or matching current filters in any column.</p>
           }
@@ -350,7 +429,11 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
       </div>
       <DragOverlay dropAnimation={null}>
         {activeDragItem ? (
-          <KanbanCard instance={activeDragItem.instance} definition={activeDragItem.definition} />
+          <KanbanCard
+            instance={activeDragItem.instance}
+            definition={activeDragItem.definition}
+            isOverlay={true} // Pass isOverlay to distinguish the drag preview from the actual sortable item
+          />
         ) : null}
       </DragOverlay>
     </DndContext>

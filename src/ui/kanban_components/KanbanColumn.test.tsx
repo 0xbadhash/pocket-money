@@ -103,7 +103,10 @@ describe('KanbanColumn', () => {
         theme="default"
       />
     );
-    expect(screen.getByText('No chores in this column.')).toBeInTheDocument();
+    // Verify the new empty state structure and text
+    const emptyStateDiv = screen.getByText("No chores here yet!").closest('div');
+    expect(emptyStateDiv).toHaveClass('kanban-column-empty-state');
+    expect(screen.getByText("No chores here yet!")).toBeInTheDocument();
     expect(screen.queryByTestId(/mock-kanban-card-/)).not.toBeInTheDocument();
   });
 

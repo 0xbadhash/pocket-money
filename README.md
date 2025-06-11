@@ -42,7 +42,7 @@ This application helps manage pocket money and chores for kids. Key features inc
 *   User and kid profile management.
 *   Funds tracking (deposits, rewards).
 *   Chore creation and assignment.
-*   **Interactive Kanban Board:** A visual interface to view and manage a child's assigned chores for daily, weekly, or monthly periods. Supports drag-and-drop for reordering and status updates, column theming, reward filtering, and multiple sorting options.
+*   **Interactive Kanban Board:** A visual interface to view and manage a child's assigned chores using user-configurable columns (e.g., "To Do", "In Progress", "Done", managed in Settings). Supports drag-and-drop (with enhanced visual feedback during drag operations) for reordering chores within columns (with order persistence) and moving chores between these dynamic columns. Features include selection of daily, weekly, or monthly periods, column theming, reward filtering, and multiple sorting options (including custom order).
 *   Activity Monitoring: View transaction and chore completion history.
-*   Settings Management: Customize user and kid profiles.
+*   Settings Management: Customize user and kid profiles, including setting up default Kanban columns for new kids.
 *   Light and Dark Themes: User-selectable themes for visual preference.

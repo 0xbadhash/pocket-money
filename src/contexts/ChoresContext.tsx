@@ -39,9 +39,12 @@ interface ChoresContextType {
   /**
    * Generates chore instances for all definitions within a given date range.
    * Optionally assigns a default Kanban column ID to newly generated instances.
-   * @param {string} startDate - The start date of the period (YYYY-MM-DD).
-   * @param {string} endDate - The end date of the period (YYYY-MM-DD).
-   * @param {string} [defaultKanbanColumnId] - Optional ID of the default Kanban column for new instances.
+   * If an instance for a specific definition and date already exists, its completion status and any existing `kanbanColumnId` are preserved.
+   * New instances will receive the `defaultKanbanColumnId` if provided and they don't have one already.
+   * @param {string} startDate - The start date of the period (YYYY-MM-DD) for instance generation.
+   * @param {string} endDate - The end date of the period (YYYY-MM-DD) for instance generation.
+   * @param {string} [defaultKanbanColumnId] - Optional ID of the default Kanban column to assign to new instances
+   *                                           if they don't already have a `kanbanColumnId` (e.g., from a previous generation).
    */
   generateInstancesForPeriod: (startDate: string, endDate: string, defaultKanbanColumnId?: string) => void;
   /** Toggles the completion status of a sub-task within a chore definition. */
@@ -315,16 +318,18 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
   };
 
   /**
-   * Updates the `kanbanColumnId` for a specific chore instance.
+   * Updates the `kanbanColumnId` for a specific chore instance, effectively moving it to a new Kanban column.
+   * This function is typically called after a drag-and-drop operation moves a chore to a different column.
+   * The change is persisted to localStorage via the `useEffect` hook that watches `choreInstances`.
    * @param {string} instanceId - The ID of the chore instance to update.
-   * @param {string} newKanbanColumnId - The ID of the new Kanban column this instance should belong to.
+   * @param {string} newKanbanColumnId - The ID of the new Kanban column this instance should now belong to.
    */
   const updateChoreInstanceColumn = (instanceId: string, newKanbanColumnId: string): void => {
     setChoreInstances(prevInstances =>
       prevInstances.map(instance =>
         instance.id === instanceId
-          // Consider adding an 'updatedAt' field to ChoreInstance if detailed tracking is needed
-          ? { ...instance, kanbanColumnId: newKanbanColumnId /* , updatedAt: new Date().toISOString() */ }
+          // Consider adding an 'updatedAt' field to ChoreInstance for more detailed tracking of changes.
+          ? { ...instance, kanbanColumnId: newKanbanColumnId }
           : instance
       )
     );

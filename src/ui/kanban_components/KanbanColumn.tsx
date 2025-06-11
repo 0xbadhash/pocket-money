@@ -75,7 +75,14 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, getDefinitionForIns
               );
             })
           ) : (
-            <p style={{ color: '#888', textAlign: 'center', paddingTop: '20px' }}>No chores in this column.</p>
+            /**
+             * Represents the visual state of a Kanban column when it contains no chores.
+             * Styled with a dashed border and a message to indicate emptiness.
+             */
+            <div className="kanban-column-empty-state">
+              <p>No chores here yet!</p>
+              {/* Optional: Add an SVG icon here later if desired */}
+            </div>
           )}
         </div>
       </SortableContext>
