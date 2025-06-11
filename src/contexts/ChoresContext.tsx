@@ -4,15 +4,50 @@ import type { ChoreDefinition, ChoreInstance, SubTask } from '../types'; // Impo
 import { useFinancialContext } from '../contexts/FinancialContext';
 import { generateChoreInstances } from '../utils/choreUtils';
 
-// Define the shape of the context value - MODIFIED
+/**
+ * @typedef KanbanChoreOrders
+ * Defines the structure for storing custom Kanban chore orders.
+ * The key is a string identifier, typically combining a kid's ID and a column identifier
+ * (e.g., "kid1-daily_active" or "kid1-weekly_completed").
+ * The value is an array of chore instance IDs, representing the desired order for that specific column.
+ */
+export type KanbanChoreOrders = Record<string, string[]>;
+
+/**
+ * @interface ChoresContextType
+ * Defines the shape of the context value provided by ChoresProvider.
+ * Includes state for chore definitions, instances, custom Kanban orders,
+ * and functions to manage them.
+ */
 interface ChoresContextType {
+  /** Array of all defined chore templates. */
   choreDefinitions: ChoreDefinition[];
+  /** Array of all generated chore instances for various periods. */
   choreInstances: ChoreInstance[];
+  /**
+   * Object storing custom sort orders for Kanban columns.
+   * Keys are typically `${kidId}-${period}_${status}` (e.g., "kid1-daily_active").
+   * Values are arrays of chore instance IDs in their custom order.
+   */
+  kanbanChoreOrders: KanbanChoreOrders;
+  /** Adds a new chore definition to the system. */
   addChoreDefinition: (choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete'>) => void;
+  /** Toggles the completion status of a specific chore instance. Also handles reward logic. */
   toggleChoreInstanceComplete: (instanceId: string) => void;
+  /** Retrieves all chore definitions assigned to a specific kid. */
   getChoreDefinitionsForKid: (kidId: string) => ChoreDefinition[];
+  /** Generates chore instances for all definitions within a given date range. */
   generateInstancesForPeriod: (startDate: string, endDate: string) => void;
-  toggleSubTaskComplete: (choreDefinitionId: string, subTaskId: string) => void; // NEW
+  /** Toggles the completion status of a sub-task within a chore definition. */
+  toggleSubTaskComplete: (choreDefinitionId: string, subTaskId: string) => void;
+  /**
+   * Updates or clears the custom display order for chores in a specific Kanban column for a kid.
+   * @param {string} kidId - The ID of the kid.
+   * @param {string} columnIdentifier - A unique string identifying the column (e.g., "daily_active").
+   * @param {string[]} orderedChoreIds - An array of chore instance IDs in the desired order.
+   *                                     Pass an empty array to clear the custom order for the column.
+   */
+  updateKanbanChoreOrder: (kidId: string, columnIdentifier: string, orderedChoreIds: string[]) => void;
 }
 
 // Create the context
@@ -79,13 +114,34 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
   ]);
 
   // NEW: State for chore instances
-  const [choreInstances, setChoreInstances] = useState<ChoreInstance[]>([
-    // Example: Some initial instances for testing. Real generation will occur later.
-    // { id: 'cd1_2023-12-01', choreDefinitionId: 'cd1', instanceDate: '2023-12-01', isComplete: false },
-    // { id: 'cd1_2023-12-02', choreDefinitionId: 'cd1', instanceDate: '2023-12-02', isComplete: true }, // Example of a completed one
-  ]);
+  const [choreInstances, setChoreInstances] = useState<ChoreInstance[]>([]);
+
+  /**
+   * State for managing custom Kanban chore orders.
+   * Persisted in localStorage. The key for an order is typically `${kidId}-${columnIdentifier}`,
+   * e.g., "kid1-daily_active", and the value is an array of chore instance IDs.
+   * @type {[KanbanChoreOrders, React.Dispatch<React.SetStateAction<KanbanChoreOrders>>]}
+   */
+  const [kanbanChoreOrders, setKanbanChoreOrders] = useState<KanbanChoreOrders>(() => {
+    try {
+      const savedOrders = localStorage.getItem('kanbanChoreOrders');
+      return savedOrders ? JSON.parse(savedOrders) : {};
+    } catch (error) {
+      console.error("Error parsing kanbanChoreOrders from localStorage:", error);
+      return {}; // Return default value in case of error
+    }
+  });
 
   const { addKidReward } = useFinancialContext();
+
+  // Effect to save kanbanChoreOrders to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('kanbanChoreOrders', JSON.stringify(kanbanChoreOrders));
+    } catch (error) {
+      console.error("Error saving kanbanChoreOrders to localStorage:", error);
+    }
+  }, [kanbanChoreOrders]);
 
   // MODIFIED: Renamed and updated logic
   const addChoreDefinition = (choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete'>) => {
@@ -162,13 +218,17 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
   const toggleSubTaskComplete = (choreDefinitionId: string, subTaskId: string) => {
     setChoreDefinitions(prevDefs =>
       prevDefs.map(def => {
-        if (def.id === choreDefinitionId) {
-          const updatedSubTasks = def.subTasks?.map(st => {
+        // Ensure subTasks array exists before mapping
+        if (def.id === choreDefinitionId && def.subTasks) {
+          const updatedSubTasks = def.subTasks.map(st => {
             if (st.id === subTaskId) {
               return { ...st, isComplete: !st.isComplete };
             }
             return st;
           });
+          // Check if all subtasks are now complete to potentially mark main chore def (optional logic)
+          // const allSubTasksComplete = updatedSubTasks.every(st => st.isComplete);
+          // if (allSubTasksComplete) { /* Logic to update parent chore's isComplete if needed */ }
           return { ...def, subTasks: updatedSubTasks };
         }
         return def;
@@ -176,16 +236,45 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     );
   };
 
+  /**
+   * Updates the custom order of chores for a specific kid and a specific Kanban column identifier.
+   * This order is persisted to localStorage. If an empty array is provided for `orderedChoreIds`,
+   * the custom order for that specific key is removed, reverting to default sorting for that column.
+   *
+   * The `columnIdentifier` is typically a string like "daily_active", "weekly_completed", etc.
+   * The key stored in `kanbanChoreOrders` and localStorage will be `${kidId}-${columnIdentifier}`.
+   *
+   * @param {string} kidId - The ID of the kid for whom the order is being set.
+   * @param {string} columnIdentifier - A string that uniquely identifies the column context (e.g., "daily_active").
+   * @param {string[]} orderedChoreIds - An array of chore instance IDs representing the new custom order.
+   *                                     Pass an empty array to clear the custom order for this specific key.
+   */
+  const updateKanbanChoreOrder = (kidId: string, columnIdentifier: string, orderedChoreIds: string[]): void => {
+    const key = `${kidId}-${columnIdentifier}`;
+    setKanbanChoreOrders(prevOrders => {
+      const newOrders = { ...prevOrders };
+      if (orderedChoreIds && orderedChoreIds.length > 0) {
+        newOrders[key] = orderedChoreIds;
+      } else {
+        // If the new order is empty, undefined, or an empty array, remove the key to clear the custom order.
+        delete newOrders[key];
+      }
+      return newOrders;
+    });
+  };
+
   // MODIFIED: Update provider value
   return (
     <ChoresContext.Provider value={{
       choreDefinitions,
       choreInstances,
+      kanbanChoreOrders, // Add to context value
       addChoreDefinition,
       toggleChoreInstanceComplete,
       getChoreDefinitionsForKid,
       generateInstancesForPeriod,
-      toggleSubTaskComplete // Add new function to provider
+      toggleSubTaskComplete,
+      updateKanbanChoreOrder, // Add new function to provider
     }}>
       {children}
     </ChoresContext.Provider>

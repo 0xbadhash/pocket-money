@@ -59,7 +59,14 @@ interface KidKanbanBoardProps {
  * @returns {JSX.Element} The KidKanbanBoard UI.
  */
 const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
-  const { choreDefinitions, choreInstances, generateInstancesForPeriod, toggleChoreInstanceComplete } = useChoresContext();
+  const {
+    choreDefinitions,
+    choreInstances,
+    generateInstancesForPeriod,
+    toggleChoreInstanceComplete,
+    updateKanbanChoreOrder,
+    kanbanChoreOrders // Destructure kanbanChoreOrders
+  } = useChoresContext();
 
   /** State for the selected time period (daily, weekly, monthly) for displaying chores. */
   const [selectedPeriod, setSelectedPeriod] = useState<KanbanPeriod>('daily');
@@ -117,7 +124,10 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
    * 1. Filters `choreInstances` to get those relevant to the current `kidId` and `selectedPeriod`.
    * 2. Applies filtering based on `rewardFilter`.
    * 3. Separates chores into `activeChores` and `completedChores`.
-   * 4. Applies sorting to both `activeChores` and `completedChores` based on `sortBy` and `sortDirection`.
+   * 4. Applies sorting:
+   *    - If `sortBy` is 'instanceDate' (labeled "My Order / Due Date"), it first attempts to apply a custom order
+   *      retrieved from `kanbanChoreOrders` (via `ChoresContext`). Chores not in the custom order are appended.
+   *    - Otherwise, it applies the selected explicit sort (e.g., by title, reward amount).
    * 5. Sets the `columns` state with the processed chores, updating column titles based on the `selectedPeriod`.
    */
   useEffect(() => {
@@ -151,38 +161,76 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     let activeChores: ChoreInstance[] = filteredInstances.filter(inst => !inst.isComplete);
     let completedChores: ChoreInstance[] = filteredInstances.filter(inst => inst.isComplete);
 
-    // Apply Sorting
-    const sortInstances = (instances: ChoreInstance[], definitions: ChoreDefinition[], criteria: SortByOption, direction: SortDirectionOption): ChoreInstance[] => {
-      const sorted = [...instances].sort((a, b) => {
-        const defA = definitions.find(d => d.id === a.choreDefinitionId);
-        const defB = definitions.find(d => d.id === b.choreDefinitionId);
+    /**
+     * Sorts an array of chore instances based on the selected criteria and direction.
+     * If the criteria is 'instanceDate' (meaning "My Order / Due Date"), it first attempts
+     * to apply a custom order from `kanbanChoreOrders`. If no custom order exists, or
+     * for other criteria, it applies standard sorting.
+     * @param {ChoreInstance[]} chores - The array of chores to sort.
+     * @param {string} columnIdSuffix - Suffix for the column ID (e.g., 'active', 'completed') to construct the order key.
+     * @param {ChoreDefinition[]} definitions - All chore definitions, for accessing details like title or reward.
+     * @param {SortByOption} criteria - The sorting criterion.
+     * @param {SortDirectionOption} direction - The sorting direction.
+     * @returns {ChoreInstance[]} The sorted array of chore instances.
+     */
+    const applyCustomOrderOrDefaultSort = (
+      chores: ChoreInstance[],
+      columnIdSuffix: string,
+      definitions: ChoreDefinition[],
+      criteria: SortByOption,
+      direction: SortDirectionOption
+    ): ChoreInstance[] => {
+      const columnFullId = `${selectedPeriod}_${columnIdSuffix}`;
+      const orderKey = `${kidId}-${columnFullId}`;
+      const customOrderIds = kanbanChoreOrders[orderKey];
 
-        // Handle cases where definitions might be missing (shouldn't happen in ideal state)
-        if (!defA && !defB) return 0;
-        if (!defA) return direction === 'asc' ? 1 : -1; // Put items without defs at end or start
-        if (!defB) return direction === 'asc' ? -1 : 1;
+      // Apply custom order if 'instanceDate' (My Order) is selected and a custom order exists
+      if (criteria === 'instanceDate' && customOrderIds && customOrderIds.length > 0) {
+        const choreMap = new Map(chores.map(chore => [chore.id, chore]));
+        const orderedChores: ChoreInstance[] = [];
 
+        customOrderIds.forEach(id => {
+          const chore = choreMap.get(id);
+          if (chore) {
+            orderedChores.push(chore);
+            choreMap.delete(id); // Remove processed chores
+          }
+        });
 
-        if (criteria === 'instanceDate') {
-          const dateA = new Date(a.instanceDate).getTime();
-          const dateB = new Date(b.instanceDate).getTime();
-          return direction === 'asc' ? dateA - dateB : dateB - dateA;
-        }
-        if (criteria === 'title') {
-          return direction === 'asc' ? defA.title.localeCompare(defB.title) : defB.title.localeCompare(defA.title);
-        }
-        if (criteria === 'rewardAmount') {
-          const rewardA = defA.rewardAmount || 0;
-          const rewardB = defB.rewardAmount || 0;
-          return direction === 'asc' ? rewardA - rewardB : rewardB - rewardA;
-        }
-        return 0;
-      });
-      return sorted;
+        // Append any remaining chores (not in customOrderIds, e.g., newly added)
+        // These are secondarily sorted by instanceDate by default.
+        const remainingChores = Array.from(choreMap.values()).sort((a, b) =>
+          new Date(a.instanceDate).getTime() - new Date(b.instanceDate).getTime()
+        );
+        return [...orderedChores, ...remainingChores];
+      } else {
+        // Standard sorting logic for explicit sorts or if no custom order for 'instanceDate'
+        return [...chores].sort((a, b) => {
+          const defA = definitions.find(d => d.id === a.choreDefinitionId);
+          const defB = definitions.find(d => d.id === b.choreDefinitionId);
+
+          if (!defA || !defB) return 0;
+
+          if (criteria === 'instanceDate') { // Default sort for 'instanceDate' if no custom order
+            const dateA = new Date(a.instanceDate).getTime();
+            const dateB = new Date(b.instanceDate).getTime();
+            return direction === 'asc' ? dateA - dateB : dateB - dateA;
+          }
+          if (criteria === 'title') {
+            return direction === 'asc' ? defA.title.localeCompare(defB.title) : defB.title.localeCompare(defA.title);
+          }
+          if (criteria === 'rewardAmount') {
+            const rewardA = defA.rewardAmount || 0;
+            const rewardB = defB.rewardAmount || 0;
+            return direction === 'asc' ? rewardA - rewardB : rewardB - rewardA;
+          }
+          return 0;
+        });
+      }
     };
 
-    activeChores = sortInstances(activeChores, choreDefinitions, sortBy, sortDirection);
-    completedChores = sortInstances(completedChores, choreDefinitions, sortBy, sortDirection);
+    activeChores = applyCustomOrderOrDefaultSort(activeChores, 'active', choreDefinitions, sortBy, sortDirection);
+    completedChores = applyCustomOrderOrDefaultSort(completedChores, 'completed', choreDefinitions, sortBy, sortDirection);
 
     // Set Columns (existing logic)
     let columnTitles = { active: "Active", completed: "Completed" };
@@ -199,7 +247,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
       { id: `${selectedPeriod}_completed`, title: columnTitles.completed, chores: completedChores },
     ]);
 
-  }, [kidId, selectedPeriod, choreInstances, choreDefinitions, currentPeriodDateRange, rewardFilter, sortBy, sortDirection]);
+  }, [kidId, selectedPeriod, choreInstances, choreDefinitions, currentPeriodDateRange, rewardFilter, sortBy, sortDirection, kanbanChoreOrders]); // Added kanbanChoreOrders dependency
 
 
   /**
@@ -228,6 +276,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
    * - Updating the chore's `isComplete` status if it's moved between 'active' and 'completed' columns,
    *   by calling `toggleChoreInstanceComplete` from `ChoresContext`.
    * - Clearing the `activeDragItem` state to hide the `DragOverlay`.
+   * - Persisting custom order using `updateKanbanChoreOrder` if reordering occurs within the same column.
    * @param {DragEndEvent} event - The drag end event object from dnd-kit.
    */
   function handleDragEnd(event: DragEndEvent) {
@@ -298,11 +347,17 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
 
         if (oldIndex !== -1 && newIndex !== -1) {
           const updatedChores = arrayMove(currentColumn.chores, oldIndex, newIndex);
+          const updatedChores = arrayMove(currentColumn.chores, oldIndex, newIndex);
           const newColumns = [...prev];
           newColumns[activeColumnIndex] = {
             ...currentColumn,
             chores: updatedChores,
           };
+          // After local state is updated, save the new order to context/localStorage
+          if (activeContainerId) { // Ensure activeContainerId is valid
+            const orderedIds = updatedChores.map(chore => chore.id);
+            updateKanbanChoreOrder(kidId, activeContainerId, orderedIds);
+          }
           return newColumns;
         }
       } else { // Different columns
@@ -446,16 +501,26 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
               onChange={(e) => {
                 const newSortBy = e.target.value as SortByOption;
                 setSortBy(newSortBy);
-                // Optional: Set default sort direction based on new sortBy
+
                 if (newSortBy === 'rewardAmount') {
-                  setSortDirection('desc');
+                  setSortDirection('desc'); // Default to descending for reward amount
                 } else {
-                  setSortDirection('asc');
+                  setSortDirection('asc'); // Default to ascending for other types
+                }
+
+                // If an explicit sort ('title' or 'rewardAmount') is chosen,
+                // clear any existing custom drag-and-drop orders for the currently visible columns.
+                // This ensures the explicit sort takes precedence and the view is not confusing.
+                // If the user later switches back to "My Order / Due Date", they can establish a new custom order.
+                if (newSortBy !== 'instanceDate') {
+                  columns.forEach(col => {
+                    updateKanbanChoreOrder(kidId, col.id, []);
+                  });
                 }
               }}
               style={{ padding: '5px' }}
             >
-              <option value="instanceDate">Due Date</option>
+              <option value="instanceDate">My Order / Due Date</option>
               <option value="title">Title</option>
               <option value="rewardAmount">Reward</option>
             </select>
