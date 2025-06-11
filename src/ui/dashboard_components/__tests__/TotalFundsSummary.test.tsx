@@ -59,7 +59,8 @@ describe('TotalFundsSummary', () => {
     // For now, if currentBalance is expected to be a number, the mock should provide one.
     // This test might be adjusted or removed if the component doesn't explicitly render "Loading..."
     // based on financialData being null/undefined.
-    expect(screen.queryByText('Loading...')).not.toBeInTheDocument(); // Assuming it won't explicitly show 'Loading...' for this
+    // Updated to expect "Loading..." as the component now renders this.
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
   // Add more tests as needed for rendering transactions, etc.

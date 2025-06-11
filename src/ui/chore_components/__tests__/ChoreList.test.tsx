@@ -7,13 +7,14 @@ import { ChoresContext, ChoresContextType } from '../../../contexts/ChoresContex
 import { UserContext, UserContextType as ActualUserContextType } from '../../../contexts/UserContext'; // Renamed
 import { FinancialContext, FinancialContextType as ActualFinancialContextType } from '../../../contexts/FinancialContext'; // Needed for ChoresContext mock
 import type { ChoreDefinition, ChoreInstance, Kid } from '../../../types';
+import { vi } from 'vitest'; // Ensure vi is imported
 
 // Mocks
-const mockToggleChoreInstanceComplete = jest.fn();
-const mockAddChoreDefinition = jest.fn();
-const mockGenerateInstancesForPeriod = jest.fn();
-const mockGetChoreDefinitionsForKid = jest.fn(); // Will be set per test or default
-const mockToggleSubTaskComplete = jest.fn();
+const mockToggleChoreInstanceComplete = vi.fn();
+const mockAddChoreDefinition = vi.fn();
+const mockGenerateInstancesForPeriod = vi.fn();
+const mockGetChoreDefinitionsForKid = vi.fn(); // Will be set per test or default
+const mockToggleSubTaskComplete = vi.fn();
 
 const mockKids: Kid[] = [
   { id: 'kid1', name: 'Kid One', age: 10 },
@@ -27,9 +28,9 @@ const mockUserContextValue: ActualUserContextType = {
 
 const mockFinancialContextValue: ActualFinancialContextType = {
   financialData: { currentBalance: 0, transactions: [] },
-  addFunds: jest.fn(),
-  addTransaction: jest.fn(),
-  addKidReward: jest.fn(),
+  addFunds: vi.fn(),
+  addTransaction: vi.fn(),
+  addKidReward: vi.fn(),
 };
 
 let currentChoreDefinitions: ChoreDefinition[] = [];
@@ -93,10 +94,28 @@ describe('ChoreList', () => {
   });
 
   it('renders "No chores assigned" when no kidId is provided and no unassigned chores exist', () => {
-    mockGetChoreDefinitionsForKid.mockReturnValue([]); // No unassigned defs
-    choresContextMockValue.choreInstances = []; // No unassigned instances
+    // mockGetChoreDefinitionsForKid.mockReturnValue([]); // No unassigned defs - handled by specificContextValue
+    // choresContextMockValue.choreInstances = []; // No unassigned instances - handled by specificContextValue
 
-    renderChoreListComponent({ title: "Unassigned Chores" });
+    const specificContextValue: ChoresContextType = {
+      choreDefinitions: [], // Explicitly empty
+      choreInstances: [],   // Explicitly empty
+      getChoreDefinitionsForKid: vi.fn(() => []), // Mock for this test
+      addChoreDefinition: vi.fn(),
+      generateInstancesForPeriod: vi.fn(),
+      toggleChoreInstanceComplete: vi.fn(),
+      toggleSubTaskComplete: vi.fn(),
+    };
+
+    render( // Using direct render with full provider stack for this isolated test
+      <UserContext.Provider value={mockUserContextValue}>
+        <FinancialContext.Provider value={mockFinancialContextValue}>
+          <ChoresContext.Provider value={specificContextValue}>
+            <ChoreList title="Unassigned Chores" />
+          </ChoresContext.Provider>
+        </FinancialContext.Provider>
+      </UserContext.Provider>
+    );
     expect(screen.getByText('Unassigned Chores')).toBeInTheDocument();
     // The component logic for "No chores to display for this period." might depend on instances.
     // If getChoreDefinitionsForKid returns empty and choreInstances is empty, it should show no chores.
@@ -105,38 +124,79 @@ describe('ChoreList', () => {
   });
 
   it('renders chores for a specific kid when kidId is provided', () => {
-    mockGetChoreDefinitionsForKid.mockImplementation((kId) => kId === 'kid1' ? kid1ChoresDef : []);
-    choresContextMockValue.choreInstances = kid1ChoresInst; // Provide instances that will be filtered by the component
+    // mockGetChoreDefinitionsForKid.mockImplementation((kId) => kId === 'kid1' ? kid1ChoresDef : []);
+    // choresContextMockValue.choreInstances = kid1ChoresInst;
 
-    renderChoreListComponent({ title: "Kid One's Chores", kidId: 'kid1' });
+    const specificContextValue: ChoresContextType = {
+      choreDefinitions: kid1ChoresDef, // Definitions that instances will refer to
+      choreInstances: kid1ChoresInst,
+      getChoreDefinitionsForKid: (kId) => (kId === 'kid1' ? kid1ChoresDef : []),
+      addChoreDefinition: vi.fn(),
+      generateInstancesForPeriod: vi.fn(),
+      toggleChoreInstanceComplete: mockToggleChoreInstanceComplete, // Keep original mock for assertion
+      toggleSubTaskComplete: vi.fn(),
+    };
+
+    render( // Using direct render with full provider stack
+      <UserContext.Provider value={mockUserContextValue}>
+        <FinancialContext.Provider value={mockFinancialContextValue}>
+          <ChoresContext.Provider value={specificContextValue}>
+            <ChoreList title="Kid One's Chores" kidId="kid1" />
+          </ChoresContext.Provider>
+        </FinancialContext.Provider>
+      </UserContext.Provider>
+    );
+
     expect(screen.getByText("Kid One's Chores")).toBeInTheDocument();
-    expect(screen.getByText('Kid1 Chore A (Due: 2024-01-01)')).toBeInTheDocument();
-    expect(screen.getByText('Kid1 Chore B (Due: 2024-01-02)')).toBeInTheDocument(); // Instance date
-    expect(screen.getByText('Kid1 Chore B (Due: 2024-01-03)')).toBeInTheDocument(); // Instance date
+    // Ensure the text matches exactly what ChoreList would render (e.g. using instanceDate)
+    // The original test data had instanceDate in ChoreInstance, and dueDate in ChoreDefinition
+    // ChoreList component appears to use instance.instanceDate for the display string.
+    // Let's verify the text based on kid1ChoresInst
+    expect(screen.getByText(`Kid1 Chore A (Due: ${kid1ChoresInst[0].instanceDate})`)).toBeInTheDocument();
+    expect(screen.getByText(`Kid1 Chore B (Due: ${kid1ChoresInst[1].instanceDate})`)).toBeInTheDocument();
+    expect(screen.getByText(`Kid1 Chore B (Due: ${kid1ChoresInst[2].instanceDate})`)).toBeInTheDocument();
 
     // Check completion status based on instance data
-    const choreACheckbox = screen.getByLabelText('Kid1 Chore A (Due: 2024-01-01)');
+    const choreACheckbox = screen.getByLabelText(`Kid1 Chore A (Due: ${kid1ChoresInst[0].instanceDate})`);
     expect(choreACheckbox).not.toBeChecked();
 
-    const choreB_Jan2_Checkbox = screen.getByLabelText('Kid1 Chore B (Due: 2024-01-02)');
-    expect(choreB_Jan2_Checkbox).toBeChecked();
+    const choreB_Jan2_Checkbox = screen.getByLabelText(`Kid1 Chore B (Due: ${kid1ChoresInst[1].instanceDate})`);
+    expect(choreB_Jan2_Checkbox).toBeChecked(); // This instance is isComplete: true
 
-    const choreB_Jan3_Checkbox = screen.getByLabelText('Kid1 Chore B (Due: 2024-01-03)');
+    const choreB_Jan3_Checkbox = screen.getByLabelText(`Kid1 Chore B (Due: ${kid1ChoresInst[2].instanceDate})`);
     expect(choreB_Jan3_Checkbox).not.toBeChecked();
   });
 
   it('calls toggleChoreInstanceComplete when a chore checkbox is clicked', async () => {
     const user = userEvent.setup();
-    mockGetChoreDefinitionsForKid.mockReturnValue(kid1ChoresDef); // Ensure definitions are available
-    choresContextMockValue.choreInstances = kid1ChoresInst;
+    // mockGetChoreDefinitionsForKid.mockReturnValue(kid1ChoresDef);
+    // choresContextMockValue.choreInstances = kid1ChoresInst;
 
-    renderChoreListComponent({ title: "Test Chores", kidId: 'kid1' });
+    const specificContextValue: ChoresContextType = {
+      choreDefinitions: kid1ChoresDef,
+      choreInstances: kid1ChoresInst,
+      getChoreDefinitionsForKid: (kId) => (kId === 'kid1' ? kid1ChoresDef : []),
+      addChoreDefinition: vi.fn(),
+      generateInstancesForPeriod: vi.fn(),
+      toggleChoreInstanceComplete: mockToggleChoreInstanceComplete, // Use the original spy
+      toggleSubTaskComplete: vi.fn(),
+    };
 
-    const choreACheckbox = screen.getByLabelText('Kid1 Chore A (Due: 2024-01-01)');
+    render( // Using direct render with full provider stack
+      <UserContext.Provider value={mockUserContextValue}>
+        <FinancialContext.Provider value={mockFinancialContextValue}>
+          <ChoresContext.Provider value={specificContextValue}>
+            <ChoreList title="Test Chores" kidId="kid1" />
+          </ChoresContext.Provider>
+        </FinancialContext.Provider>
+      </UserContext.Provider>
+    );
+
+    const choreACheckbox = screen.getByLabelText(`Kid1 Chore A (Due: ${kid1ChoresInst[0].instanceDate})`);
     await user.click(choreACheckbox);
 
     expect(mockToggleChoreInstanceComplete).toHaveBeenCalledTimes(1);
-    expect(mockToggleChoreInstanceComplete).toHaveBeenCalledWith('def1_2024-01-01');
+    expect(mockToggleChoreInstanceComplete).toHaveBeenCalledWith(kid1ChoresInst[0].id); // Pass the instance ID
   });
 
   it('displays tags and sub-tasks if present in the chore definition', () => {
@@ -152,12 +212,30 @@ describe('ChoreList', () => {
     const instWithDetails: ChoreInstance[] = [
         { id: 'def_detail_2024-01-05', choreDefinitionId: 'def_detail', instanceDate: '2024-01-05', isComplete: false }
     ];
-    mockGetChoreDefinitionsForKid.mockReturnValue(defWithDetails);
-    choresContextMockValue.choreInstances = instWithDetails;
+    // mockGetChoreDefinitionsForKid.mockReturnValue(defWithDetails);
+    // choresContextMockValue.choreInstances = instWithDetails;
 
-    renderChoreListComponent({ title: "Detailed Chores", kidId: 'kid1' });
+    const specificContextValue: ChoresContextType = {
+      choreDefinitions: defWithDetails,
+      choreInstances: instWithDetails,
+      getChoreDefinitionsForKid: (kId) => (kId === 'kid1' ? defWithDetails : []),
+      addChoreDefinition: vi.fn(),
+      generateInstancesForPeriod: vi.fn(),
+      toggleChoreInstanceComplete: vi.fn(),
+      toggleSubTaskComplete: vi.fn(),
+    };
 
-    expect(screen.getByText('Detailed Chore (Due: 2024-01-05)')).toBeInTheDocument();
+    render( // Using direct render with full provider stack
+      <UserContext.Provider value={mockUserContextValue}>
+        <FinancialContext.Provider value={mockFinancialContextValue}>
+          <ChoresContext.Provider value={specificContextValue}>
+            <ChoreList title="Detailed Chores" kidId="kid1" />
+          </ChoresContext.Provider>
+        </FinancialContext.Provider>
+      </UserContext.Provider>
+    );
+
+    expect(screen.getByText(`Detailed Chore (Due: ${instWithDetails[0].instanceDate})`)).toBeInTheDocument();
     // Tags rendering check (assuming they are rendered as text, adjust selector if different)
     expect(screen.getByText(/cleaning/i)).toBeInTheDocument();
     expect(screen.getByText(/indoor/i)).toBeInTheDocument();

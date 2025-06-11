@@ -6,11 +6,12 @@ import AddFundsForm from '../AddFundsForm';
 import { FinancialContext, FinancialContextType } from '../../../contexts/FinancialContext';
 import { UserContext, UserContextType as ActualUserContextType } from '../../../contexts/UserContext'; // Renamed
 import type { Kid } from '../../../types';
+import { vi } from 'vitest'; // Ensure vi is imported
 
 // Mocks
-const mockAddFunds = jest.fn();
-const mockAddTransaction = jest.fn();
-const mockAddKidReward = jest.fn();
+const mockAddFunds = vi.fn();
+const mockAddTransaction = vi.fn();
+const mockAddKidReward = vi.fn();
 
 const mockFinancialContextValue: FinancialContextType = {
   financialData: { currentBalance: 100, transactions: [] }, // Example balance
@@ -42,11 +43,11 @@ const renderAddFundsFormComponent = () => {
 describe('AddFundsForm', () => {
   beforeEach(() => {
     mockAddFunds.mockClear();
-    window.alert = jest.fn(); // Spy on alert
+    window.alert = vi.fn(); // Spy on alert
   });
 
   afterEach(() => {
-    (window.alert as jest.Mock).mockRestore();
+    (window.alert as ReturnType<typeof vi.fn>).mockRestore(); // Adjusted for Vitest mock type
   });
 
   it('renders all form fields correctly', () => {
@@ -163,7 +164,7 @@ describe('AddFundsForm', () => {
       await user.click(submitButton);
       expect(mockAddFunds).not.toHaveBeenCalled();
       expect(window.alert).toHaveBeenCalledWith('Please enter a valid positive amount.');
-      (window.alert as jest.Mock).mockClear(); // Clear mock for next assertion
+      (window.alert as ReturnType<typeof vi.fn>).mockClear(); // Clear mock for next assertion
 
       // Test with negative
       await user.clear(amountInput);
@@ -171,7 +172,7 @@ describe('AddFundsForm', () => {
       await user.click(submitButton);
       expect(mockAddFunds).not.toHaveBeenCalled();
       expect(window.alert).toHaveBeenCalledWith('Please enter a valid positive amount.');
-      (window.alert as jest.Mock).mockClear();
+      (window.alert as ReturnType<typeof vi.fn>).mockClear();
 
       // Test with empty (which parseFloat results in NaN)
       await user.clear(amountInput); // ensure it's empty

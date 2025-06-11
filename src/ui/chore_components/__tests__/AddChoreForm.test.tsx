@@ -8,9 +8,10 @@ import { UserContext, UserContextType as ActualUserContextType } from '../../../
 import { FinancialContext, FinancialContextType as ActualFinancialContextType } from '../../../contexts/FinancialContext';
 import type { Kid } from '../../../types';
 import { vi } from 'vitest';
-import { getTodayDateString as actualGetTodayDateString } from '../../utils/dateUtils'; // Import to potentially use actual or ensure path is right
+// Corrected path for importing the actual function for potential use or verification
+import { getTodayDateString as actualGetTodayDateString } from '../../../utils/dateUtils';
 
-vi.mock('../../utils/dateUtils', async () => {
+vi.mock('../../../utils/dateUtils', async () => { // Corrected path for the mock
   return {
     getTodayDateString: vi.fn(() => '2024-01-01'), // Mocked date
     // If dateUtils exports other functions, you might need to mock them or provide actual implementations
@@ -259,7 +260,9 @@ describe('AddChoreForm', () => {
       const user = userEvent.setup();
       renderFormComponent();
 
-      await user.type(screen.getByLabelText(/Description \(Optional\)/i), 'No title chore');
+      // Ensure title is empty by not typing into it.
+      // Removed typing into description to simplify and isolate the title validation.
+      // await user.type(screen.getByLabelText(/Description \(Optional\)/i), 'No title chore');
 
       const submitButton = screen.getByRole('button', { name: /Add Chore/i });
       await user.click(submitButton);
