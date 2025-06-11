@@ -1,4 +1,9 @@
-// src/ui/kanban_components/KidKanbanBoard.tsx
+/**
+ * @file KidKanbanBoard.tsx
+ * Displays a Kanban board for a specific kid, showing their chores categorized into columns
+ * (e.g., "Active", "Completed") for different time periods (daily, weekly, monthly).
+ * Supports drag-and-drop functionality for reordering chores and moving them between columns.
+ */
 import React, { useState, useEffect, useMemo } from 'react';
 import { useChoresContext } from '../../contexts/ChoresContext';
 // Import ColumnThemeOption from types
@@ -23,27 +28,54 @@ import { getTodayDateString, getWeekRange, getMonthRange } from '../../utils/dat
 type RewardFilterOption = 'any' | 'has_reward' | 'no_reward';
 type SortByOption = 'instanceDate' | 'title' | 'rewardAmount';
 type SortDirectionOption = 'asc' | 'desc';
-// ColumnThemeOption is now imported from ../../types
 
+/**
+ * @interface ActiveDragItem
+ * Represents the data associated with the currently dragged Kanban card.
+ * Used by DragOverlay to render a preview of the card being dragged.
+ */
 interface ActiveDragItem {
+  /** The chore instance being dragged. */
   instance: ChoreInstance;
+  /** The definition of the chore being dragged. */
   definition: ChoreDefinition;
 }
 
+/**
+ * @interface KidKanbanBoardProps
+ * Props for the KidKanbanBoard component.
+ */
 interface KidKanbanBoardProps {
+  /** The ID of the kid whose Kanban board is to be displayed. */
   kidId: string;
 }
 
+/**
+ * KidKanbanBoard component.
+ * Renders a customizable Kanban board for a specific kid, displaying their chores.
+ * Features period selection (daily, weekly, monthly), filtering, sorting,
+ * theming, and drag-and-drop functionality for chore management.
+ * @param {KidKanbanBoardProps} props - The component props.
+ * @returns {JSX.Element} The KidKanbanBoard UI.
+ */
 const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   const { choreDefinitions, choreInstances, generateInstancesForPeriod, toggleChoreInstanceComplete } = useChoresContext();
+
+  /** State for the selected time period (daily, weekly, monthly) for displaying chores. */
   const [selectedPeriod, setSelectedPeriod] = useState<KanbanPeriod>('daily');
+  /** State representing the columns and the chores within them for the Kanban board. */
   const [columns, setColumns] = useState<KanbanColumnType[]>([]);
+  /** State holding the active chore instance and definition being dragged, for DragOverlay. */
   const [activeDragItem, setActiveDragItem] = useState<ActiveDragItem | null>(null);
 
   // State for filters and sorting
+  /** State for filtering chores by reward status. */
   const [rewardFilter, setRewardFilter] = useState<RewardFilterOption>('any');
+  /** State for the criteria used to sort chores (e.g., due date, title, reward amount). */
   const [sortBy, setSortBy] = useState<SortByOption>('instanceDate');
+  /** State for the direction of sorting (ascending or descending). */
   const [sortDirection, setSortDirection] = useState<SortDirectionOption>('asc');
+  /** State for the selected visual theme for Kanban columns. Persisted in localStorage. */
   const [selectedColumnTheme, setSelectedColumnTheme] = useState<ColumnThemeOption>(() => {
     const storedTheme = localStorage.getItem('kanban_columnTheme') as ColumnThemeOption | null;
     return storedTheme || 'default';
@@ -74,10 +106,22 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     if (currentPeriodDateRange.start && currentPeriodDateRange.end) {
       generateInstancesForPeriod(currentPeriodDateRange.start, currentPeriodDateRange.end);
     }
-  }, [currentPeriodDateRange, generateInstancesForPeriod, choreDefinitions]);
+  }, [currentPeriodDateRange, generateInstancesForPeriod, choreDefinitions]); // choreDefinitions added as instances might need re-gen if defs change (e.g. new chore added for today)
 
-  // 3. Effect to process instances from context and build columns for the UI
+  /**
+   * Main effect hook for processing chore instances and building the columns for the Kanban board.
+   * This effect runs when the selected kid, period, chore instances/definitions,
+   * or filter/sort options change.
+   *
+   * Logic:
+   * 1. Filters `choreInstances` to get those relevant to the current `kidId` and `selectedPeriod`.
+   * 2. Applies filtering based on `rewardFilter`.
+   * 3. Separates chores into `activeChores` and `completedChores`.
+   * 4. Applies sorting to both `activeChores` and `completedChores` based on `sortBy` and `sortDirection`.
+   * 5. Sets the `columns` state with the processed chores, updating column titles based on the `selectedPeriod`.
+   */
   useEffect(() => {
+    // Filter instances for the current kid and period
     const kidAndPeriodInstances = choreInstances.filter(instance => {
       const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
       if (!definition || definition.assignedKidId !== kidId) return false;
@@ -155,13 +199,19 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
       { id: `${selectedPeriod}_completed`, title: columnTitles.completed, chores: completedChores },
     ]);
 
-  }, [kidId, selectedPeriod, choreInstances, choreDefinitions, currentPeriodDateRange, rewardFilter, sortBy, sortDirection]); // Added new dependencies
+  }, [kidId, selectedPeriod, choreInstances, choreDefinitions, currentPeriodDateRange, rewardFilter, sortBy, sortDirection]);
 
 
+  /**
+   * Retrieves the full ChoreDefinition object for a given ChoreInstance.
+   * @param {ChoreInstance} instance - The chore instance for which to find the definition.
+   * @returns {ChoreDefinition | undefined} The found chore definition, or undefined if not found.
+   */
   const getDefinitionForInstance = (instance: ChoreInstance): ChoreDefinition | undefined => {
     return choreDefinitions.find(def => def.id === instance.choreDefinitionId);
   };
 
+  /** Configured sensors for dnd-kit, enabling pointer and keyboard interactions. */
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -169,8 +219,21 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     })
   );
 
+  /**
+   * Handles the end of a drag operation for a Kanban card.
+   * This function is responsible for:
+   * - Determining the source and destination of the dragged item.
+   * - Reordering the item within the same column if applicable.
+   * - Moving the item to a different column if applicable.
+   * - Updating the chore's `isComplete` status if it's moved between 'active' and 'completed' columns,
+   *   by calling `toggleChoreInstanceComplete` from `ChoresContext`.
+   * - Clearing the `activeDragItem` state to hide the `DragOverlay`.
+   * @param {DragEndEvent} event - The drag end event object from dnd-kit.
+   */
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
+
+    setActiveDragItem(null); // Clear overlay regardless of outcome once dragging stops
 
     if (!over) {
       console.log("Drag ended outside a droppable area");
@@ -180,42 +243,37 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     const activeId = active.id.toString();
     const overId = over.id.toString();
 
-    // active.data.current?.sortable.containerId is the ID of the SortableContext (column) the item came from
     const activeContainerId = active.data.current?.sortable?.containerId;
-    // over.data.current?.sortable.containerId is the ID of the SortableContext (column) the item is over
-    // If dropping on an item, this is the item's column. If dropping on a column itself, this will be the column's ID.
-    // However, if over.id is a column ID (when dropping on an empty column), over.data.current might be undefined.
-    // So, we prioritize over.data.current.sortable.containerId, then check if over.id itself is a column id.
     let overContainerId = over.data.current?.sortable?.containerId;
-
+    // If `overContainerId` is not found via `over.data` (e.g. dropping on an empty column where `over.id` is the column id)
     if (!overContainerId) {
-        // This case handles dropping an item onto a column directly (e.g., an empty column)
-        // Here, over.id would be the column's ID.
-        const isOverColumn = columns.some(col => col.id === over.id);
+        const isOverColumn = columns.some(col => col.id === over.id.toString());
         if (isOverColumn) {
             overContainerId = over.id.toString();
+        } else {
+            // If still not found, try to find which column the `over.id` (item) belongs to
+            const columnContainingOverItem = columns.find(col => col.chores.some(chore => chore.id === overId));
+            if (columnContainingOverItem) {
+                overContainerId = columnContainingOverItem.id;
+            }
         }
     }
-
-    // If we still don't have overContainerId, it might be that we are dropping on an item
-    // and need to find its container.
-    if (!overContainerId) {
-        const columnContainingOverItem = columns.find(col => col.chores.some(chore => chore.id === overId));
-        if (columnContainingOverItem) {
-            overContainerId = columnContainingOverItem.id;
-        }
-    }
-
 
     if (!activeContainerId || !overContainerId) {
-      console.warn("Could not determine active or over container. Active:", activeContainerId, "Over:", overContainerId);
+      console.warn("Could not determine active or over container for DND operation. Active Container:", activeContainerId, "Over Container:", overContainerId);
       return;
     }
 
-    // Don't do anything if dropping on itself (item) in the same column
+    // If the item is dropped in the same place it started, do nothing.
     if (activeId === overId && activeContainerId === overContainerId) {
-      console.log("Dropped on self in the same column, no reorder needed unless indices change, which is handled below.");
-      // The arrayMove check later will see if index actually changed.
+      // Check if the actual index would change. If not, it's a no-op.
+      const itemsInColumn = columns.find(col => col.id === activeContainerId)?.chores || [];
+      const oldIdx = itemsInColumn.findIndex(item => item.id === activeId);
+      const newIdx = itemsInColumn.findIndex(item => item.id === overId);
+      if (oldIdx === newIdx) {
+        console.log("Item dropped in the exact same position.");
+        return;
+      }
     }
 
     setColumns(prev => {
@@ -223,7 +281,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
       const overColumnIndex = prev.findIndex(col => col.id === overContainerId);
 
       if (activeColumnIndex === -1 || overColumnIndex === -1) {
-        console.error("Active or over column not found in state");
+        console.error("Critical: Active or over column not found in state during setColumns update.");
         return prev;
       }
 
@@ -309,32 +367,43 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
 
         // The useEffect hook that depends on `choreInstances` (updated by `toggleChoreInstanceComplete`)
         // will re-process and ensure the columns are correctly rebuilt based on the source of truth.
-        // The local state update here provides immediate feedback.
+        // The local state update here provides immediate feedback, while context update ensures persistence.
         return newColumnsState;
       }
-      return prev; // Fallback, should not be reached if logic is sound
+      // Fallback if none of the conditions were met (e.g. item dragged to same position in same column, handled by earlier check)
+      return prev;
     });
-    setActiveDragItem(null);
   }
 
+  /**
+   * Handles the start of a drag operation for a Kanban card.
+   * Finds the chore instance and its definition corresponding to the dragged item
+   * and sets them in the `activeDragItem` state to be rendered by `DragOverlay`.
+   * @param {DragStartEvent} event - The drag start event object from dnd-kit.
+   */
   function handleDragStart(event: DragStartEvent) {
     const { active } = event;
-    const instance = choreInstances.find(inst => inst.id === active.id);
+    const instance = choreInstances.find(inst => inst.id === active.id.toString());
     if (instance) {
-      const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
+      const definition = getDefinitionForInstance(instance); // Use existing helper
       if (definition) {
         setActiveDragItem({ instance, definition });
       } else {
-        console.warn(`Definition not found for instance ${active.id} during drag start`);
-        setActiveDragItem(null);
+        console.warn(`Definition not found for instance ${active.id.toString()} during drag start.`);
+        setActiveDragItem(null); // Ensure overlay doesn't show stale data
       }
     } else {
-      console.warn(`Instance ${active.id} not found during drag start`);
+      console.warn(`Instance ${active.id.toString()} not found during drag start.`);
       setActiveDragItem(null);
     }
   }
 
-  function handleDragCancel() { // Removed event: DragCancelEvent as it's not used
+  /**
+   * Handles the cancellation of a drag operation.
+   * Clears the `activeDragItem` state to hide the `DragOverlay`.
+   * Note: `DragCancelEvent` is available from dnd-kit if specific cancel event data is needed.
+   */
+  function handleDragCancel() {
     console.log("Drag cancel event triggered");
     setActiveDragItem(null);
   }

@@ -88,4 +88,5 @@ const AddFundsForm = () => {
     </div>
   );
 };
+
 export default AddFundsForm;
