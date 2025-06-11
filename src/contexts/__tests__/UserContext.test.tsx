@@ -73,4 +73,3 @@ describe('UserContext', () => {
     clearTimeoutSpy.mockRestore();
   });
 });
-```
