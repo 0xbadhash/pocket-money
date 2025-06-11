@@ -39,14 +39,6 @@ This document tracks the status, priority, and progress of key features and task
 ## Phase 1: Foundation & Core Functionality
 ### Task 1.1: Prepaid Debit Card Solution (Physical & Virtual)
 *Led by Google Pay/Wallet Team*
--   **Feature**: Research and select banking partners.
-    -   Status: Planned
-    -   Priority: Medium (External Dependency)
-    -   Notes: Requires banking partner integration.
--   **Feature**: Develop secure card provisioning and management within Google Pay/Wallet.
-    -   Status: Planned
-    -   Priority: Medium (External Dependency)
-    -   Notes: Core Google Pay/Wallet team responsibility.
 -   **Feature**: Implement physical card ordering, activation, and replacement workflows.
     -   Status: Planned
     -   Priority: Medium
@@ -55,6 +47,14 @@ This document tracks the status, priority, and progress of key features and task
     -   Status: Planned
     -   Priority: Medium
     -   Notes: Important for online usability.
+-   **Feature**: Research and select banking partners.
+    -   Status: Planned
+    -   Priority: Medium (External Dependency)
+    -   Notes: Requires banking partner integration.
+-   **Feature**: Develop secure card provisioning and management within Google Pay/Wallet.
+    -   Status: Planned
+    -   Priority: Medium (External Dependency)
+    -   Notes: Core Google Pay/Wallet team responsibility.
 
 ### Task 1.2: Funds Management & Transfers
 *Led by Google Pay/Wallet Team*
@@ -323,12 +323,12 @@ This document tracks the status, priority, and progress of key features and task
 
 ### Task 9.2: Data Privacy & Protection
 *Led by Google Legal / Security / Compliance Teams*
--   **Feature**: Implement industry-leading data encryption and privacy protocols.
-    -   Status: Planned
-    -   Priority: High (Critical External Dependency)
 -   **Feature**: Clearly communicate data usage policies.
     -   Status: Planned
     -   Priority: High
+-   **Feature**: Implement industry-leading data encryption and privacy protocols.
+    -   Status: Planned
+    -   Priority: High (Critical External Dependency)
 
 ### Task 10.1: Branding & Messaging
 *Led by Google Marketing Team*
