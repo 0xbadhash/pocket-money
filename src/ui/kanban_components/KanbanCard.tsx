@@ -1,21 +1,74 @@
-// src/ui/kanban_components/KanbanCard.tsx
+/**
+ * @file KanbanCard.tsx
+ * Represents a single chore card within a Kanban column.
+ * Displays chore details, sub-tasks, recurrence info, and provides interaction
+ * for marking chores/sub-tasks as complete. It's also a draggable item via dnd-kit.
+ */
 import React from 'react';
-import type { ChoreInstance, ChoreDefinition, SubTask } from '../../types'; // Updated import
+import type { ChoreInstance, ChoreDefinition } from '../../types';
 import { useChoresContext } from '../../contexts/ChoresContext';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
-interface KanbanCardProps { // Updated props
+/**
+ * @interface KanbanCardProps
+ * Props for the KanbanCard component.
+ */
+interface KanbanCardProps {
+  /** The specific instance of the chore to display. */
   instance: ChoreInstance;
+  /** The definition (template) of the chore. */
   definition: ChoreDefinition;
+  // isOverlay?: boolean; // Optional prop if card needs different style in DragOverlay
 }
 
-const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition }) => {
-  // Destructure the correct function name from context
-  const { toggleChoreInstanceComplete, toggleSubTaskComplete } = useChoresContext(); // Added toggleSubTaskComplete
+/**
+ * KanbanCard component.
+ * Renders the visual representation of a chore instance.
+ * It displays details such as title, description, reward, tags, sub-tasks, and recurrence.
+ * Provides controls to mark the chore or its sub-tasks as complete.
+ * Integrated with dnd-kit to be a sortable (draggable) item.
+ * @param {KanbanCardProps} props - The component props.
+ * @returns {JSX.Element} The KanbanCard UI.
+ */
+const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition /*, isOverlay = false */ }) => {
+  const { toggleChoreInstanceComplete, toggleSubTaskComplete } = useChoresContext();
 
-  // This function still operates on definition as recurrence is defined there
+  /**
+   * Props from `useSortable` hook (dnd-kit) to make the card draggable.
+   * Includes attributes for ARIA, listeners for drag events, and refs.
+   */
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: instance.id });
+
+  /**
+   * Dynamic style object for the card, primarily for dnd-kit transformations.
+   * Applies CSS transform for movement, transition for animation, and opacity change during drag.
+   */
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    // zIndex: isDragging ? 100 : (isOverlay ? 100 : 'auto'), // Example for overlay z-index
+    // cursor: isDragging ? 'grabbing' : 'grab',
+    // Add other styles if needed, e.g., enhanced shadow if isOverlay
+    // boxShadow: isOverlay ? '0 8px 16px rgba(0,0,0,0.2)' : undefined,
+  };
+
+  /**
+   * Formats recurrence information for display on the card.
+   * @param {ChoreDefinition} def - The chore definition containing recurrence rules.
+   * @returns {string | null} A formatted string describing the recurrence, or null if not recurrent.
+   */
   const formatRecurrenceInfoShort = (def: ChoreDefinition): string | null => {
-    if (!def.recurrenceType || def.recurrenceType === null) { // 'none' represented by null
-      return null;
+    if (!def.recurrenceType || def.recurrenceType === null) {
+      return null; // 'none' or not set
     }
     let info = `Repeats ${def.recurrenceType}`;
     if (def.recurrenceEndDate) {
@@ -33,19 +86,19 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition }) => {
   const recurrenceInfo = formatRecurrenceInfoShort(definition);
 
   return (
-    <div className={`kanban-card ${instance.isComplete ? 'complete' : ''}`}
-         style={{
-           border: '1px solid #ddd',
-           padding: '10px',
-           marginBottom: '10px',
-           borderRadius: '4px',
-           backgroundColor: instance.isComplete ? '#e6ffe6' : '#fff'
-         }}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`kanban-card ${instance.isComplete ? 'complete' : ''} ${isDragging ? 'dragging' : ''}`}
+    >
+      {/* Original inline styles like border, padding, marginBottom, borderRadius, backgroundColor are now handled by src/styles.css */}
       <h4>{definition.title}</h4>
 
       {/* Progress Indicator */}
       {definition.subTasks && definition.subTasks.length > 0 && (() => {
-        const completedCount = definition.subTasks.filter((st: SubTask) => st.isComplete).length;
+        const completedCount = definition.subTasks.filter(st => st.isComplete).length;
         const progressPercent = (definition.subTasks.length > 0) ? (completedCount / definition.subTasks.length) * 100 : 0;
 
         return (
@@ -80,7 +133,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition }) => {
         );
       })()}
 
-      {definition.description && <p style={{ fontSize: '0.9em', color: '#555' }}>{definition.description}</p>}
+      {definition.description && <p style={{ fontSize: '0.9em', color: 'var(--text-color-secondary)' }}>{definition.description}</p>}
 
       {/* Display instanceDate as the effective due date for this instance */}
       <p style={{ fontSize: '0.9em' }}>Due: {instance.instanceDate}</p>
@@ -113,7 +166,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition }) => {
       {definition.subTasks && definition.subTasks.length > 0 && (
         <div className="sub-tasks-list" style={{ marginTop: '10px', borderTop: '1px solid #eee', paddingTop: '8px' }}>
           <h5 style={{ fontSize: '0.9em', marginBottom: '5px', color: '#666', marginTop: '0' }}>Sub-tasks:</h5>
-          {definition.subTasks.map((subTask: SubTask) => (
+          {definition.subTasks.map(subTask => (
             <div
               key={subTask.id}
               className="sub-task"
@@ -142,12 +195,14 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition }) => {
         </div>
       )}
 
-      {recurrenceInfo && <p style={{ fontStyle: 'italic', fontSize: '0.8em', color: '#777' }}>{recurrenceInfo}</p>}
+      {recurrenceInfo && <p style={{ fontStyle: 'italic', fontSize: '0.8em', color: 'var(--text-color-secondary)' }}>{recurrenceInfo}</p>}
 
       <p style={{ fontSize: '0.9em' }}>Status: {instance.isComplete ? 'Complete' : 'Incomplete'}</p>
       <button
         onClick={() => toggleChoreInstanceComplete(instance.id)} // Use instance.id
-        style={{ padding: '5px 10px', fontSize: '0.9em', cursor: 'pointer' }}>
+        style={{ padding: 'var(--spacing-xs) var(--spacing-sm)', fontSize: '0.9em', cursor: 'pointer' }}
+        className="button-secondary" // Example: Assuming a secondary button style might exist or be added
+      >
         {instance.isComplete ? 'Mark Incomplete' : 'Mark Complete'}
       </button>
     </div>

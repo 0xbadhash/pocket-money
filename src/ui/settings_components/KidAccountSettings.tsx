@@ -1,60 +1,52 @@
 // src/ui/settings_components/KidAccountSettings.tsx
-import { useContext } from 'react';
-import { Link } from 'react-router-dom';
-import { UserContext } from '../../contexts/UserContext';
-import { UserRole, KidUser, ParentUser } from '../../types'; // Import ParentUser
+import React, { useContext } from 'react'; // Import useContext
+import { Link } from 'react-router-dom'; // <-- New Import
+import { UserContext } from '../../contexts/UserContext'; // Adjust path as needed
 
 const KidAccountSettings = () => {
   const userContext = useContext(UserContext);
-  const currentUser = userContext?.user;
 
-  // Cast currentUser to ParentUser to access role and correctly typed kids array
-  const parentUser = currentUser as ParentUser | null;
-
-  // Only render this section if the current user is a parent and has kids
-  if (!parentUser || parentUser.role !== UserRole.PARENT) {
+  // Early return or loading state if user or user.kids is not yet available
+  if (!userContext || userContext.loading) {
     return (
       <div className="settings-section">
         <h2>Kid Account Management</h2>
-        <p>This section is for parent accounts to manage kid profiles.</p>
+        <p>Loading kid information...</p>
       </div>
     );
   }
 
-  const parentUserKids: KidUser[] = parentUser.kids || [];
+  const { user } = userContext;
+
+  if (!user || !user.kids || user.kids.length === 0) {
+    return (
+      <div className="settings-section">
+        <h2>Kid Account Management</h2>
+        <p>No kids associated with this account.</p>
+        <div className="settings-item">
+          <button disabled>Add New Kid (via Family Link)</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="settings-section">
       <h2>Kid Account Management</h2>
-      {parentUserKids.length === 0 ? (
-        <p>You haven't added any kid accounts yet.</p>
-      ) : (
-        <>
-          {parentUserKids.map((kid) => (
-            <div key={kid.id} className="settings-item">
-              <p>
-                {kid.name} (Age: {kid.age !== undefined ? kid.age : 'N/A'}){' '}
-                {/* Link to individual kid's settings or profile */}
-                <Link to={`/kid-settings/${kid.id}`} style={{ marginLeft: '10px' }}>
-                  View Details
-                </Link>
-              </p>
-            </div>
-          ))}
-        </>
-      )}
-
-      {/* Add New Kid button - This will likely navigate to a registration/onboarding flow */}
-      <div className="settings-item">
-        <button
-          onClick={() => alert('Navigate to Add New Kid form (Not implemented yet)')}
-          // Assuming adding new kids might involve a complex flow, keep disabled or link to a dedicated form
-          disabled={false} // Enable when the add kid flow is ready
-        >
-          Add New Kid
-        </button>
+      {user.kids.map(kid => (
+        <div className="settings-item" key={kid.id}>
+          <span>{kid.name} (Age: {kid.age || 'N/A'})</span>
+          {/* Replace button with Link */}
+          <Link to={`/kid/${kid.id}`} className="button-link-styled">
+            View Details
+          </Link>
+        </div>
+      ))}
+      <div className="settings-item" style={{ marginTop: '10px' }}>
+        <button disabled>Add New Kid (via Family Link)</button>
       </div>
     </div>
   );
 };
+
 export default KidAccountSettings;

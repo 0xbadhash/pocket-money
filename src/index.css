@@ -258,15 +258,6 @@ button:focus-visible {
 /* Kanban Column Theme Styles */
 
 /* Default theme relies on existing .kanban-column styles for background
-<<<<<<< HEAD
-    and h3 styles, but we can be explicit if needed or if those defaults change.
-    The .kanban-column class already sets:
-    background-color: var(--surface-color-secondary, #f0f0f0);
-    And its h3 child has:
-    color: var(--text-color-strong);
-    So, .kanban-column-theme-default might not need explicit rules if these are sufficient.
-    For clarity, we can add them.
-=======
    and h3 styles, but we can be explicit if needed or if those defaults change.
    The .kanban-column class already sets:
    background-color: var(--surface-color-secondary, #f0f0f0);
@@ -274,7 +265,6 @@ button:focus-visible {
    color: var(--text-color-strong);
    So, .kanban-column-theme-default might not need explicit rules if these are sufficient.
    For clarity, we can add them.
->>>>>>> dc0fa03e3ba2becad1e82c7d2a0cd939732cb3d1
 */
 
 .kanban-column-theme-default {
@@ -303,9 +293,6 @@ button:focus-visible {
 
 /* Ensure column titles have enough contrast with new backgrounds. */
 /* Card backgrounds (.kanban-card) are white by default (unless complete),
-<<<<<<< HEAD
-    which should generally provide good contrast with these column backgrounds. */
-=======
    which should generally provide good contrast with these column backgrounds. */
 
 /* Sub-tasks and Progress Indicator Styles for Kanban Card */
@@ -368,4 +355,3 @@ button:focus-visible {
   border-radius: var(--border-radius-xs, 2px); /* Keep slightly smaller for inset look */
   transition: width 0.3s ease-in-out;
 }
->>>>>>> dc0fa03e3ba2becad1e82c7d2a0cd939732cb3d1

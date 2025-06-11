@@ -1,8 +1,8 @@
 // src/ui/ActivityMonitoringView.tsx
-import { useState, useMemo } from 'react'; // Import useMemo
-// import ActivityFilters from './activity_monitoring_components/ActivityFilters';
-// import ActivityChart from './activity_monitoring_components/ActivityChart';
-// import DetailedTransactionList from './activity_monitoring_components/DetailedTransactionList';
+import React, { useState, useMemo } from 'react'; // Import useMemo
+import ActivityFilters from './activity_monitoring_components/ActivityFilters';
+import ActivityChart from './activity_monitoring_components/ActivityChart';
+import DetailedTransactionList from './activity_monitoring_components/DetailedTransactionList';
 import { useFinancialContext } from '../contexts/FinancialContext';
 import type { Transaction } from '../types';
 
@@ -71,7 +71,8 @@ const ActivityMonitoringView = () => {
       <header className="view-header">
         <h1>Activity Monitoring</h1>
       </header>
-      {/* <section className="activity-controls">
+      <section className="activity-controls">
+        {/* We will pass uniqueCategories and handleApplyFiltersUpdate to ActivityFilters later */}
         <ActivityFilters onApplyFilters={handleApplyFiltersUpdate} availableCategories={uniqueCategories} />
       </section>
       <section className="activity-summary-visuals">
@@ -79,7 +80,7 @@ const ActivityMonitoringView = () => {
       </section>
       <section className="activity-detailed-list">
         <DetailedTransactionList transactionsToDisplay={transactionsToDisplay} />
-      </section> */}
+      </section>
     </div>
   );
 };

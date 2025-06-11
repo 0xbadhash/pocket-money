@@ -11,7 +11,7 @@ interface User {
 }
 
 // Define the shape of the context value
-export interface UserContextType {
+interface UserContextType {
   user: User | null;
   loading: boolean;
 }

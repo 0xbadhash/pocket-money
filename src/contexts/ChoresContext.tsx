@@ -1,28 +1,59 @@
 // src/contexts/ChoresContext.tsx
-import React, { createContext, useState, ReactNode, useContext, useEffect } from 'react';
-import type { ChoreDefinition, ChoreInstance, SubTask } from '../types'; // Added SubTask import
+import React, { createContext, useState, ReactNode, useContext } from 'react';
+import type { ChoreDefinition, ChoreInstance, SubTask } from '../types'; // Import SubTask
 import { useFinancialContext } from '../contexts/FinancialContext';
 import { generateChoreInstances } from '../utils/choreUtils';
 
-// Define the storage key for chore definitions
-const CHORE_DEFINITIONS_STORAGE_KEY = 'familyTaskManagerChoreDefinitions';
-const CHORE_INSTANCES_STORAGE_KEY = 'familyTaskManagerChoreInstances'; // Separate key for instances
+/**
+ * @typedef KanbanChoreOrders
+ * Defines the structure for storing custom Kanban chore orders.
+ * The key is a string identifier, typically combining a kid's ID and a column identifier
+ * (e.g., "kid1-daily_active" or "kid1-weekly_completed").
+ * The value is an array of chore instance IDs, representing the desired order for that specific column.
+ */
+export type KanbanChoreOrders = Record<string, string[]>;
 
-// Define the shape of the context value
-export interface ChoresContextType {
+/**
+ * @interface ChoresContextType
+ * Defines the shape of the context value provided by ChoresProvider.
+ * Includes state for chore definitions, instances, custom Kanban orders,
+ * and functions to manage them.
+ */
+interface ChoresContextType {
+  /** Array of all defined chore templates. */
   choreDefinitions: ChoreDefinition[];
+  /** Array of all generated chore instances for various periods. */
   choreInstances: ChoreInstance[];
+  /**
+   * Object storing custom sort orders for Kanban columns.
+   * Keys are typically `${kidId}-${period}_${status}` (e.g., "kid1-daily_active").
+   * Values are arrays of chore instance IDs in their custom order.
+   */
+  kanbanChoreOrders: KanbanChoreOrders;
+  /** Adds a new chore definition to the system. */
   addChoreDefinition: (choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete'>) => void;
+  /** Toggles the completion status of a specific chore instance. Also handles reward logic. */
   toggleChoreInstanceComplete: (instanceId: string) => void;
+  /** Retrieves all chore definitions assigned to a specific kid. */
   getChoreDefinitionsForKid: (kidId: string) => ChoreDefinition[];
+  /** Generates chore instances for all definitions within a given date range. */
   generateInstancesForPeriod: (startDate: string, endDate: string) => void;
-  toggleSubTaskComplete: (choreDefinitionId: string, subTaskId: string) => void; // Include NEW subTask function
+  /** Toggles the completion status of a sub-task within a chore definition. */
+  toggleSubTaskComplete: (choreDefinitionId: string, subTaskId: string) => void;
+  /**
+   * Updates or clears the custom display order for chores in a specific Kanban column for a kid.
+   * @param {string} kidId - The ID of the kid.
+   * @param {string} columnIdentifier - A unique string identifying the column (e.g., "daily_active").
+   * @param {string[]} orderedChoreIds - An array of chore instance IDs in the desired order.
+   *                                     Pass an empty array to clear the custom order for the column.
+   */
+  updateKanbanChoreOrder: (kidId: string, columnIdentifier: string, orderedChoreIds: string[]) => void;
 }
 
 // Create the context
 export const ChoresContext = createContext<ChoresContextType | undefined>(undefined);
 
-// Custom hook for easier context consumption
+// Custom hook for easier context consumption - Ensure return type matches new ChoresContextType
 export const useChoresContext = (): ChoresContextType => {
   const context = useContext(ChoresContext);
   if (context === undefined) {
@@ -37,102 +68,82 @@ interface ChoresProviderProps {
 }
 
 export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
-  // State for chore definitions, loaded from localStorage with initial dummy data if empty
-  const [choreDefinitions, setChoreDefinitions] = useState<ChoreDefinition[]>(() => {
-    try {
-      const storedDefs = window.localStorage.getItem(CHORE_DEFINITIONS_STORAGE_KEY);
-      if (storedDefs) {
-        const parsedDefs = JSON.parse(storedDefs);
-        if (Array.isArray(parsedDefs)) {
-          // Basic validation for existing definitions, could add more detailed checks
-          return parsedDefs;
-        }
-      }
-    } catch (error) {
-      console.error('Error parsing chore definitions from localStorage:', error);
+  // MODIFIED: State for chore definitions
+  const [choreDefinitions, setChoreDefinitions] = useState<ChoreDefinition[]>([
+    {
+      id: 'cd1', title: 'Clean Room (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
+      rewardAmount: 1, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: '2023-12-05',
+      tags: ['cleaning', 'indoor'],
+      subTasks: [
+        { id: 'st1_1', title: 'Make bed', isComplete: false },
+        { id: 'st1_2', title: 'Tidy desk', isComplete: false },
+        { id: 'st1_3', title: 'Vacuum floor', isComplete: false }
+      ]
+    },
+    {
+      id: 'cd2', title: 'Walk the Dog (Weekly Sat)', assignedKidId: 'kid_b', dueDate: '2023-12-02',
+      rewardAmount: 3, isComplete: false, recurrenceType: 'weekly', recurrenceDay: 6, // Saturday
+      recurrenceEndDate: '2023-12-31',
+      tags: ['outdoor', 'pet care', 'morning'],
+      subTasks: [
+        { id: 'st2_1', title: 'Leash and harness', isComplete: false },
+        { id: 'st2_2', title: 'Walk for 30 mins', isComplete: false },
+      ]
+    },
+    {
+      id: 'cd3', title: 'Do Homework (One-off)', assignedKidId: 'kid_a', dueDate: '2023-12-15',
+      rewardAmount: 2, isComplete: false, recurrenceType: null
+      // No tags or subtasks for this one
+    },
+    {
+      id: 'cd4', title: 'Take out trash (Monthly 15th)', description: 'Before evening', rewardAmount: 1.5,
+      assignedKidId: 'kid_a', dueDate: '2023-12-01', isComplete: false, recurrenceType: 'monthly', recurrenceDay: 15,
+      recurrenceEndDate: '2024-02-01',
+      tags: ['household', 'evening']
+      // No subtasks
+    },
+    {
+      id: 'cd5', title: 'Feed Cat (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
+      rewardAmount: 0.5, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: null,
+      subTasks: [
+        { id: 'st5_1', title: 'Clean bowl', isComplete: false },
+        { id: 'st5_2', title: 'Fill with food', isComplete: false },
+        { id: 'st5_3', title: 'Check water', isComplete: true }, // Example pre-completed
+      ]
     }
-    // Default initial definitions if nothing in storage or parsing fails - Merged from both, ensuring subtasks
-    return [
-      {
-        id: 'cd1', title: 'Clean Room (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
-        rewardAmount: 1, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: '2023-12-05',
-        tags: ['cleaning', 'indoor'],
-        subTasks: [ // Included from feature branch
-          { id: 'st1_1', title: 'Make bed', isComplete: false },
-          { id: 'st1_2', title: 'Tidy desk', isComplete: false },
-          { id: 'st1_3', title: 'Vacuum floor', isComplete: false }
-        ]
-      },
-      {
-        id: 'cd2', title: 'Walk the Dog (Weekly Sat)', assignedKidId: 'kid_b', dueDate: '2023-12-02',
-        rewardAmount: 3, isComplete: false, recurrenceType: 'weekly', recurrenceDay: 6, // Saturday
-        recurrenceEndDate: '2023-12-31',
-        tags: ['outdoor', 'pet care', 'morning'],
-        subTasks: [ // Included from feature branch
-          { id: 'st2_1', title: 'Leash and harness', isComplete: false },
-          { id: 'st2_2', title: 'Walk for 30 mins', isComplete: false },
-        ]
-      },
-      {
-        id: 'cd3', title: 'Do Homework (One-off)', assignedKidId: 'kid_a', dueDate: '2023-12-15',
-        rewardAmount: 2, isComplete: false, recurrenceType: 'one-time'
-        // No tags or subtasks for this one
-      },
-      {
-        id: 'cd4', title: 'Take out trash (Monthly 15th)', description: 'Before evening', rewardAmount: 1.5,
-        assignedKidId: 'kid_a', dueDate: '2023-12-01', isComplete: false, recurrenceType: 'monthly', recurrenceDay: 15,
-        recurrenceEndDate: '2024-02-01',
-        tags: ['household', 'evening']
-        // No subtasks
-      },
-      {
-        id: 'cd5', title: 'Feed Cat (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
-        rewardAmount: 0.5, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: null,
-        subTasks: [ // Included from feature branch
-          { id: 'st5_1', title: 'Clean bowl', isComplete: false },
-          { id: 'st5_2', title: 'Fill with food', isComplete: false },
-          { id: 'st5_3', title: 'Check water', isComplete: true }, // Example pre-completed
-        ]
-      }
-    ];
-  });
+  ]);
 
-  // State for chore instances, loaded from localStorage
-  const [choreInstances, setChoreInstances] = useState<ChoreInstance[]>(() => {
+  // NEW: State for chore instances
+  const [choreInstances, setChoreInstances] = useState<ChoreInstance[]>([]);
+
+  /**
+   * State for managing custom Kanban chore orders.
+   * Persisted in localStorage. The key for an order is typically `${kidId}-${columnIdentifier}`,
+   * e.g., "kid1-daily_active", and the value is an array of chore instance IDs.
+   * @type {[KanbanChoreOrders, React.Dispatch<React.SetStateAction<KanbanChoreOrders>>]}
+   */
+  const [kanbanChoreOrders, setKanbanChoreOrders] = useState<KanbanChoreOrders>(() => {
     try {
-      const storedInstances = window.localStorage.getItem(CHORE_INSTANCES_STORAGE_KEY);
-      if (storedInstances) {
-        const parsedInstances = JSON.parse(storedInstances);
-        if (Array.isArray(parsedInstances)) {
-          return parsedInstances;
-        }
-      }
+      const savedOrders = localStorage.getItem('kanbanChoreOrders');
+      return savedOrders ? JSON.parse(savedOrders) : {};
     } catch (error) {
-      console.error('Error parsing chore instances from localStorage:', error);
+      console.error("Error parsing kanbanChoreOrders from localStorage:", error);
+      return {}; // Return default value in case of error
     }
-    return []; // Default to empty if nothing in storage or parsing fails
   });
 
   const { addKidReward } = useFinancialContext();
 
-  // useEffect to save choreDefinitions to localStorage whenever they change
+  // Effect to save kanbanChoreOrders to localStorage whenever it changes
   useEffect(() => {
     try {
-      window.localStorage.setItem(CHORE_DEFINITIONS_STORAGE_KEY, JSON.stringify(choreDefinitions));
+      localStorage.setItem('kanbanChoreOrders', JSON.stringify(kanbanChoreOrders));
     } catch (error) {
-      console.error('Error saving chore definitions to localStorage:', error);
+      console.error("Error saving kanbanChoreOrders to localStorage:", error);
     }
-  }, [choreDefinitions]);
+  }, [kanbanChoreOrders]);
 
-  // useEffect to save choreInstances to localStorage whenever they change
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(CHORE_INSTANCES_STORAGE_KEY, JSON.stringify(choreInstances));
-    } catch (error) {
-      console.error('Error saving chore instances to localStorage:', error);
-    }
-  }, [choreInstances]);
-
+  // MODIFIED: Renamed and updated logic
   const addChoreDefinition = (choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete'>) => {
     const newChoreDef: ChoreDefinition = {
       id: `cd${Date.now()}`, // Simple unique ID
@@ -142,6 +153,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     setChoreDefinitions(prevDefs => [newChoreDef, ...prevDefs]);
   };
 
+  // MODIFIED: Renamed and updated logic for instances
   const toggleChoreInstanceComplete = (instanceId: string) => {
     const instance = choreInstances.find(inst => inst.id === instanceId);
     if (!instance) {
@@ -167,10 +179,12 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     );
   };
 
+  // MODIFIED: Renamed and filters definitions
   const getChoreDefinitionsForKid = (kidId: string): ChoreDefinition[] => {
     return choreDefinitions.filter(def => def.assignedKidId === kidId);
   };
 
+  // MODIFIED: Instance generation logic using utility function
   const generateInstancesForPeriod = (periodStartDate: string, periodEndDate: string) => {
     console.log(`Generating instances for period: ${periodStartDate} to ${periodEndDate}`);
     const generatedForPeriod = generateChoreInstances(choreDefinitions, periodStartDate, periodEndDate);
@@ -180,13 +194,11 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       const outsideOfPeriod = prevInstances.filter(inst => {
         const instDate = new Date(inst.instanceDate);
         instDate.setUTCHours(0,0,0,0); // Normalize date for comparison
-
+        // Ensure periodStartDate and periodEndDate are also normalized if comparing Date objects
         const periodStartNorm = new Date(periodStartDate);
         periodStartNorm.setUTCHours(0,0,0,0);
         const periodEndNorm = new Date(periodEndDate);
         periodEndNorm.setUTCHours(0,0,0,0);
-        
-        // Keep instances that are outside the current generation period, regardless of completion status
         return instDate < periodStartNorm || instDate > periodEndNorm;
       });
 
@@ -199,7 +211,6 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
         return newInstance;
       });
 
-      // Combine the outside instances with the potentially updated generated ones
       return [...outsideOfPeriod, ...updatedGeneratedForPeriod];
     });
   };
@@ -207,14 +218,17 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
   const toggleSubTaskComplete = (choreDefinitionId: string, subTaskId: string) => {
     setChoreDefinitions(prevDefs =>
       prevDefs.map(def => {
-        if (def.id === choreDefinitionId) {
-          // Ensure subTasks array exists before mapping
-          const updatedSubTasks = def.subTasks?.map((st: SubTask) => {
+        // Ensure subTasks array exists before mapping
+        if (def.id === choreDefinitionId && def.subTasks) {
+          const updatedSubTasks = def.subTasks.map(st => {
             if (st.id === subTaskId) {
               return { ...st, isComplete: !st.isComplete };
             }
             return st;
           });
+          // Check if all subtasks are now complete to potentially mark main chore def (optional logic)
+          // const allSubTasksComplete = updatedSubTasks.every(st => st.isComplete);
+          // if (allSubTasksComplete) { /* Logic to update parent chore's isComplete if needed */ }
           return { ...def, subTasks: updatedSubTasks };
         }
         return def;
@@ -222,15 +236,45 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     );
   };
 
+  /**
+   * Updates the custom order of chores for a specific kid and a specific Kanban column identifier.
+   * This order is persisted to localStorage. If an empty array is provided for `orderedChoreIds`,
+   * the custom order for that specific key is removed, reverting to default sorting for that column.
+   *
+   * The `columnIdentifier` is typically a string like "daily_active", "weekly_completed", etc.
+   * The key stored in `kanbanChoreOrders` and localStorage will be `${kidId}-${columnIdentifier}`.
+   *
+   * @param {string} kidId - The ID of the kid for whom the order is being set.
+   * @param {string} columnIdentifier - A string that uniquely identifies the column context (e.g., "daily_active").
+   * @param {string[]} orderedChoreIds - An array of chore instance IDs representing the new custom order.
+   *                                     Pass an empty array to clear the custom order for this specific key.
+   */
+  const updateKanbanChoreOrder = (kidId: string, columnIdentifier: string, orderedChoreIds: string[]): void => {
+    const key = `${kidId}-${columnIdentifier}`;
+    setKanbanChoreOrders(prevOrders => {
+      const newOrders = { ...prevOrders };
+      if (orderedChoreIds && orderedChoreIds.length > 0) {
+        newOrders[key] = orderedChoreIds;
+      } else {
+        // If the new order is empty, undefined, or an empty array, remove the key to clear the custom order.
+        delete newOrders[key];
+      }
+      return newOrders;
+    });
+  };
+
+  // MODIFIED: Update provider value
   return (
     <ChoresContext.Provider value={{
       choreDefinitions,
       choreInstances,
+      kanbanChoreOrders, // Add to context value
       addChoreDefinition,
       toggleChoreInstanceComplete,
       getChoreDefinitionsForKid,
       generateInstancesForPeriod,
-      toggleSubTaskComplete // Add new function to provider
+      toggleSubTaskComplete,
+      updateKanbanChoreOrder, // Add new function to provider
     }}>
       {children}
     </ChoresContext.Provider>

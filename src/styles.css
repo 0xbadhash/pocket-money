@@ -1,221 +1,372 @@
-/* parent_app/ui/styles.css */
+/* src/styles.css */
+
+/* Light Theme (Default) */
+:root {
+  /* Primary GoHenry Blue */
+  --primary-color: #00BCD4; /* GoHenry Blue */
+  --primary-color-dark: #00ACC1; /* Darker Cyan */
+  --primary-color-light: #B2EBF2; /* Lighter Cyan */
+
+  /* Secondary GoHenry Green */
+  --secondary-color-positive: #8BC34A; /* GoHenry Green */
+  --secondary-color-positive-dark: #7CB342; /* Darker Lively Green */
+
+  /* Attention (Keep existing or update if GoHenry has a specific one) */
+  --secondary-color-attention: #FFC107; /* Amber 500 - Kept from previous */
+  --secondary-color-attention-dark: #FFA000; /* Amber 700 - Kept */
+
+  /* Accent (Keep existing or update if GoHenry has a specific one) */
+  --accent-color-playful: #9C27B0; /* Purple 500 - Kept (can be for kid-specific highlights later) */
+  --accent-color-playful-dark: #7B1FA2; /* Purple 700 - Kept */
+
+  /* Backgrounds & Surfaces */
+  --background-color: #FAFAFA; /* GoHenry Light Grey */
+  --surface-color: #FFFFFF;   /* GoHenry White for cards/sections */
+  --surface-color-hover: #F0F0F0; /* Slightly darker than #FAFAFA for hover */
+  --border-color: #E0E0E0;     /* Standard Light Grey for borders */
+
+  /* Text Colors */
+  --text-color-primary: #424242;    /* GoHenry Dark Grey */
+  --text-color-secondary: #757575;  /* Standard Medium Grey for secondary text */
+  --text-color-on-primary: #FFFFFF; /* White text on GoHenry Blue */
+  --text-color-on-secondary-positive: #FFFFFF; /* White text on GoHenry Green (check contrast, could be dark) */
+  --text-color-on-accent: #FFFFFF;  /* White text on playful accent */
+  --text-color-link: var(--primary-color);
+  --text-color-link-hover: var(--primary-color-dark);
+
+  /* Typography */
+  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  --font-family-monospace: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  --font-size-base: 1rem; /* Typically 16px */
+  --font-size-sm: 0.875rem; /* 14px */
+  --font-size-lg: 1.125rem; /* 18px */
+  --font-size-xl: 1.25rem; /* 20px */
+
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500; /* Good for labels, subheadings */
+  --font-weight-bold: 700;
+
+  --line-height-base: 1.5;
+  --line-height-tight: 1.25;
+
+  /* Headings - can be overridden by specific h1-h6 rules later but good for base */
+  --h1-font-size: 2.25rem; /* 36px */
+  --h2-font-size: 1.75rem; /* 28px */
+  --h3-font-size: 1.5rem;  /* 24px */
+  --h4-font-size: 1.25rem; /* 20px */
+
+  /* Spacing (can add more as needed, e.g., xs, xl) */
+  --spacing-unit: 8px; /* Base unit */
+  --spacing-xs: calc(0.5 * var(--spacing-unit));   /* 4px */
+  --spacing-sm: var(--spacing-unit);             /* 8px */
+  --spacing-md: calc(2 * var(--spacing-unit));   /* 16px */
+  --spacing-lg: calc(3 * var(--spacing-unit));   /* 24px */
+  --spacing-xl: calc(4 * var(--spacing-unit));   /* 32px */
+
+  /* Borders */
+  --border-radius-sm: 2px;
+  --border-radius-md: 4px;
+  --border-radius-lg: 8px;
+  --border-width: 1px;
+
+  /* Shadows (can define a few options) */
+  --box-shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --box-shadow-md: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+  --box-shadow-lg: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
+
+  /* Transitions */
+  --transition-base: all 0.2s ease-in-out;
+}
+
+/* Dark Theme */
+[data-theme="dark"] {
+  /* Primary GoHenry Blue - Dark Theme Adaptation */
+  --primary-color: #4DD0E1; /* Lighter Cyan (Material Cyan 300) */
+  --primary-color-dark: #26C6DA; /* Slightly darker Cyan (Material Cyan 400) for interaction */
+  --primary-color-light: #80DEEA; /* Even lighter Cyan (Material Cyan 200) for subtle backgrounds if needed */
+
+  /* Secondary GoHenry Green - Dark Theme Adaptation */
+  --secondary-color-positive: #AED581; /* Lighter Green (Material Light Green 300) */
+  --secondary-color-positive-dark: #9CCC65; /* Slightly darker Light Green (Material Light Green 400) */
+
+  /* Attention (Keep existing dark theme versions or adapt if GoHenry has specific dark ones) */
+  --secondary-color-attention: #FFD54F; /* Amber 300 - Kept from previous dark theme */
+  --secondary-color-attention-dark: #FFCA28; /* Amber 400 - Kept */
+
+  /* Accent (Keep existing dark theme versions or adapt) */
+  --accent-color-playful: #CE93D8; /* Lighter Purple (Material Purple 200) */
+  --accent-color-playful-dark: #BA68C8; /* Material Purple 300 */
+
+  /* Backgrounds & Surfaces - Dark Theme */
+  --background-color: #121212; /* Very Dark Grey/Black */
+  --surface-color: #1E1E1E;    /* Dark Grey for cards, sections */
+  --surface-color-hover: #2C2C2C; /* Slightly lighter grey for hover */
+  --border-color: #424242;      /* Medium Dark Grey for borders (matches light theme primary text) */
+
+  /* Text Colors - Dark Theme */
+  --text-color-primary: #E0E0E0;    /* Light Grey for primary text */
+  --text-color-secondary: #BDBDBD;  /* Medium Light Grey for secondary text */
+  --text-color-on-primary: #000000; /* Black text on the light Cyan primary */
+  --text-color-on-secondary-positive: #000000; /* Black text on the light Green positive */
+  --text-color-on-accent: #000000;  /* Black text on the light Purple accent */
+  --text-color-link: var(--primary-color); /* Uses the dark theme's primary color */
+  --text-color-link-hover: var(--primary-color-dark);
+}
+
+/* Ensure the rest of the existing styles.css content follows after this block */
+/* Original styles.css content (now using CSS Variables) */
 
 /* Basic Reset/Defaults (Optional but good practice) */
 body {
   margin: 0;
-  font-family: sans-serif; /* Placeholder, Material Design would use Roboto */
-  background-color: #f4f4f4;
-  color: #333;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  background-color: var(--background-color);
+  color: var(--text-color-primary);
+  transition: var(--transition-base);
 }
+
+/* Global Heading Styles */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-family-sans);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-color-primary);
+  line-height: var(--line-height-tight);
+  margin-top: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}
+
+h1 { font-size: var(--h1-font-size); }
+h2 { font-size: var(--h2-font-size); }
+h3 { font-size: var(--h3-font-size); }
+h4 { font-size: var(--h4-font-size); }
+h5 { font-size: var(--font-size-xl); font-weight: var(--font-weight-medium); }
+h6 { font-size: var(--font-size-lg); font-weight: var(--font-weight-medium); }
 
 .dashboard-view {
   display: flex;
   flex-direction: column;
-  padding: 16px;
+  padding: var(--spacing-md);
 }
 
-.dashboard-header {
-  background-color: #6200ee; /* Material Design primary color (example) */
-  color: white;
-  padding: 16px;
-  margin-bottom: 16px;
-  border-radius: 4px;
+.dashboard-header { /* Example: This was a specific purple, now using primary */
+  background-color: var(--primary-color);
+  color: var(--text-color-on-primary);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  border-radius: var(--border-radius-md);
 }
 
-.dashboard-header h1 {
+.dashboard-header h1 { /* Specific h1 inside dashboard-header */
   margin: 0;
-  font-size: 1.5em;
+  font-size: var(--h2-font-size); /* Adjusted to be slightly smaller than global h1 */
+  /* Uses global heading color and font-family by default */
 }
 
+/* Common styles for card-like sections */
 .dashboard-summary,
 .dashboard-quick-actions,
-.dashboard-activity-feed {
-  background-color: white;
-  padding: 16px;
-  margin-bottom: 16px;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24); /* Basic shadow */
+.dashboard-activity-feed,
+.current-balance-section,
+.add-funds-section,
+.fund-activity-section,
+.settings-section,
+.activity-controls,
+.activity-summary-visuals,
+.activity-detailed-list,
+.add-chore-section, /* Added chore sections */
+.chore-list-section { /* Added chore sections */
+  background-color: var(--surface-color);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--box-shadow-md);
 }
 
 /* Styles for TotalFundsSummary component */
-.total-funds-summary {
-  /* Inherits section styling from .dashboard-summary */
-}
-
-.total-funds-summary h2 {
-  font-size: 1.2em;
-  color: #6200ee; /* Material Design primary color (example) */
+.total-funds-summary h2 { /* Section titles within cards */
+  font-size: var(--h4-font-size); /* Adjusted from 1.2em */
+  color: var(--primary-color);
   margin-top: 0;
-  margin-bottom: 8px;
+  margin-bottom: var(--spacing-sm);
 }
 
-.total-funds-summary p {
-  font-size: 1.5em; /* Larger font for the amount */
-  font-weight: bold;
+.total-funds-summary p { /* The large amount display */
+  font-size: var(--h2-font-size); /* Adjusted from 1.5em, make it prominent */
+  font-weight: var(--font-weight-bold);
   margin: 0;
-  color: #000;
+  color: var(--text-color-primary);
 }
 
 /* Styles for QuickActions component */
-.quick-actions {
-  /* Inherits section styling from .dashboard-quick-actions */
-}
-
 .quick-actions h2 {
-  font-size: 1.2em;
-  color: #6200ee; /* Material Design primary color (example) */
+  font-size: var(--h4-font-size);
+  color: var(--primary-color);
   margin-top: 0;
-  margin-bottom: 12px;
+  margin-bottom: var(--spacing-md); /* Adjusted from 12px */
 }
 
 .quick-actions button {
-  background-color: #03dac6; /* Material Design secondary color (example) */
-  color: black;
+  background-color: var(--accent-color-playful);
+  color: var(--text-color-on-accent);
   border: none;
-  padding: 10px 16px;
-  margin-right: 8px;
-  margin-bottom: 8px; /* For wrapping on small screens */
-  border-radius: 4px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-right: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+  border-radius: var(--border-radius-md);
   cursor: pointer;
-  font-size: 0.9em;
+  font-size: var(--font-size-sm); /* Adjusted from 0.9em */
   text-transform: uppercase;
-  font-weight: bold;
-  transition: background-color 0.3s ease;
+  font-weight: var(--font-weight-bold);
+  transition: var(--transition-base);
 }
 
 .quick-actions button:hover {
-  background-color: #018786; /* Darker shade for hover */
+  background-color: var(--accent-color-playful-dark);
 }
 
 /* Styles for RecentActivityFeed component */
-.recent-activity-feed {
-  /* Inherits section styling from .dashboard-activity-feed */
-}
-
 .recent-activity-feed h2 {
-  font-size: 1.2em;
-  color: #6200ee; /* Material Design primary color (example) */
+  font-size: var(--h4-font-size);
+  color: var(--primary-color);
   margin-top: 0;
-  margin-bottom: 12px;
+  margin-bottom: var(--spacing-md);
 }
 
 .recent-activity-feed ul {
-  list-style-type: none; /* Remove default bullets */
+  list-style-type: none;
   padding-left: 0;
   margin: 0;
 }
 
 .recent-activity-feed li {
-  padding: 8px 0;
-  border-bottom: 1px solid #eee; /* Separator for items */
+  padding: var(--spacing-sm) 0;
+  border-bottom: var(--border-width) solid var(--border-color);
 }
 
 .recent-activity-feed li:last-child {
-  border-bottom: none; /* No border for the last item */
+  border-bottom: none;
 }
 
-/* General View Header Style (if not already generic enough) */
+/* General View Header Style (used by multiple views) */
 .view-header {
-  background-color: #3f51b5; /* Material Design Indigo (example for a different view) */
-  color: white;
-  padding: 16px;
-  margin-bottom: 16px;
-  border-radius: 4px;
+  background-color: var(--primary-color); /* Unified to primary */
+  color: var(--text-color-on-primary);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  border-radius: var(--border-radius-md);
 }
 
-.view-header h1 {
+.view-header h1 { /* h1 within a view-header */
   margin: 0;
-  font-size: 1.5em;
+  font-size: var(--h2-font-size); /* Consistent with dashboard-header h1 */
 }
 
 /* Styles for FundsManagementView and its sections */
-.funds-management-view {
+.funds-management-view { /* View container */
   display: flex;
   flex-direction: column;
-  padding: 16px;
+  padding: var(--spacing-md);
 }
-
-.current-balance-section,
-.add-funds-section,
-.fund-activity-section {
-  background-color: white;
-  padding: 16px;
-  margin-bottom: 16px;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
-}
+/* Sections already covered by common card-like styles */
 
 /* Styles for CurrentBalanceDisplay component */
 .current-balance-display h2 {
-  font-size: 1.2em;
-  color: #3f51b5; /* Matching header color */
+  font-size: var(--h4-font-size);
+  color: var(--primary-color); /* Was --primary-color (indigo), now matches main primary */
   margin-top: 0;
-  margin-bottom: 8px;
+  margin-bottom: var(--spacing-sm);
 }
 
 .current-balance-display .balance-amount {
-  font-size: 2em; /* Prominent balance */
-  font-weight: bold;
-  color: #000;
-  margin: 0 0 4px 0;
+  font-size: var(--h1-font-size); /* Made more prominent */
+  font-weight: var(--font-weight-bold);
+  color: var(--text-color-primary);
+  margin: 0 0 var(--spacing-xs) 0;
 }
 
 .current-balance-display .last-updated {
-  font-size: 0.8em;
-  color: #757575; /* Grey text for less important info */
+  font-size: var(--font-size-sm);
+  color: var(--text-color-secondary);
 }
 
 /* Styles for AddFundsForm component */
 .add-funds-form h2 {
-  font-size: 1.2em;
-  color: #3f51b5;
+  font-size: var(--h4-font-size);
+  color: var(--primary-color);
   margin-top: 0;
-  margin-bottom: 12px;
+  margin-bottom: var(--spacing-md);
 }
 
-.add-funds-form div {
-  margin-bottom: 12px;
+.add-funds-form div { /* Spacing for form groups */
+  margin-bottom: var(--spacing-md);
 }
 
 .add-funds-form label {
   display: block;
-  margin-bottom: 4px;
-  font-weight: bold;
-  font-size: 0.9em;
+  margin-bottom: var(--spacing-xs);
+  font-weight: var(--font-weight-medium); /* Adjusted from bold */
+  font-size: var(--font-size-sm);
 }
 
+/* Common styles for form inputs */
 .add-funds-form input[type="number"],
-.add-funds-form select {
+.add-funds-form select,
+.add-chore-form input[type="text"],
+.add-chore-form input[type="date"],
+.add-chore-form input[type="number"],
+.add-chore-form textarea,
+.add-chore-form select,
+.activity-filters form input[type="date"], /* Added activity filter inputs */
+.activity-filters form select { /* Added activity filter inputs */
   width: 100%;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  box-sizing: border-box; /* Important for width 100% */
+  padding: var(--spacing-sm);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  box-sizing: border-box;
+  font-size: var(--font-size-base);
+  background-color: var(--surface-color); /* Ensure inputs use surface color */
+  color: var(--text-color-primary);
+  transition: border-color var(--transition-base);
 }
+.add-funds-form input[type="number"]:focus, /* Example focus style */
+.add-funds-form select:focus,
+.add-chore-form input:focus,
+.add-chore-form textarea:focus,
+.add-chore-form select:focus,
+.activity-filters form input:focus,
+.activity-filters form select:focus {
+  border-color: var(--primary-color);
+  outline: none; /* Remove default outline if custom border is enough */
+}
+
 
 .add-funds-form button[type="submit"] {
-  background-color: #4caf50; /* Material Design Green (example for primary action) */
-  color: white;
+  background-color: var(--secondary-color-positive);
+  color: var(--text-color-on-secondary-positive);
   border: none;
-  padding: 12px 20px;
-  border-radius: 4px;
+  padding: var(--spacing-sm) var(--spacing-lg); /* Adjusted padding */
+  border-radius: var(--border-radius-md);
   cursor: pointer;
-  font-size: 1em;
+  font-size: var(--font-size-base);
   text-transform: uppercase;
-  font-weight: bold;
-  transition: background-color 0.3s ease;
+  font-weight: var(--font-weight-bold);
+  transition: var(--transition-base);
 }
 
 .add-funds-form button[type="submit"]:hover {
-  background-color: #388e3c; /* Darker green */
+  background-color: var(--secondary-color-positive-dark);
 }
 
-/* Styles for RecentFundActivity component */
+/* Styles for RecentFundActivity component (used in Funds Management) */
 .recent-fund-activity h2 {
-  font-size: 1.2em;
-  color: #3f51b5;
+  font-size: var(--h4-font-size);
+  color: var(--primary-color);
   margin-top: 0;
-  margin-bottom: 12px;
+  margin-bottom: var(--spacing-md);
 }
 
 .recent-fund-activity ul {
@@ -225,49 +376,34 @@ body {
 }
 
 .recent-fund-activity li {
-  padding: 10px 0;
-  border-bottom: 1px solid #eee;
-  font-size: 0.95em;
-}
-
-.recent-fund-activity li:last-child {
-  border-bottom: none;
+  padding: var(--spacing-sm) 0;
+  border-bottom: var(--border-width) solid var(--border-color);
+  font-size: var(--font-size-sm);
 }
 
 /* Styles for SettingsView */
 .settings-view {
   display: flex;
   flex-direction: column;
-  padding: 16px;
+  padding: var(--spacing-md);
 }
 
-.settings-content {
-  /* Container for all settings sections */
-}
-
-.settings-section {
-  background-color: white;
-  padding: 16px;
-  margin-bottom: 16px;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
-}
-
-.settings-section h2 {
-  font-size: 1.2em;
-  color: #333; /* Or a more standard dark color for section titles */
+/* .settings-content can be used for additional overall padding if sections are removed */
+.settings-section h2 { /* Section titles within settings cards */
+  font-size: var(--h4-font-size);
+  color: var(--text-color-primary); /* Changed from #333 to variable */
   margin-top: 0;
-  margin-bottom: 12px;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 8px;
+  margin-bottom: var(--spacing-md);
+  border-bottom: var(--border-width) solid var(--border-color);
+  padding-bottom: var(--spacing-sm);
 }
 
 .settings-item {
-  padding: 8px 0;
-  display: flex; /* For aligning label and control if needed */
-  justify-content: space-between; /* Example alignment */
-  align-items: center; /* Example alignment */
-  border-bottom: 1px solid #f0f0f0;
+  padding: var(--spacing-sm) 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: var(--border-width) solid var(--surface-color-hover); /* Lighter border for items */
 }
 
 .settings-item:last-child {
@@ -275,44 +411,266 @@ body {
 }
 
 .settings-item label {
-  font-weight: 500; /* Medium weight for labels */
-  margin-right: 10px;
-  flex-basis: 40%; /* Example basis for label width */
+  font-weight: var(--font-weight-medium);
+  margin-right: var(--spacing-sm);
+  flex-basis: 40%;
+  font-size: var(--font-size-base);
 }
 
 .settings-item span,
-.settings-item p,
-.settings-item a {
-  flex-basis: 60%; /* Example basis for value width */
-  color: #555;
+.settings-item p { /* Removed 'a' as it has its own color */
+  flex-basis: 60%;
+  color: var(--text-color-secondary);
+  font-size: var(--font-size-base);
 }
 .settings-item a {
-  color: #6200ee; /* Material primary, for links */
+  flex-basis: 60%; /* For alignment */
+  color: var(--text-color-link);
   text-decoration: none;
+  font-size: var(--font-size-base);
 }
 .settings-item a:hover {
   text-decoration: underline;
+  color: var(--text-color-link-hover);
 }
-
 
 .settings-item input[type="checkbox"],
 .settings-item select,
 .settings-item button {
-  /* Basic styling for controls - can be expanded */
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  padding: var(--spacing-sm);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  background-color: var(--surface-color);
+  color: var(--text-color-primary);
 }
 
-.settings-item button[disabled] {
-  background-color: #e0e0e0;
+.settings-item button[disabled] { /* Specific styling for disabled buttons in settings */
+  background-color: var(--surface-color-hover);
+  color: var(--text-color-secondary);
   cursor: not-allowed;
 }
 
-/* Specific adjustments if needed */
-.support-legal .settings-item a {
-    display: block; /* Make links in support take full width */
-    flex-basis: 100%;
+/* Styles for ActivityMonitoringView */
+.activity-monitoring-view {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-md);
+}
+
+/* Styles for ActivityFilters component */
+.activity-filters h4 {
+  font-size: var(--h4-font-size); /* Changed from 1.1em */
+  color: var(--text-color-primary);
+  margin-top: 0;
+  margin-bottom: var(--spacing-md);
+}
+
+.activity-filters form div { /* Form groups in activity filters */
+  margin-bottom: var(--spacing-sm); /* Reduced from 10px */
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.activity-filters form label {
+  font-weight: var(--font-weight-medium);
+  min-width: 80px; /* Keep for alignment or adjust with spacing vars */
+  font-size: var(--font-size-sm);
+}
+
+.activity-filters form input[type="date"] { /* Already covered by common input styles */
+    min-width: 120px;
+}
+
+.activity-filters form button[type="button"] {
+  background-color: var(--primary-color); /* Was #6200ee */
+  color: var(--text-color-on-primary);
+  border: none;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  text-transform: uppercase;
+  font-weight: var(--font-weight-bold);
+  transition: var(--transition-base);
+}
+
+.activity-filters form button[type="button"]:hover {
+  background-color: var(--primary-color-dark); /* Was #3700b3 */
+}
+
+/* Styles for ActivityChart component */
+.activity-chart h4 { /* This is an H4 inside a section, already styled by .activity-controls h4 */
+  font-size: var(--h4-font-size); /* Redundant if section h4 are handled, but explicit for component */
+  color: var(--text-color-primary);
+  margin-top: 0;
+  margin-bottom: var(--spacing-md);
+}
+
+/* Styles for DetailedTransactionList component */
+.detailed-transaction-list h4 {
+  font-size: var(--h4-font-size);
+  color: var(--text-color-primary);
+  margin-top: 0;
+  margin-bottom: var(--spacing-md);
+}
+
+.detailed-transaction-list table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.detailed-transaction-list th,
+.detailed-transaction-list td {
+  border-bottom: var(--border-width) solid var(--border-color);
+  padding: var(--spacing-sm) var(--spacing-sm);
+  text-align: left;
+  font-size: var(--font-size-sm);
+}
+
+.detailed-transaction-list th {
+  background-color: var(--surface-color-hover); /* Was f9f9f9 */
+  font-weight: var(--font-weight-bold); /* Was 600 */
+}
+
+.detailed-transaction-list tr:hover {
+  background-color: var(--surface-color-hover); /* Was f5f5f5, unified with other hover */
+}
+
+/* Styles for Link components styled as buttons */
+.button-link-styled {
+  display: inline-block;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--primary-color);
+  color: var(--text-color-on-primary) !important;
+  text-decoration: none;
+  border-radius: var(--border-radius-md);
+  text-align: center;
+  font-size: var(--font-size-sm); /* Adjusted from 0.85em */
+  border: var(--border-width) solid transparent;
+  transition: var(--transition-base);
+}
+
+.button-link-styled:hover {
+  background-color: var(--primary-color-dark);
+  text-decoration: none;
+}
+
+/* Styles for Chore Management Feature */
+.add-chore-section h2, /* Section titles in chore mgmt */
+.chore-list-section h2 {
+  font-size: var(--h3-font-size); /* Adjusted from 1.3em */
+  color: var(--text-color-primary);
+  margin-top: 0;
+  margin-bottom: var(--spacing-md);
+  border-bottom: var(--border-width) solid var(--border-color);
+  padding-bottom: var(--spacing-sm);
+}
+
+/* AddChoreForm already covered by common .add-funds-form styles for inputs/labels */
+/* But its submit button might need specific variable if different from add-funds */
+.add-chore-form button[type="submit"] {
+  background-color: var(--secondary-color-positive);
+  color: var(--text-color-on-secondary-positive);
+  border: none;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-size: var(--font-size-base);
+  text-transform: uppercase;
+  font-weight: var(--font-weight-bold);
+  transition: var(--transition-base);
+}
+
+.add-chore-form button[type="submit"]:hover {
+  background-color: var(--secondary-color-positive-dark);
+}
+
+/* Styles for ChoreList component and Chore Items */
+.chore-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.chore-item {
+  background-color: var(--surface-color);
+  border: var(--border-width) solid var(--border-color);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--box-shadow-sm); /* Lighter shadow for chore items */
+  display: flex;
+  flex-direction: column;
+}
+
+.chore-item h3 { /* Title of a chore */
+  font-size: var(--h4-font-size); /* Adjusted from 1.15em */
+  color: var(--primary-color);
+  margin-top: 0;
+  margin-bottom: var(--spacing-sm);
+}
+
+.chore-item .chore-description {
+  font-size: var(--font-size-sm);
+  color: var(--text-color-secondary);
+  margin-bottom: var(--spacing-sm);
+  flex-grow: 1;
+}
+
+.chore-item p { /* General text within a chore item */
+  font-size: var(--font-size-sm);
+  margin: var(--spacing-xs) 0;
+  color: var(--text-color-primary);
+}
+
+.chore-item p strong { /* For labels like "Assigned to:" */
+  color: var(--text-color-primary); /* Stronger than regular p text */
+  font-weight: var(--font-weight-medium);
+}
+
+.chore-item button { /* Toggle complete button */
+  background-color: var(--primary-color); /* Was light blue */
+  color: var(--text-color-on-primary);
+  border: none;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  margin-top: var(--spacing-sm);
+  align-self: flex-start;
+  transition: var(--transition-base);
+}
+
+.chore-item button:hover {
+  background-color: var(--primary-color-dark);
+}
+
+.chore-item.complete {
+  background-color: var(--primary-color-light); /* Was light green */
+  border-left: 5px solid var(--secondary-color-positive); /* Was green */
+}
+
+.chore-item.complete h3 {
+  text-decoration: line-through;
+  color: var(--text-color-secondary); /* Was #555 */
+}
+
+/* Theme Toggle Button */
+.theme-toggle-button {
+  background-color: var(--surface-color);
+  color: var(--text-color-primary);
+  border: var(--border-width) solid var(--primary-color);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  transition: var(--transition-base);
+}
+
+.theme-toggle-button:hover {
+  background-color: var(--surface-color-hover);
+  border-color: var(--primary-color-dark);
 }
 
 /* Kanban Board Styles */
@@ -379,3 +737,5 @@ body {
   color: #005f73; /* Deep blue/teal for text */
   border-bottom: 1px solid #a9d8e6;
 }
+
+[end of src/styles.css]

@@ -26,12 +26,8 @@ export const getMonthRange = (date: Date): { start: Date, end: Date } => {
 };
 
 export const isDateInFuture = (dateString: string): boolean => {
-  const todayNormalized = new Date();
-  // Set todayNormalized to be midnight UTC for today's date
-  todayNormalized.setUTCHours(0, 0, 0, 0);
-
-  // new Date('YYYY-MM-DD') creates a date object at UTC midnight of that date.
-  const dateToCompare = new Date(dateString);
-
-  return dateToCompare >= todayNormalized;
+ const today = new Date();
+ today.setHours(0,0,0,0);
+ const date = new Date(dateString);
+ return date >= today;
 }
