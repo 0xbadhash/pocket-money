@@ -1,6 +1,6 @@
 // src/components/AddChoreForm.tsx
 import React, { useState } from 'react';
-import { useChores } from '../contexts/ChoresContext'; // Adjust path if necessary
+import { useChoresContext } from '../contexts/ChoresContext'; // Adjust path if necessary
 import { RecurrenceSetting } from '../types'; // Adjust path if necessary
 
 const daysOfWeek = [
@@ -20,7 +20,7 @@ export const AddChoreForm: React.FC = () => {
   const [monthlyDay, setMonthlyDay] = useState<number>(1); // Day of month
   const [specificDaysInput, setSpecificDaysInput] = useState<string>(''); // Comma-separated numbers e.g., "1,3,5"
 
-  const { addChore } = useChores();
+  const { addChoreDefinition: addChore } = useChoresContext(); // Changed to useChoresContext and aliased addChoreDefinition
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();

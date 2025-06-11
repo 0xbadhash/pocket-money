@@ -3,7 +3,7 @@ import React from 'react';
 import { render, act, screen } from '@testing-library/react';
 import { ChoresProvider, useChoresContext, ChoresContext } from '../ChoresContext';
 import { FinancialContext, FinancialContextType } from '../FinancialContext'; // For mocking
-import type { ChoreDefinition, ChoreInstance } from '../../types'; // Corrected path
+import type { ChoreDefinition, ChoreInstance, SubTask } from '../../types'; // Corrected path, Added SubTask
 import type { ChoreContextType as ActualChoresContextType } from '../ChoresContext'; // Will be fixed next
 // Kid type is not directly used in this file after review, ChoreDefinition has assignedKidId as string.
 // import type { Kid } from '../../types';
@@ -134,6 +134,7 @@ describe('ChoresContext', () => {
     const sampleInstance: ChoreInstance = {
       id: instanceId,
       choreDefinitionId: choreDefId,
+      title: sampleDefinition.title, // Added title
       instanceDate: '2024-01-15',
       isComplete: false,
     };
@@ -272,12 +273,12 @@ describe('ChoresContext', () => {
       isComplete: false, recurrenceType: null, dueDate: '2024-01-05'
     };
 
-    const instance1_day1: ChoreInstance = { id: 'def_daily_2024-01-01', choreDefinitionId: 'def_daily', instanceDate: '2024-01-01', isComplete: false };
-    const instance1_day2_completed: ChoreInstance = { id: 'def_daily_2024-01-02', choreDefinitionId: 'def_daily', instanceDate: '2024-01-02', isComplete: true };
-    const instance1_day3: ChoreInstance = { id: 'def_daily_2024-01-03', choreDefinitionId: 'def_daily', instanceDate: '2024-01-03', isComplete: false };
-    const instance2_tue1: ChoreInstance = { id: 'def_weekly_2024-01-02', choreDefinitionId: 'def_weekly', instanceDate: '2024-01-02', isComplete: false };
-    const instance2_tue2: ChoreInstance = { id: 'def_weekly_2024-01-09', choreDefinitionId: 'def_weekly', instanceDate: '2024-01-09', isComplete: false };
-    const instance_onetime: ChoreInstance = { id: 'def_onetime_2024-01-05', choreDefinitionId: 'def_onetime', instanceDate: '2024-01-05', isComplete: false };
+    const instance1_day1: ChoreInstance = { id: 'def_daily_2024-01-01', choreDefinitionId: 'def_daily', title: def1.title, instanceDate: '2024-01-01', isComplete: false };
+    const instance1_day2_completed: ChoreInstance = { id: 'def_daily_2024-01-02', choreDefinitionId: 'def_daily', title: def1.title, instanceDate: '2024-01-02', isComplete: true };
+    const instance1_day3: ChoreInstance = { id: 'def_daily_2024-01-03', choreDefinitionId: 'def_daily', title: def1.title, instanceDate: '2024-01-03', isComplete: false };
+    const instance2_tue1: ChoreInstance = { id: 'def_weekly_2024-01-02', choreDefinitionId: 'def_weekly', title: def2.title, instanceDate: '2024-01-02', isComplete: false };
+    const instance2_tue2: ChoreInstance = { id: 'def_weekly_2024-01-09', choreDefinitionId: 'def_weekly', title: def2.title, instanceDate: '2024-01-09', isComplete: false };
+    const instance_onetime: ChoreInstance = { id: 'def_onetime_2024-01-05', choreDefinitionId: 'def_onetime', title: def_onetime.title, instanceDate: '2024-01-05', isComplete: false };
 
 
     beforeEach(() => {
@@ -325,7 +326,7 @@ describe('ChoresContext', () => {
         capturedContextState?.toggleChoreInstanceComplete(instance1_day2_completed.id);
       });
 
-      let completedInstance = capturedContextState?.choreInstances.find(i => i.id === instance1_day2_completed.id);
+      let completedInstance = capturedContextState?.choreInstances.find((i: ChoreInstance) => i.id === instance1_day2_completed.id);
       expect(completedInstance?.isComplete).toBe(true);
 
       // Second generation for the same period, mock returns them as initially not complete
@@ -339,10 +340,10 @@ describe('ChoresContext', () => {
       });
 
       // Verify the previously completed instance retains its status
-      completedInstance = capturedContextState?.choreInstances.find(i => i.id === instance1_day2_completed.id);
+      completedInstance = capturedContextState?.choreInstances.find((i: ChoreInstance) => i.id === instance1_day2_completed.id);
       expect(completedInstance?.isComplete).toBe(true);
       // And others that were not completed remain not completed
-      const day1Instance = capturedContextState?.choreInstances.find(i => i.id === instance1_day1.id);
+      const day1Instance = capturedContextState?.choreInstances.find((i: ChoreInstance) => i.id === instance1_day1.id);
       expect(day1Instance?.isComplete).toBe(false);
     });
 
@@ -399,13 +400,13 @@ describe('ChoresContext', () => {
         // For this test, let's assume capturedContextState.choreDefinitions can be reset or this is the only one.
         // A cleaner way would be to allow ChoresProvider to take initial definitions.
         // For now, we add if not present.
-        if (!capturedContextState?.choreDefinitions.find(d => d.id === choreDefIdWithSubtasks)) {
+        if (!capturedContextState?.choreDefinitions.find((d: ChoreDefinition) => d.id === choreDefIdWithSubtasks)) {
           capturedContextState?.addChoreDefinition(definitionWithSubtasks);
         } else {
           // If it exists, ensure subtasks are reset (important for subsequent test runs in watch mode)
-           const existingDef = capturedContextState?.choreDefinitions.find(d => d.id === choreDefIdWithSubtasks);
+           const existingDef = capturedContextState?.choreDefinitions.find((d: ChoreDefinition) => d.id === choreDefIdWithSubtasks);
            if (existingDef) {
-            existingDef.subTasks = definitionWithSubtasks.subTasks?.map(st => ({...st})); // Type for st can be inferred if subTasks is typed
+            existingDef.subTasks = definitionWithSubtasks.subTasks?.map((st: SubTask) => ({...st})); // Type for st can be inferred if subTasks is typed
            }
         }
       });
@@ -417,15 +418,15 @@ describe('ChoresContext', () => {
       });
 
       let def = capturedContextState?.choreDefinitions.find((d: ChoreDefinition) => d.id === choreDefIdWithSubtasks);
-      expect(def?.subTasks?.find(st => st.id === subTaskId1)?.isComplete).toBe(true); // Type for st can be inferred
-      expect(def?.subTasks?.find(st => st.id === subTaskId2)?.isComplete).toBe(false); // Type for st can be inferred
+      expect(def?.subTasks?.find((st: SubTask) => st.id === subTaskId1)?.isComplete).toBe(true); // Type for st can be inferred
+      expect(def?.subTasks?.find((st: SubTask) => st.id === subTaskId2)?.isComplete).toBe(false); // Type for st can be inferred
 
       // Toggle it back
       act(() => {
         capturedContextState?.toggleSubTaskComplete(choreDefIdWithSubtasks, subTaskId1);
       });
       def = capturedContextState?.choreDefinitions.find((d: ChoreDefinition) => d.id === choreDefIdWithSubtasks);
-      expect(def?.subTasks?.find(st => st.id === subTaskId1)?.isComplete).toBe(false); // Type for st can be inferred
+      expect(def?.subTasks?.find((st: SubTask) => st.id === subTaskId1)?.isComplete).toBe(false); // Type for st can be inferred
     });
 
     it('should not affect other sub-tasks or chore definitions', () => {
@@ -445,8 +446,8 @@ describe('ChoresContext', () => {
       });
 
       const mainDef = capturedContextState?.choreDefinitions.find((d: ChoreDefinition) => d.id === choreDefIdWithSubtasks);
-      expect(mainDef?.subTasks?.find(st => st.id === subTaskId1)?.isComplete).toBe(true); // st inferred
-      expect(mainDef?.subTasks?.find(st => st.id === subTaskId2)?.isComplete).toBe(false); // st inferred
+      expect(mainDef?.subTasks?.find((st: SubTask) => st.id === subTaskId1)?.isComplete).toBe(true); // st inferred
+      expect(mainDef?.subTasks?.find((st: SubTask) => st.id === subTaskId2)?.isComplete).toBe(false); // st inferred
 
       const otherDefUnchanged = capturedContextState?.choreDefinitions.find((d: ChoreDefinition) => d.id === otherDefId);
       expect(otherDefUnchanged?.subTasks?.[0]?.isComplete).toBe(false);
