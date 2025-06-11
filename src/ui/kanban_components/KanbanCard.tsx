@@ -2,6 +2,8 @@
 import React from 'react';
 import type { ChoreInstance, ChoreDefinition } from '../../types'; // Updated import
 import { useChoresContext } from '../../contexts/ChoresContext';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface KanbanCardProps { // Updated props
   instance: ChoreInstance;
@@ -11,6 +13,23 @@ interface KanbanCardProps { // Updated props
 const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition }) => {
   // Destructure the correct function name from context
   const { toggleChoreInstanceComplete, toggleSubTaskComplete } = useChoresContext(); // Added toggleSubTaskComplete
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: instance.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    // zIndex: isDragging ? 100 : 'auto', // Optional: manage stacking order
+    // cursor: isDragging ? 'grabbing' : 'grab', // Optional: visual feedback
+  };
 
   // This function still operates on definition as recurrence is defined there
   const formatRecurrenceInfoShort = (def: ChoreDefinition): string | null => {
@@ -33,14 +52,14 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition }) => {
   const recurrenceInfo = formatRecurrenceInfoShort(definition);
 
   return (
-    <div className={`kanban-card ${instance.isComplete ? 'complete' : ''}`}
-         style={{
-           border: '1px solid #ddd',
-           padding: '10px',
-           marginBottom: '10px',
-           borderRadius: '4px',
-           backgroundColor: instance.isComplete ? '#e6ffe6' : '#fff'
-         }}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`kanban-card ${instance.isComplete ? 'complete' : ''} ${isDragging ? 'dragging' : ''}`}
+    >
+      {/* Original inline styles like border, padding, marginBottom, borderRadius, backgroundColor are now handled by src/styles.css */}
       <h4>{definition.title}</h4>
 
       {/* Progress Indicator */}
@@ -80,7 +99,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition }) => {
         );
       })()}
 
-      {definition.description && <p style={{ fontSize: '0.9em', color: '#555' }}>{definition.description}</p>}
+      {definition.description && <p style={{ fontSize: '0.9em', color: 'var(--text-color-secondary)' }}>{definition.description}</p>}
 
       {/* Display instanceDate as the effective due date for this instance */}
       <p style={{ fontSize: '0.9em' }}>Due: {instance.instanceDate}</p>
@@ -142,12 +161,14 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition }) => {
         </div>
       )}
 
-      {recurrenceInfo && <p style={{ fontStyle: 'italic', fontSize: '0.8em', color: '#777' }}>{recurrenceInfo}</p>}
+      {recurrenceInfo && <p style={{ fontStyle: 'italic', fontSize: '0.8em', color: 'var(--text-color-secondary)' }}>{recurrenceInfo}</p>}
 
       <p style={{ fontSize: '0.9em' }}>Status: {instance.isComplete ? 'Complete' : 'Incomplete'}</p>
       <button
         onClick={() => toggleChoreInstanceComplete(instance.id)} // Use instance.id
-        style={{ padding: '5px 10px', fontSize: '0.9em', cursor: 'pointer' }}>
+        style={{ padding: 'var(--spacing-xs) var(--spacing-sm)', fontSize: '0.9em', cursor: 'pointer' }}
+        className="button-secondary" // Example: Assuming a secondary button style might exist or be added
+      >
         {instance.isComplete ? 'Mark Incomplete' : 'Mark Complete'}
       </button>
     </div>
