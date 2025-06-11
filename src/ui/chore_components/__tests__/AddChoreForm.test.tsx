@@ -4,16 +4,17 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AddChoreForm from '../AddChoreForm';
 import { ChoresContext, ChoresContextType } from '../../../contexts/ChoresContext';
-import { UserContext, UserContextType as ActualUserContextType } from '../../../contexts/UserContext'; // Renamed to avoid conflict
-import { FinancialContext, FinancialContextType as ActualFinancialContextType } from '../../../contexts/FinancialContext'; // Needed by ChoresContext mock
+import { UserContext, UserContextType as ActualUserContextType } from '../../../contexts/UserContext';
+import { FinancialContext, FinancialContextType as ActualFinancialContextType } from '../../../contexts/FinancialContext';
 import type { Kid } from '../../../types';
+import { vi } from 'vitest';
 
 // Mocks
-const mockAddChoreDefinition = jest.fn();
-const mockGenerateInstancesForPeriod = jest.fn();
-const mockToggleChoreInstanceComplete = jest.fn();
-const mockGetChoreDefinitionsForKid = jest.fn(() => []);
-const mockToggleSubTaskComplete = jest.fn();
+const mockAddChoreDefinition = vi.fn();
+const mockGenerateInstancesForPeriod = vi.fn();
+const mockToggleChoreInstanceComplete = vi.fn();
+const mockGetChoreDefinitionsForKid = vi.fn(() => []);
+const mockToggleSubTaskComplete = vi.fn();
 
 const mockChoresContextValue: ChoresContextType = {
   choreDefinitions: [],
@@ -38,9 +39,9 @@ const mockUserContextValue: ActualUserContextType = {
 // ChoresContext internally uses FinancialContext, so we need to provide a mock for that too.
 const mockFinancialContextValue: ActualFinancialContextType = {
     financialData: { currentBalance: 0, transactions: [] },
-    addFunds: jest.fn(),
-    addTransaction: jest.fn(),
-    addKidReward: jest.fn(),
+    addFunds: vi.fn(),
+    addTransaction: vi.fn(),
+    addKidReward: vi.fn(),
 };
 
 const renderFormComponent = () => {
@@ -58,12 +59,15 @@ const renderFormComponent = () => {
 describe('AddChoreForm', () => {
   beforeEach(() => {
     mockAddChoreDefinition.mockClear();
-    // Spy on alert and console.error if needed for validation messages
-    window.alert = jest.fn();
+    mockGenerateInstancesForPeriod.mockClear();
+    mockToggleChoreInstanceComplete.mockClear();
+    mockGetChoreDefinitionsForKid.mockClear();
+    mockToggleSubTaskComplete.mockClear();
+    window.alert = vi.fn();
   });
 
   afterEach(() => {
-    (window.alert as jest.Mock).mockRestore();
+    (window.alert as ReturnType<typeof vi.fn>).mockRestore();
   });
 
   it('renders all basic form fields', () => {
@@ -75,9 +79,9 @@ describe('AddChoreForm', () => {
     expect(screen.getByLabelText(/Reward Amount \(Optional\)/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Tags \(comma-separated, Optional\)/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Repeats/i)).toBeInTheDocument();
-    expect(screen.getByText('Sub-tasks (Optional):')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: /Sub-tasks \(Optional\)/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Add Chore/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /\+ Add Sub-task/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Add Sub-task/i })).toBeInTheDocument();
   });
 
   it('populates "Assign to" dropdown with kids from UserContext', () => {
@@ -88,8 +92,6 @@ describe('AddChoreForm', () => {
     expect(screen.getByRole('option', { name: 'Kid One' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Kid Two' })).toBeInTheDocument();
   });
-
-  // More tests for input changes, submissions, dynamic UI will follow
 
   it('updates state when user types into text fields', async () => {
     const user = userEvent.setup();
@@ -104,9 +106,9 @@ describe('AddChoreForm', () => {
     expect(descriptionInput).toHaveValue('Use the push mower.');
 
     const rewardInput = screen.getByLabelText(/Reward Amount \(Optional\)/i);
-    await user.clear(rewardInput); // Clear existing value if any (e.g. from previous test or default)
+    await user.clear(rewardInput);
     await user.type(rewardInput, '15.50');
-    expect(rewardInput).toHaveValue(15.50); // number input
+    expect(rewardInput).toHaveValue(15.50);
 
     const tagsInput = screen.getByLabelText(/Tags \(comma-separated, Optional\)/i);
     await user.type(tagsInput, 'outdoor, yard work');
@@ -125,7 +127,7 @@ describe('AddChoreForm', () => {
     const user = userEvent.setup();
     renderFormComponent();
     const dueDateInput = screen.getByLabelText(/Due Date \(Optional, or Start Date for Recurring\)/i);
-    await user.type(dueDateInput, '2024-07-15'); // userEvent.type for date inputs
+    await user.type(dueDateInput, '2024-07-15');
     expect(dueDateInput).toHaveValue('2024-07-15');
   });
 
@@ -134,30 +136,25 @@ describe('AddChoreForm', () => {
     renderFormComponent();
     const recurrenceDropdown = screen.getByLabelText(/Repeats/i);
 
-    // Initially, day of week/month should not be visible
     expect(screen.queryByLabelText(/Day of the Week/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Day of the Month/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Repeat Until \(Optional\)/i)).not.toBeInTheDocument();
 
-    // Select Weekly
     await user.selectOptions(recurrenceDropdown, 'weekly');
     expect(screen.getByLabelText(/Day of the Week/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/Day of the Month/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/Repeat Until \(Optional\)/i)).toBeInTheDocument();
 
-    // Select Monthly
     await user.selectOptions(recurrenceDropdown, 'monthly');
     expect(screen.queryByLabelText(/Day of the Week/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/Day of the Month/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Repeat Until \(Optional\)/i)).toBeInTheDocument();
 
-    // Select Daily
     await user.selectOptions(recurrenceDropdown, 'daily');
     expect(screen.queryByLabelText(/Day of the Week/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Day of the Month/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/Repeat Until \(Optional\)/i)).toBeInTheDocument();
 
-    // Select None
     await user.selectOptions(recurrenceDropdown, 'none');
     expect(screen.queryByLabelText(/Day of the Week/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Day of the Month/i)).not.toBeInTheDocument();
@@ -167,31 +164,28 @@ describe('AddChoreForm', () => {
   it('allows adding, typing into, and removing sub-tasks', async () => {
     const user = userEvent.setup();
     renderFormComponent();
-    const addSubTaskButton = screen.getByRole('button', { name: /\+ Add Sub-task/i });
+    const addSubTaskButton = screen.getByRole('button', { name: /Add Sub-task/i });
 
-    // Add first sub-task
     await user.click(addSubTaskButton);
-    let subTaskInputs = screen.getAllByPlaceholderText(/Sub-task \d+/i);
+    let subTaskInputs = screen.getAllByPlaceholderText(/Sub-task title/i);
     expect(subTaskInputs.length).toBe(1);
     await user.type(subTaskInputs[0], 'First sub-task details');
     expect(subTaskInputs[0]).toHaveValue('First sub-task details');
 
-    // Add second sub-task
     await user.click(addSubTaskButton);
-    subTaskInputs = screen.getAllByPlaceholderText(/Sub-task \d+/i);
+    subTaskInputs = screen.getAllByPlaceholderText(/Sub-task title/i);
     expect(subTaskInputs.length).toBe(2);
     await user.type(subTaskInputs[1], 'Second sub-task details');
     expect(subTaskInputs[1]).toHaveValue('Second sub-task details');
-    expect(subTaskInputs[0]).toHaveValue('First sub-task details'); // Ensure first one is still there
+    expect(subTaskInputs[0]).toHaveValue('First sub-task details');
 
-    // Remove first sub-task
     const removeButtons = screen.getAllByRole('button', { name: /Remove/i });
     expect(removeButtons.length).toBe(2);
     await user.click(removeButtons[0]);
 
-    subTaskInputs = screen.getAllByPlaceholderText(/Sub-task \d+/i);
+    subTaskInputs = screen.getAllByPlaceholderText(/Sub-task title/i);
     expect(subTaskInputs.length).toBe(1);
-    expect(subTaskInputs[0]).toHaveValue('Second sub-task details'); // Second one is now the first
+    expect(subTaskInputs[0]).toHaveValue('Second sub-task details');
   });
 
   describe('form submission', () => {
@@ -199,13 +193,11 @@ describe('AddChoreForm', () => {
       const user = userEvent.setup();
       renderFormComponent();
 
-      // Fill out the form
       await user.type(screen.getByLabelText(/Title/i), 'Submit Test Chore');
       await user.type(screen.getByLabelText(/Description \(Optional\)/i), 'Submission description');
       await user.selectOptions(screen.getByLabelText(/Assign to \(Optional\)/i), 'kid1');
-      // Due date input requires yyyy-mm-dd format for typing
       const dueDateInput = screen.getByLabelText(/Due Date \(Optional, or Start Date for Recurring\)/i);
-      fireEvent.change(dueDateInput, { target: { value: '2024-08-01' } }); // fireEvent for date for reliability
+      fireEvent.change(dueDateInput, { target: { value: '2024-08-01' } });
 
       const rewardInput = screen.getByLabelText(/Reward Amount \(Optional\)/i);
       await user.clear(rewardInput);
@@ -213,24 +205,20 @@ describe('AddChoreForm', () => {
 
       await user.type(screen.getByLabelText(/Tags \(comma-separated, Optional\)/i), 'submit, test');
 
-      // Recurrence
       const recurrenceDropdown = screen.getByLabelText(/Repeats/i);
       await user.selectOptions(recurrenceDropdown, 'weekly');
-      await user.selectOptions(screen.getByLabelText(/Day of the Week/i), '3'); // Wednesday
-      const recurrenceEndDateInput = screen.getByLabelText(/Repeat Until \(Optional\)/i);
+      await user.selectOptions(screen.getByLabelText(/Day of the Week/i), '3');
+      // Corrected typo: recururrenceEndDateInput to recurrenceEndDateInput
+      const recurrenceEndDateInput = screen.getByLabelText(/Repeat Until \(Optional\)/i); // Line 229
       fireEvent.change(recurrenceEndDateInput, { target: { value: '2024-08-31' } });
 
-
-      // Sub-tasks
-      const addSubTaskButton = screen.getByRole('button', { name: /\+ Add Sub-task/i });
+      const addSubTaskButton = screen.getByRole('button', { name: /Add Sub-task/i });
       await user.click(addSubTaskButton);
-      await user.type(screen.getByPlaceholderText(/Sub-task \d+/i), 'Sub 1 for submit');
+      await user.type(screen.getByPlaceholderText(/Sub-task title/i), 'Sub 1 for submit');
 
-      // Submit
       const submitButton = screen.getByRole('button', { name: /Add Chore/i });
       await user.click(submitButton);
 
-      // Verify addChoreDefinition was called
       expect(mockAddChoreDefinition).toHaveBeenCalledTimes(1);
       const expectedChoreData = {
         title: 'Submit Test Chore',
@@ -248,23 +236,19 @@ describe('AddChoreForm', () => {
       };
       expect(mockAddChoreDefinition).toHaveBeenCalledWith(expect.objectContaining(expectedChoreData));
 
-      // Verify alert was shown (as per current form logic)
       expect(window.alert).toHaveBeenCalledWith('Chore added!');
 
-      // Verify form fields are reset (checking a few key fields)
       expect(screen.getByLabelText(/Title/i)).toHaveValue('');
       expect(screen.getByLabelText(/Description \(Optional\)/i)).toHaveValue('');
-      // Selects reset to first option or placeholder
-      expect(screen.getByLabelText(/Assign to \(Optional\)/i)).toHaveValue(''); // Unassigned
+      expect(screen.getByLabelText(/Assign to \(Optional\)/i)).toHaveValue('');
       expect(screen.getByLabelText(/Repeats/i)).toHaveValue('none');
-      expect(screen.queryByPlaceholderText(/Sub-task \d+/i)).not.toBeInTheDocument(); // Sub-tasks are removed
+      expect(screen.queryByPlaceholderText(/Sub-task title/i)).not.toBeInTheDocument();
     });
 
     it('shows an alert if title is missing on submission', async () => {
       const user = userEvent.setup();
       renderFormComponent();
 
-      // Intentionally leave title blank
       await user.type(screen.getByLabelText(/Description \(Optional\)/i), 'No title chore');
 
       const submitButton = screen.getByRole('button', { name: /Add Chore/i });
@@ -279,7 +263,6 @@ describe('AddChoreForm', () => {
         renderFormComponent();
 
         await user.type(screen.getByLabelText(/Title/i), 'Minimal Chore');
-        // Leave all optional fields empty
 
         const submitButton = screen.getByRole('button', { name: /Add Chore/i });
         await user.click(submitButton);
@@ -287,11 +270,11 @@ describe('AddChoreForm', () => {
         expect(mockAddChoreDefinition).toHaveBeenCalledTimes(1);
         expect(mockAddChoreDefinition).toHaveBeenCalledWith({
             title: 'Minimal Chore',
-            description: undefined, // Handled by trim() || undefined
+            description: undefined,
             assignedKidId: undefined,
-            dueDate: undefined, // Handled by '' || undefined
-            rewardAmount: undefined, // Handled by parseFloat('') -> NaN, then undefined
-            recurrenceType: null, // Default
+            dueDate: undefined,
+            rewardAmount: undefined,
+            recurrenceType: null,
             recurrenceDay: null,
             recurrenceEndDate: null,
             tags: undefined,
@@ -301,4 +284,3 @@ describe('AddChoreForm', () => {
     });
   });
 });
-```

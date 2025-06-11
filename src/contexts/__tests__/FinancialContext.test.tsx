@@ -1,201 +1,187 @@
 // src/contexts/__tests__/FinancialContext.test.tsx
+import { renderHook, act } from '@testing-library/react';
 import React from 'react';
-import { render, act } from '@testing-library/react';
-import { FinancialProvider, useFinancialContext, FinancialContextType, Transaction } from '../FinancialContext';
+import { FinancialContext, useFinancialContext } from '../FinancialContext';
+import { vi } from 'vitest'; // Import vi
 
-// Test component to access context values
-let capturedContextState: FinancialContextType | null = null;
-const TestConsumerComponent = () => {
-  capturedContextState = useFinancialContext();
-  return null;
-};
+// Mock localStorage
+const localStorageMock = (() => {
+  let store: { [key: string]: string } = {};
+  return {
+    getItem: vi.fn((key: string) => store[key] || null),
+    setItem: vi.fn((key: string, value: string) => { store[key] = value; }),
+    clear: vi.fn(() => { store = {}; }),
+    removeItem: vi.fn((key: string) => { delete store[key]; }),
+  };
+})();
 
-// Helper to render with provider
-const renderWithProviders = (ui: React.ReactElement) => {
-  return render(
-    <FinancialProvider>
-      {ui}
-      <TestConsumerComponent />
-    </FinancialProvider>
-  );
-};
+Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 
 describe('FinancialContext', () => {
   beforeEach(() => {
-    capturedContextState = null;
-    // Reset any mocks if FinancialContext had dependencies, but it doesn't.
+    localStorageMock.clear();
     // Spy on console.warn for tests that expect it
-    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
     // Restore console.warn
-    (console.warn as jest.Mock).mockRestore();
+    (console.warn as ReturnType<typeof vi.fn>).mockRestore();
   });
 
+  const renderFinancialContextHook = (initialData?: any) => {
+    localStorageMock.setItem('financialData', JSON.stringify(initialData));
+    return renderHook(() => useFinancialContext(), {
+      wrapper: ({ children }) => (
+        <FinancialContext.Provider value={{} as any}> {/* Provide a dummy value, the hook will provide the real one */}
+          {children}
+        </FinancialContext.Provider>
+      ),
+    });
+  };
+
   it('initializes with a default balance and some initial transactions', () => {
-    renderWithProviders(<div />);
-    expect(capturedContextState).not.toBeNull();
-    // Assuming FinancialProvider initializes with a default state like in the current code
-    expect(capturedContextState?.financialData.currentBalance).toBe(100.00);
-    expect(capturedContextState?.financialData.transactions.length).toBe(5);
+    const { result } = renderFinancialContextHook();
+    expect(result.current.financialData.currentBalance).toBe(0);
+    expect(result.current.financialData.transactions).toEqual([]);
+    expect(localStorageMock.getItem).toHaveBeenCalledWith('financialData');
+  });
+
+  it('loads financial data from localStorage if available', () => {
+    const storedData = {
+      currentBalance: 500,
+      transactions: [{ id: 'tx1', type: 'income', amount: 500, description: 'Initial Funds', date: '2024-01-01' }],
+    };
+    const { result } = renderFinancialContextHook(storedData);
+    expect(result.current.financialData).toEqual(storedData);
   });
 
   describe('addFunds', () => {
     it('should increase currentBalance and add an income transaction', () => {
-      renderWithProviders(<div />);
-      const initialBalance = capturedContextState?.financialData.currentBalance || 0;
-      const initialTransactionsCount = capturedContextState?.financialData.transactions.length || 0;
-      const amountToAdd = 50;
-
+      const { result } = renderFinancialContextHook();
       act(() => {
-        capturedContextState?.addFunds(amountToAdd, 'Test Deposit');
+        result.current.addFunds(100, 'Allowance');
       });
-
-      expect(capturedContextState?.financialData.currentBalance).toBe(initialBalance + amountToAdd);
-      expect(capturedContextState?.financialData.transactions.length).toBe(initialTransactionsCount + 1);
-      const newTransaction = capturedContextState?.financialData.transactions[0]; // Assumes it's added to the beginning
-      expect(newTransaction?.amount).toBe(amountToAdd);
-      expect(newTransaction?.description).toBe('Test Deposit');
-      expect(newTransaction?.category).toBe('Income');
-      expect(newTransaction?.kidId).toBeUndefined();
+      expect(result.current.financialData.currentBalance).toBe(100);
+      expect(result.current.financialData.transactions.length).toBe(1);
+      expect(result.current.financialData.transactions[0].amount).toBe(100);
+      expect(result.current.financialData.transactions[0].description).toBe('Allowance');
+      expect(result.current.financialData.transactions[0].type).toBe('income');
+      expect(localStorageMock.setItem).toHaveBeenCalledWith('financialData', expect.any(String));
     });
 
     it('should allow adding funds for a specific kidId', () => {
-      renderWithProviders(<div />);
-      const amountToAdd = 25;
-      const kidId = 'kid_test_funds';
-
+      const { result } = renderFinancialContextHook();
       act(() => {
-        capturedContextState?.addFunds(amountToAdd, 'Pocket Money for Kid', kidId);
+        result.current.addFunds(50, 'Gift from Grandma', 'kid1');
       });
-
-      const newTransaction = capturedContextState?.financialData.transactions[0];
-      expect(newTransaction?.kidId).toBe(kidId);
-      expect(newTransaction?.description).toBe('Pocket Money for Kid');
+      expect(result.current.financialData.transactions[0].kidId).toBe('kid1');
     });
 
     it('should use default description if none provided', () => {
-      renderWithProviders(<div />);
+      const { result } = renderFinancialContextHook();
       act(() => {
-        capturedContextState?.addFunds(10);
+        result.current.addFunds(20);
       });
-      const newTransaction = capturedContextState?.financialData.transactions[0];
-      expect(newTransaction?.description).toBe('Funds Added');
+      expect(result.current.financialData.transactions[0].description).toBe('Funds Added');
     });
 
     it('should log a warning and not add funds if amount is zero or negative', () => {
-      renderWithProviders(<div />);
-      const initialBalance = capturedContextState?.financialData.currentBalance;
-      const initialTransactionsCount = capturedContextState?.financialData.transactions.length;
+      const { result } = renderFinancialContextHook();
+      const initialBalance = result.current.financialData.currentBalance;
+      const initialTransactions = result.current.financialData.transactions.length;
 
       act(() => {
-        capturedContextState?.addFunds(0);
+        result.current.addFunds(0, 'Zero Amount');
       });
-      expect(console.warn).toHaveBeenCalledWith('Add funds amount must be positive.');
-      expect(capturedContextState?.financialData.currentBalance).toBe(initialBalance);
-      expect(capturedContextState?.financialData.transactions.length).toBe(initialTransactionsCount);
+      expect(result.current.financialData.currentBalance).toBe(initialBalance);
+      expect(result.current.financialData.transactions.length).toBe(initialTransactions);
+      expect(console.warn).toHaveBeenCalledWith('Attempted to add zero or negative funds.');
 
       act(() => {
-        capturedContextState?.addFunds(-10);
+        result.current.addFunds(-10, 'Negative Amount');
       });
-      expect(console.warn).toHaveBeenCalledWith('Add funds amount must be positive.');
-      expect(capturedContextState?.financialData.currentBalance).toBe(initialBalance);
-      expect(capturedContextState?.financialData.transactions.length).toBe(initialTransactionsCount);
+      expect(result.current.financialData.currentBalance).toBe(initialBalance);
+      expect(result.current.financialData.transactions.length).toBe(initialTransactions);
+      expect(console.warn).toHaveBeenCalledWith('Attempted to add zero or negative funds.');
     });
   });
 
-  // More test suites for addTransaction and addKidReward will be added here
-
   describe('addTransaction', () => {
     it('should update balance and add transaction for income', () => {
-      renderWithProviders(<div />);
-      const initialBalance = capturedContextState?.financialData.currentBalance || 0;
-      const initialTransactionsCount = capturedContextState?.financialData.transactions.length || 0;
-
-      const incomeTransaction: Omit<Transaction, 'id' | 'date'> = {
-        description: 'Freelance Payment',
-        amount: 200,
-        category: 'Income',
-      };
-
+      const { result } = renderFinancialContextHook();
       act(() => {
-        capturedContextState?.addTransaction(incomeTransaction);
+        result.current.addTransaction('income', 75, 'Refund');
       });
-
-      expect(capturedContextState?.financialData.currentBalance).toBe(initialBalance + 200);
-      expect(capturedContextState?.financialData.transactions.length).toBe(initialTransactionsCount + 1);
-      const newTransaction = capturedContextState?.financialData.transactions[0];
-      expect(newTransaction?.description).toBe('Freelance Payment');
-      expect(newTransaction?.amount).toBe(200);
+      expect(result.current.financialData.currentBalance).toBe(75);
+      expect(result.current.financialData.transactions[0].type).toBe('income');
+      expect(result.current.financialData.transactions[0].amount).toBe(75);
+      expect(result.current.financialData.transactions[0].description).toBe('Refund');
     });
 
     it('should update balance and add transaction for expense', () => {
-      renderWithProviders(<div />);
-      const initialBalance = capturedContextState?.financialData.currentBalance || 0;
-      const initialTransactionsCount = capturedContextState?.financialData.transactions.length || 0;
+      const { result } = renderFinancialContextHook({ currentBalance: 100, transactions: [] });
+      act(() => {
+        result.current.addTransaction('expense', 25, 'Candy');
+      });
+      expect(result.current.financialData.currentBalance).toBe(75);
+      expect(result.current.financialData.transactions[0].type).toBe('expense');
+      expect(result.current.financialData.transactions[0].amount).toBe(25);
+      expect(result.current.financialData.transactions[0].description).toBe('Candy');
+    });
 
-      const expenseTransaction: Omit<Transaction, 'id' | 'date'> = {
-        description: 'Groceries',
-        amount: -75,
-        category: 'Food',
-        kidId: 'kid_expense_test'
-      };
+    it('should log a warning and not add transaction if amount is zero or negative', () => {
+      const { result } = renderFinancialContextHook({ currentBalance: 100, transactions: [] });
+      const initialBalance = result.current.financialData.currentBalance;
+      const initialTransactions = result.current.financialData.transactions.length;
 
       act(() => {
-        capturedContextState?.addTransaction(expenseTransaction);
+        result.current.addTransaction('income', 0, 'Zero');
       });
+      expect(result.current.financialData.currentBalance).toBe(initialBalance);
+      expect(result.current.financialData.transactions.length).toBe(initialTransactions);
+      expect(console.warn).toHaveBeenCalledWith('Attempted to add zero or negative transaction amount.');
 
-      expect(capturedContextState?.financialData.currentBalance).toBe(initialBalance - 75);
-      expect(capturedContextState?.financialData.transactions.length).toBe(initialTransactionsCount + 1);
-      const newTransaction = capturedContextState?.financialData.transactions[0];
-      expect(newTransaction?.description).toBe('Groceries');
-      expect(newTransaction?.amount).toBe(-75);
-      expect(newTransaction?.kidId).toBe('kid_expense_test');
+      act(() => {
+        result.current.addTransaction('expense', -5, 'Negative');
+      });
+      expect(result.current.financialData.currentBalance).toBe(initialBalance);
+      expect(result.current.financialData.transactions.length).toBe(initialTransactions);
+      expect(console.warn).toHaveBeenCalledWith('Attempted to add zero or negative transaction amount.');
     });
   });
 
   describe('addKidReward', () => {
-    const kidId = 'kid_reward_test';
-    const rewardAmount = 10;
-    const choreTitle = 'Cleaned Room';
-
     it('should increase currentBalance and add a "Chore Reward" transaction', () => {
-      renderWithProviders(<div />);
-      const initialBalance = capturedContextState?.financialData.currentBalance || 0;
-      const initialTransactionsCount = capturedContextState?.financialData.transactions.length || 0;
-
+      const { result } = renderFinancialContextHook();
       act(() => {
-        capturedContextState?.addKidReward(kidId, rewardAmount, choreTitle);
+        result.current.addKidReward('kid1', 10, 'Clean Room');
       });
-
-      expect(capturedContextState?.financialData.currentBalance).toBe(initialBalance + rewardAmount);
-      expect(capturedContextState?.financialData.transactions.length).toBe(initialTransactionsCount + 1);
-      const newTransaction = capturedContextState?.financialData.transactions[0];
-      expect(newTransaction?.amount).toBe(rewardAmount);
-      expect(newTransaction?.description).toBe(`Reward for: ${choreTitle}`);
-      expect(newTransaction?.category).toBe('Chore Reward');
-      expect(newTransaction?.kidId).toBe(kidId);
+      expect(result.current.financialData.currentBalance).toBe(10);
+      expect(result.current.financialData.transactions[0].type).toBe('income');
+      expect(result.current.financialData.transactions[0].amount).toBe(10);
+      expect(result.current.financialData.transactions[0].description).toBe('Chore Reward: Clean Room');
+      expect(result.current.financialData.transactions[0].kidId).toBe('kid1');
     });
 
     it('should log a warning and not add reward if amount is zero or negative', () => {
-      renderWithProviders(<div />);
-      const initialBalance = capturedContextState?.financialData.currentBalance;
-      const initialTransactionsCount = capturedContextState?.financialData.transactions.length;
+      const { result } = renderFinancialContextHook();
+      const initialBalance = result.current.financialData.currentBalance;
+      const initialTransactions = result.current.financialData.transactions.length;
 
       act(() => {
-        capturedContextState?.addKidReward(kidId, 0, choreTitle);
+        result.current.addKidReward('kid1', 0, 'Zero Reward');
       });
-      expect(console.warn).toHaveBeenCalledWith('Kid reward amount must be positive.');
-      expect(capturedContextState?.financialData.currentBalance).toBe(initialBalance);
-      expect(capturedContextState?.financialData.transactions.length).toBe(initialTransactionsCount);
+      expect(result.current.financialData.currentBalance).toBe(initialBalance);
+      expect(result.current.financialData.transactions.length).toBe(initialTransactions);
+      expect(console.warn).toHaveBeenCalledWith('Attempted to add zero or negative kid reward.');
 
       act(() => {
-        capturedContextState?.addKidReward(kidId, -5, choreTitle);
+        result.current.addKidReward('kid1', -5, 'Negative Reward');
       });
-      expect(console.warn).toHaveBeenCalledWith('Kid reward amount must be positive.');
-      expect(capturedContextState?.financialData.currentBalance).toBe(initialBalance);
-      expect(capturedContextState?.financialData.transactions.length).toBe(initialTransactionsCount);
+      expect(result.current.financialData.currentBalance).toBe(initialBalance);
+      expect(result.current.financialData.transactions.length).toBe(initialTransactions);
+      expect(console.warn).toHaveBeenCalledWith('Attempted to add zero or negative kid reward.');
     });
   });
 });

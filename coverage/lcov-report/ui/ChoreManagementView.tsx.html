@@ -3,7 +3,7 @@
 <html lang="en">
 
 <head>
-    <title>Code coverage report for ui/FundsManagementView.tsx</title>
+    <title>Code coverage report for ui/ChoreManagementView.tsx</title>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="../prettify.css" />
     <link rel="stylesheet" href="../base.css" />
@@ -19,13 +19,13 @@
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../index.html">All files</a> / <a href="index.html">ui</a> FundsManagementView.tsx</h1>
+        <h1><a href="../index.html">All files</a> / <a href="index.html">ui</a> ChoreManagementView.tsx</h1>
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/6</span>
+                <span class='fraction'>0/8</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/6</span>
+                <span class='fraction'>0/8</span>
             </div>
         
             
@@ -88,56 +88,86 @@
 <a name='L23'></a><a href='#L23'>23</a>
 <a name='L24'></a><a href='#L24'>24</a>
 <a name='L25'></a><a href='#L25'>25</a>
-<a name='L26'></a><a href='#L26'>26</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">// /tmp/vite_init_area/temp_pocket_money_app/src/ui/FundsManagementView.tsx
-<span class="cstat-no" title="statement not covered" >import CurrentBalanceDisplay from './funds_management_components/CurrentBalanceDisplay';</span>
-<span class="cstat-no" title="statement not covered" >import AddFundsForm from './funds_management_components/AddFundsForm';</span>
-<span class="cstat-no" title="statement not covered" >import RecentFundActivity from './funds_management_components/RecentFundActivity';</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">// src/ui/ChoreManagementView.tsx
+<span class="cstat-no" title="statement not covered" >import AddChoreForm from './chore_components/AddChoreForm'; </span>// Import AddChoreForm
+<span class="cstat-no" title="statement not covered" >import ChoreList from './chore_components/ChoreList'; </span>      // Import ChoreList
+<span class="cstat-no" title="statement not covered" >import { useChoresContext } from '../contexts/ChoresContext'; </span>// Import useChoresContext
+// import { UserContext } from '../../contexts/UserContext'; // Only if passing kids explicitly
 &nbsp;
-const FundsManagementView = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >() =</span>&gt; {</span>
+const ChoreManagementView = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >() =</span>&gt; {</span>
+  const { choreInstances } = <span class="cstat-no" title="statement not covered" >useChoresContext();</span> // Get chore instances from context
+  // const userContext = useContext(UserContext); // Example if passing kids as prop
+  // const kids = userContext?.user?.kids || [];
+&nbsp;
+  // For now, display all chore instances. Filtering can be added later.
+  const choresToDisplay = <span class="cstat-no" title="statement not covered" >choreInstances;</span>
+&nbsp;
 <span class="cstat-no" title="statement not covered" >  return (</span>
-    &lt;div className="funds-management-view"&gt;
+    &lt;div className="chore-management-view" style={{ padding: '16px' }}&gt;
       &lt;header className="view-header"&gt;
-        &lt;h1&gt;Funds Management&lt;/h1&gt;
+        &lt;h1&gt;Chore Management&lt;/h1&gt;
       &lt;/header&gt;
-      &lt;section className="current-balance-section"&gt;
-        &lt;CurrentBalanceDisplay /&gt;
+&nbsp;
+      &lt;section className="add-chore-section" style={{ marginBottom: '20px' }}&gt;
+        &lt;h2&gt;Assign New Chore&lt;/h2&gt;
+        &lt;AddChoreForm /&gt; {/* Render AddChoreForm */}
       &lt;/section&gt;
-      &lt;section className="add-funds-section"&gt;
-        &lt;AddFundsForm /&gt;
-      &lt;/section&gt;
-      &lt;section className="fund-activity-section"&gt;
-        &lt;RecentFundActivity /&gt;
+&nbsp;
+      &lt;section className="chore-list-section"&gt;
+        &lt;h2&gt;Chore List&lt;/h2&gt;
+        {/* Render ChoreList, passing chores from context */}
+        &lt;ChoreList choresToDisplay={choresToDisplay} /* kids={kids} // If passing kids explicitly */ /&gt;
       &lt;/section&gt;
     &lt;/div&gt;
   );
 };
 &nbsp;
-<span class="cstat-no" title="statement not covered" >export default FundsManagementView;</span>
+<span class="cstat-no" title="statement not covered" >export default ChoreManagementView;</span>
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
