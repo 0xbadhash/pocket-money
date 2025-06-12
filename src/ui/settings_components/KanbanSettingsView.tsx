@@ -352,7 +352,7 @@ const KanbanSettingsView: React.FC = () => {
                     {columnsForSelectedKid.find(c => c.id === activeDragId)?.title}
                   </div>
                 ) : null}
-              </DragOverlay>
+              </DndKit.DragOverlay>
               </div>
             </DndContext>
           )}
