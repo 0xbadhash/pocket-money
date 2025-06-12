@@ -10,18 +10,7 @@ import { useChoresContext } from '../../contexts/ChoresContext';
 import { useUserContext } from '../../contexts/UserContext';
 import type { ChoreDefinition, ChoreInstance, KanbanPeriod, KanbanColumn as KanbanColumnType, ColumnThemeOption, KanbanColumnConfig } from '../../types';
 import KanbanColumn from './KanbanColumn';
-import {
-  DndContext,
-  PointerSensor,
-  KeyboardSensor,
-  useSensor,
-  useSensors,
-  closestCenter,
-  DragEndEvent,
-  DragStartEvent,
-  DragCancelEvent,
-  DragOverlay
-} from '@dnd-kit/core';
+import * as DndKit from '@dnd-kit/core';
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { getTodayDateString, getWeekRange, getMonthRange } from '../../utils/dateUtils';
 
@@ -249,12 +238,12 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     return choreDefinitions.find(def => def.id === instance.choreDefinitionId);
   };
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  const sensors = DndKit.useSensors(
+    DndKit.useSensor(DndKit.PointerSensor),
+    DndKit.useSensor(DndKit.KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  function handleDragStart(event: DragStartEvent) {
+  function handleDragStart(event: DndKit.DragStartEvent) {
     const { active } = event;
     const instance = choreInstances.find(inst => inst.id === active.id.toString());
     if (instance) {
@@ -267,7 +256,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     }
   }
 
-  function handleDragEnd(event: DragEndEvent) {
+  function handleDragEnd(event: DndKit.DragEndEvent) {
     // Capture activeDragItem before clearing it, to use its data for feedback message.
     const currentActiveDragItem = activeDragItem;
     setActiveDragItem(null);
@@ -353,9 +342,9 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   const userColumnConfigs = getKanbanColumnConfigs(kidId);
 
   return (
-    <DndContext
+    <DndKit.DndContext
       sensors={sensors}
-      collisionDetection={closestCenter}
+      collisionDetection={DndKit.closestCenter}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
@@ -444,7 +433,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
           }
         </div>
       </div>
-      <DragOverlay dropAnimation={null}>
+      <DndKit.DragOverlay dropAnimation={null}>
         {activeDragItem ? (
           <KanbanCard
             instance={activeDragItem.instance}
@@ -452,8 +441,8 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
             isOverlay={true} // Pass isOverlay to distinguish the drag preview from the actual sortable item
           />
         ) : null}
-      </DragOverlay>
-    </DndContext>
+      </DndKit.DragOverlay>
+    </DndKit.DndContext>
   );
 };
 
