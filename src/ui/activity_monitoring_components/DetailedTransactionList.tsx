@@ -27,13 +27,7 @@ const DetailedTransactionList: React.FC<DetailedTransactionListProps> = ({ trans
       ) : (
         <table>
           <thead>
-            <tr>
-              <th>Date</th>
-              <th>Kid</th> {/* Re-enable Kid column */}
-              <th>Description</th>
-              <th>Category</th>
-              <th>Amount</th>
-            </tr>
+            <tr><th>Date</th><th>Kid</th><th>Description</th><th>Category</th><th>Amount</th></tr>
           </thead>
           <tbody>
             {transactionsToDisplay.map((tx) => (
