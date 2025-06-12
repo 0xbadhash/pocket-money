@@ -6,12 +6,12 @@ import { useChoresContext } from '../contexts/ChoresContext'; // Import useChore
 // import { UserContext } from '../../contexts/UserContext'; // Only if passing kids explicitly
 
 const ChoreManagementView = () => {
-  const { chores } = useChoresContext(); // Get chores from context
+  const { choreDefinitions } = useChoresContext(); // Get choreDefinitions from context
   // const userContext = useContext(UserContext); // Example if passing kids as prop
   // const kids = userContext?.user?.kids || [];
 
   // For now, display all chores. Filtering can be added later.
-  const choresToDisplay = chores;
+  const choresToDisplay = choreDefinitions || [];
 
   return (
     <div className="chore-management-view" style={{ padding: '16px' }}>
