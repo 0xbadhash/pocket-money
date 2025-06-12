@@ -1,6 +1,7 @@
 // src/contexts/ChoresContext.tsx
-import React, { createContext, useState, ReactNode, useContext } from 'react';
-import type { ChoreDefinition, ChoreInstance, SubTask } from '../types'; // Import SubTask
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import type { ReactNode } from 'react';
+import type { ChoreDefinition, ChoreInstance } from '../types';
 import { useFinancialContext } from '../contexts/FinancialContext';
 import { generateChoreInstances } from '../utils/choreUtils';
 

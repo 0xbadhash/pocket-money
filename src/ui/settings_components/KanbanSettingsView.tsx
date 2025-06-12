@@ -4,7 +4,7 @@
  * Allows creating, reading, updating, deleting, and reordering Kanban columns.
  */
 import React, { useState, useEffect, useMemo } from 'react';
-import { useUserContext, type User } from '../../contexts/UserContext'; // Assuming User type is exported from UserContext
+import { useUserContext } from '../../contexts/UserContext';
 import type { Kid, KanbanColumnConfig } from '../../types';
 import * as DndKit from '@dnd-kit/core';
 import {

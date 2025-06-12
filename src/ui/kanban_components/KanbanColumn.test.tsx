@@ -1,31 +1,15 @@
 // src/ui/kanban_components/KanbanColumn.test.tsx
+// mock declarations at the very top
+let mockKanbanCard: any;
+let mockSortableContextFn: any;
+
+// mockKanbanCard and mockSortableContextFn must be declared before imports for Vitest hoisting
 import { render, screen } from '@testing-library/react';
 import KanbanColumn from './KanbanColumn';
-import type { KanbanColumn as KanbanColumnType, ChoreInstance, ChoreDefinition } from '../../types'; // ColumnThemeOption removed as it's not directly used in type defs here
+import type { KanbanColumn as KanbanColumnType, ChoreInstance, ChoreDefinition } from '../../types';
 import { vi } from 'vitest';
-import { verticalListSortingStrategy } from '@dnd-kit/sortable'; // Import the strategy
-
-// Mock KanbanCard
-vi.mock('./KanbanCard', () => ({
-  default: vi.fn(({ instance, definition }) => (
-    <div data-testid={`mock-kanban-card-${instance.id}`}>
-      <p>{definition.title}</p> {/* Ensure some content is rendered for query */}
-    </div>
-  )),
-}));
-
-// Mock SortableContext from dnd-kit/sortable
-// We spy on its usage rather than completely replacing its functionality if children depend on it.
-// However, since our mock KanbanCard doesn't use the context, a simple mock is fine.
-const mockSortableContextFn = vi.fn(({ children }) => <>{children}</>);
-vi.mock('@dnd-kit/sortable', async (importOriginal) => {
-  const actualSortable = await importOriginal() as object; // Cast to ensure spread works as expected
-  return {
-    ...actualSortable, // Spread all actual exports
-    SortableContext: mockSortableContextFn, // Override only SortableContext with our spy
-  };
-});
-
+import { verticalListSortingStrategy } from '@dnd-kit/sortable';
+import '@testing-library/jest-dom';
 
 const mockGetDefinitionForInstance = vi.fn((instance: ChoreInstance): ChoreDefinition | undefined => ({
   id: instance.choreDefinitionId,
@@ -35,17 +19,35 @@ const mockGetDefinitionForInstance = vi.fn((instance: ChoreInstance): ChoreDefin
   tags: [],
   subTasks: [],
   recurrenceType: null,
-  createdAt: '2024-01-01T00:00:00.000Z',
-  updatedAt: '2024-01-01T00:00:00.000Z',
-  dayOfWeek: null,
-  dayOfMonth: null,
-  specificDate: null,
-  hour: 10,
-  minute: 0,
-  timeOfDay: 'AM',
-  lastCompletedDate: null,
-  completionHistory: [],
+  isComplete: false,
 }));
+
+const getDefMockMissing = vi.fn((instance: ChoreInstance): ChoreDefinition | undefined => {
+  if (instance.id === 'chore1') return undefined; // Chore1 will have no definition
+  // For chore2, return a minimal valid definition
+  return {
+    id: instance.choreDefinitionId,
+    title: `Definition for ${instance.id}`,
+    assignedKidId: 'kid1',
+    rewardAmount: 0,
+    tags: [],
+    subTasks: [],
+    recurrenceType: null,
+    isComplete: false,
+  };
+});
+
+// Mock KanbanCard and SortableContext using functions that reference the current mock variable
+vi.mock('./KanbanCard', () => ({
+  default: (...args: any[]) => mockKanbanCard(...args),
+}));
+vi.mock('@dnd-kit/sortable', async (importOriginal) => {
+  const actualSortable = await importOriginal() as object;
+  return {
+    ...actualSortable,
+    SortableContext: (...args: any[]) => mockSortableContextFn(...args),
+  };
+});
 
 const mockChores: ChoreInstance[] = [
   { id: 'chore1', choreDefinitionId: 'def1', instanceDate: '2024-07-29', isComplete: false },
@@ -61,6 +63,15 @@ const mockColumn: KanbanColumnType = {
 describe('KanbanColumn', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  beforeAll(() => {
+    mockKanbanCard = vi.fn(({ instance, definition }) => (
+      <div data-testid={`mock-kanban-card-${instance.id}`}>
+        <p>{definition.title}</p>
+      </div>
+    ));
+    mockSortableContextFn = vi.fn(({ children }) => <>{children}</>);
   });
 
   test('renders column title and applies ARIA attributes', () => {
@@ -153,17 +164,6 @@ describe('KanbanColumn', () => {
 
   test('warns if definition is not found for an instance and does not render that card', () => {
     const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {}); // Suppress console.warn output during test
-
-    const getDefMockMissing = vi.fn((instance: ChoreInstance): ChoreDefinition | undefined => {
-      if (instance.id === 'chore1') return undefined; // Chore1 will have no definition
-      // For chore2, return a minimal valid definition
-      return {
-        id: instance.choreDefinitionId,
-        title: `Definition for ${instance.id}`,
-        assignedKidId: 'kid1', rewardAmount: 0, tags: [], subTasks: [], recurrenceType: null,
-        createdAt: '2024-01-01', updatedAt: '2024-01-01', hour:10, minute:0, timeOfDay: 'AM'
-      };
-    });
 
     render(
       <KanbanColumn

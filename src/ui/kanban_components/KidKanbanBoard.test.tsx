@@ -1,42 +1,30 @@
-// src/ui/kanban_components/KidKanbanBoard.test.tsx
-import { render, screen, act } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+// mockKanbanColumn, mockSortableContextFn, and mockDragOverlay must be declared before imports for Vitest hoisting
+let mockKanbanColumn: any;
+let mockSortableContextFn: any;
+let mockDragOverlay: any;
+
+// Patch for Vitest hoisting: mockKanbanColumn must be declared as vi.fn() before imports and vi.mock
+// const mockKanbanColumn = vi.fn();
+
+import { render, screen } from '@testing-library/react';
+import { ChoresContext } from '../../contexts/ChoresContext';
+import { UserContext } from '../../contexts/UserContext';
 import KidKanbanBoard from './KidKanbanBoard';
-import { ChoresContext, ChoresContextType } from '../../contexts/ChoresContext';
-import type { ChoreInstance, ChoreDefinition, KanbanColumn as KanbanColumnType } from '../../types';
+import type { ChoreDefinition, ChoreInstance, KanbanColumnConfig } from '../../types';
 import { vi } from 'vitest';
-import { getTodayDateString, getWeekRange, getMonthRange } from '../../utils/dateUtils'; // For checking generateInstancesForPeriod calls
-import type { DragStartEvent, DragEndEvent, Active, Over, DragCancelEvent } from '@dnd-kit/core';
+import '@testing-library/jest-dom';
+import type { Active, Over } from '@dnd-kit/core';
+import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core';
+import userEvent from '@testing-library/user-event';
+import { act } from 'react-dom/test-utils';
+import { getTodayDateString, getWeekRange, getMonthRange } from '../../utils/dateUtils';
 
+// src/ui/kanban_components/KidKanbanBoard.test.tsx
+// Move all mock function declarations above imports and vi.mock() calls to avoid hoisting issues
 
-// Mock Child Component: KanbanColumn
-const mockKanbanColumn = vi.fn(({ column, theme }) => (
-  <div data-testid={`mock-kanban-column-${column.id}`} data-theme={theme}>
-    <h3>{column.title}</h3>
-    {/* Render chore IDs to check order and presence */}
-    {column.chores.map((c: ChoreInstance) => <div key={c.id} data-testid={`chore-${c.id}`}>{c.id} ({c.isComplete ? 'C' : 'A'})</div>)}
-  </div>
-));
-vi.mock('./KanbanColumn', () => ({
-  default: mockKanbanColumn,
-}));
-
-// Mock localStorage
-const localStorageMockFactory = () => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: vi.fn((key: string) => store[key] || null),
-    setItem: vi.fn((key: string, value: string) => { store[key] = value.toString(); }),
-    clear: vi.fn(() => { store = {}; }),
-    removeItem: vi.fn((key: string) => { delete store[key]; }),
-    getStore: () => store,
-  };
-};
-let localStorageMock = localStorageMockFactory();
-
-// Mock dnd-kit
-let dndContextProps: any = {};
-const mockDragOverlay = vi.fn(({ children }) => children ? <div data-testid="drag-overlay-content">{children}</div> : null);
+mockKanbanColumn = vi.fn();
+mockSortableContextFn = vi.fn();
+mockDragOverlay = vi.fn(({ children }) => children ? <div data-testid="drag-overlay-content">{children}</div> : null);
 
 vi.mock('@dnd-kit/core', async (importOriginal) => {
     const actual = await importOriginal() as object;
@@ -52,19 +40,33 @@ vi.mock('@dnd-kit/core', async (importOriginal) => {
     };
 });
 vi.mock('@dnd-kit/sortable', async (importOriginal) => {
-    const actual = await importOriginal() as object;
-    return {
-        ...actual,
-        sortableKeyboardCoordinates: vi.fn(),
-        arrayMove: vi.fn((arr, from, to) => {
-            const newArr = [...arr];
-            if (from < 0 || from >= newArr.length || to < 0 || to >= newArr.length) return newArr; // bounds check
-            const [moved] = newArr.splice(from, 1);
-            newArr.splice(to, 0, moved);
-            return newArr;
-        })
-    };
+  const actual = await importOriginal() as object;
+  return {
+    ...actual,
+    sortableKeyboardCoordinates: vi.fn(),
+    arrayMove: vi.fn((arr, from, to) => {
+      const newArr = [...arr];
+      if (from < 0 || from >= newArr.length || to < 0 || to >= newArr.length) return newArr; // bounds check
+      const [moved] = newArr.splice(from, 1);
+      newArr.splice(to, 0, moved);
+      return newArr;
+    }),
+    SortableContext: mockSortableContextFn
+  };
 });
+
+// Mock localStorage
+const localStorageMockFactory = () => {
+  let store: Record<string, string> = {};
+  return {
+    getItem: vi.fn((key: string) => store[key] || null),
+    setItem: vi.fn((key: string, value: string) => { store[key] = value.toString(); }),
+    clear: vi.fn(() => { store = {}; }),
+    removeItem: vi.fn((key: string) => { delete store[key]; }),
+    getStore: () => store,
+  };
+};
+let localStorageMock = localStorageMockFactory();
 
 // Mock ChoresContext
 const mockGenerateInstancesForPeriod = vi.fn();
@@ -119,7 +121,8 @@ const mockContextValueFactory = (customOrders: Record<string, string[]> = {}) =>
   addChoreDefinition: vi.fn(), updateChoreDefinition: vi.fn(), deleteChoreDefinition: vi.fn(),
   addChoreInstance: vi.fn(), updateChoreInstance: vi.fn(), deleteChoreInstance: vi.fn(),
   toggleSubTaskComplete: vi.fn(),
-} as ChoresContextType);
+  getChoreDefinitionsForKid: (kidId: string) => mockChoreDefinitions.filter(def => def.assignedKidId === kidId),
+} as any);
 
 // Mock UserContext for getKanbanColumnConfigs
 const mockGetKanbanColumnConfigs = vi.fn();
@@ -133,8 +136,10 @@ const mockUserContextValue = {
     addKanbanColumnConfig: vi.fn(), updateKanbanColumnConfig: vi.fn(), deleteKanbanColumnConfig: vi.fn(), reorderKanbanColumnConfigs: vi.fn(),
 };
 // Import UserContext to use its Provider
-import { UserContext } from '../../contexts/UserContext';
+import { getTodayDateString } from '../../utils/dateUtils';
 
+// dndContextProps is used to capture DndContext props in mocks
+let dndContextProps: any = {};
 
 const renderKidKanbanBoard = (
     kidId = 'kid1',
@@ -158,8 +163,8 @@ const renderKidKanbanBoard = (
 
 
   return render(
-    <UserContext.Provider value={finalUserContextVal as UserContextType}>
-      <ChoresContext.Provider value={freshChoresContext as ChoresContextType}>
+    <UserContext.Provider value={finalUserContextVal}>
+      <ChoresContext.Provider value={freshChoresContext}>
         <KidKanbanBoard kidId={kidId} />
       </ChoresContext.Provider>
     </UserContext.Provider>
@@ -175,11 +180,10 @@ const createMockActive = (id: string, containerId: string, index = 0, items: str
 
 const createMockOver = (id: string, containerId?: string, index = 0, items: string[] = []): Over => ({
   id,
-  rect: { width: 0, height: 0, top: 0, left: 0 },
+  rect: { width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0 },
   data: { current: containerId ? { sortable: { containerId, index, items } } : {} },
   disabled: false,
 });
-
 
 describe('KidKanbanBoard - Rendering and Basic Interactions (Part 1)', () => {
   beforeEach(() => {
@@ -277,30 +281,30 @@ describe('KidKanbanBoard - Rendering and Basic Interactions (Part 1)', () => {
       { id: 'b_inst', choreDefinitionId: 'def2', instanceDate: today, isComplete: false }, // Reward 10
     ];
     // Definitions need to match IDs used in sortTestInstances
-    const customContext = { ...mockContextValue, choreInstances: [...sortTestInstances], choreDefinitions: [...mockChoreDefinitions] };
+    const customContext = { ...mockContextValueFactory, choreInstances: [...sortTestInstances], choreDefinitions: [...mockChoreDefinitions] };
     renderKidKanbanBoard('kid1', customContext);
 
     const sortBySelect = screen.getByLabelText(/Sort by:/i);
     const sortDirectionButton = screen.getByRole('button', { name: /A-Z \/ Old-New ↓/i });
 
     await user.selectOptions(sortBySelect, 'title');
-    let activeColumnChores = mockKanbanColumn.mock.calls.find(call => call[0].column.id === 'daily_active')[0].column.chores;
+    let activeColumnChores = mockKanbanColumn.mock.calls.find(call => call[0].column.id === 'daily_active')?.[0]?.column.chores;
     // Titles: Walk the Dog (def1, a_inst), Clean Room (def2, b_inst), Do Homework (def3, c_inst)
     // Expected order for title ASC: Clean Room, Do Homework, Walk the Dog
-    expect(activeColumnChores.map((c:ChoreInstance) => c.id)).toEqual(['b_inst', 'c_inst', 'a_inst']);
+    expect(activeColumnChores?.map((c:ChoreInstance) => c.id)).toEqual(['b_inst', 'c_inst', 'a_inst']);
 
     await user.click(sortDirectionButton);
-    activeColumnChores = mockKanbanColumn.mock.calls.find(call => call[0].column.id === 'daily_active')[0].column.chores;
-    expect(activeColumnChores.map((c:ChoreInstance) => c.id)).toEqual(['a_inst', 'c_inst', 'b_inst']);
+    activeColumnChores = mockKanbanColumn.mock.calls.find(call => call[0].column.id === 'daily_active')?.[0]?.column.chores;
+    expect(activeColumnChores?.map((c:ChoreInstance) => c.id)).toEqual(['a_inst', 'c_inst', 'b_inst']);
 
     await user.selectOptions(sortBySelect, 'rewardAmount'); // Default to DESC for reward
-    activeColumnChores = mockKanbanColumn.mock.calls.find(call => call[0].column.id === 'daily_active')[0].column.chores;
+    activeColumnChores = mockKanbanColumn.mock.calls.find(call => call[0].column.id === 'daily_active')?.[0]?.column.chores;
     // Rewards: a_inst (5), b_inst (10), c_inst (0). DESC: b_inst, a_inst, c_inst
-    expect(activeColumnChores.map((c:ChoreInstance) => c.id)).toEqual(['b_inst', 'a_inst', 'c_inst']);
+    expect(activeColumnChores?.map((c:ChoreInstance) => c.id)).toEqual(['b_inst', 'a_inst', 'c_inst']);
 
     await user.click(screen.getByRole('button', { name: /High to Low ↓/i })); // Change to ASC
-    activeColumnChores = mockKanbanColumn.mock.calls.find(call => call[0].column.id === 'daily_active')[0].column.chores;
-    expect(activeColumnChores.map((c:ChoreInstance) => c.id)).toEqual(['c_inst', 'a_inst', 'b_inst']);
+    activeColumnChores = mockKanbanColumn.mock.calls.find(call => call[0].column.id === 'daily_active')?.[0]?.column.chores;
+    expect(activeColumnChores?.map((c:ChoreInstance) => c.id)).toEqual(['c_inst', 'a_inst', 'b_inst']);
   });
 
   test('theme selection updates localStorage and column theme prop', async () => {
@@ -348,12 +352,11 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
     renderKidKanbanBoard('kid1');
     const dragStartEvent: DragStartEvent = {
       active: createMockActive('inst1', 'daily_active'),
+      activatorEvent: {} as any,
     };
-
     act(() => {
       dndContextProps.onDragStart(dragStartEvent);
     });
-
     // Verify DragOverlay is called with children (meaning activeDragItem is set)
     expect(mockDragOverlay).toHaveBeenCalled();
     expect(screen.getByTestId('drag-overlay-content')).toBeInTheDocument();
@@ -365,7 +368,7 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
   test('handleDragEnd clears activeDragItem and DragOverlay', () => {
     renderKidKanbanBoard('kid1');
     // First, simulate a drag start to set activeDragItem
-    const dragStartEvent: DragStartEvent = { active: createMockActive('inst1', 'daily_active') };
+    const dragStartEvent: DragStartEvent = { active: createMockActive('inst1', 'daily_active'), activatorEvent: {} as any };
     act(() => { dndContextProps.onDragStart(dragStartEvent); });
     expect(screen.getByTestId('drag-overlay-content')).toBeInTheDocument();
 
@@ -375,6 +378,7 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
       over: createMockOver('inst3', 'daily_active'), // Dropping inst1 over inst3
       delta: { x: 0, y: 0 },
       collisions: null,
+      activatorEvent: {} as any,
     };
     act(() => {
       dndContextProps.onDragEnd(dragEndEvent);
@@ -384,16 +388,16 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
 
   test('handleDragCancel clears activeDragItem and DragOverlay', () => {
     renderKidKanbanBoard('kid1');
-    const dragStartEvent: DragStartEvent = { active: createMockActive('inst1', 'daily_active') };
+    const dragStartEvent: DragStartEvent = { active: createMockActive('inst1', 'daily_active'), activatorEvent: {} as any };
     act(() => { dndContextProps.onDragStart(dragStartEvent); });
     expect(screen.getByTestId('drag-overlay-content')).toBeInTheDocument();
 
-    const dragCancelEvent: DragCancelEvent = { // Structure might vary or not be needed if logic is simple
+    const dragCancelEvent = {
         active: dragStartEvent.active,
-        // ... other properties if your handler uses them
+        activatorEvent: {} as any,
     };
     act(() => {
-      dndContextProps.onDragCancel(dragCancelEvent); // Call with event if your handler expects it
+      dndContextProps.onDragCancel(dragCancelEvent);
     });
     expect(screen.queryByTestId('drag-overlay-content')).not.toBeInTheDocument();
   });
@@ -405,70 +409,67 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
 
     // Initial active chores for kid1, default order (inst1, inst3, instX, instY, instZ)
     // Let's say inst1, inst3, instX, instY, instZ are active
-    const initialActiveChores = mockChoreInstancesData.filter(c => c.assignedKidId === kidId && !c.isComplete);
+    const initialActiveChores = mockChoreInstancesData.filter(c => !c.isComplete);
     const choreIds = initialActiveChores.map(c => c.id);
-
 
     const dragEndEvent: DragEndEvent = {
       active: createMockActive('instX', activeColumnId, 2, choreIds),
       over: createMockOver('instY', activeColumnId, 3, choreIds),
       delta: { x: 0, y: 0 },
       collisions: null,
+      activatorEvent: {} as any,
     };
 
     act(() => {
       dndContextProps.onDragEnd(dragEndEvent);
     });
 
-    const activeColumn = mockKanbanColumn.mock.calls.find(call => call[0].column.id === activeColumnId)[0].column;
+    const activeColumn = mockKanbanColumn.mock.calls.find(call => call[0].column.id === activeColumnId)?.[0]?.column;
     // Expected: inst1, inst3, instY, instX, instZ (if instX moved over instY)
     // arrayMove(arr, 2, 3) on [inst1, inst3, instX, instY, instZ]
     // results in [inst1, inst3, instY, instX, instZ]
     const expectedOrder = ['inst1', 'inst3', 'instY', 'instX', 'instZ'];
-    expect(activeColumn.chores.map((c: ChoreInstance) => c.id)).toEqual(expectedOrder);
+    expect(activeColumn?.chores.map((c: ChoreInstance) => c.id)).toEqual(expectedOrder);
     expect(mockUpdateKanbanChoreOrder).toHaveBeenCalledWith(kidId, activeColumnId, expectedOrder);
   });
 
   test('handleDragEnd - moves item from active to completed column and updates status', () => {
-    renderKidKanbanBoard('kid1'); // inst1 (active, incomplete), inst2 (completed, complete)
-    const activeColId = 'daily_active';
-    const completedColId = 'daily_completed';
+    const kidId = 'kid1';
+    const dynamicCol1: KanbanColumnConfig = { id: 'daily_active', kidId, title: 'Active', order: 0 };
+    const dynamicCol2: KanbanColumnConfig = { id: 'daily_completed', kidId, title: 'Completed', order: 1 };
+    mockGetKanbanColumnConfigs.mockReturnValue([dynamicCol1, dynamicCol2]);
+
+    renderKidKanbanBoard(kidId, mockContextValueFactory(mockKanbanChoreOrdersData));
 
     const dragEndEvent: DragEndEvent = {
-      active: createMockActive('inst1', activeColId),       // Drag inst1 (incomplete)
-      over: createMockOver(completedColId, completedColId), // Drop on completed column itself
+      active: createMockActive('inst1', dynamicCol1.id),
+      over: createMockOver(dynamicCol2.id, dynamicCol2.id),
       delta: { x: 0, y: 0 },
       collisions: null,
+      activatorEvent: {} as any,
     };
 
     act(() => {
       dndContextProps.onDragEnd(dragEndEvent);
     });
 
-    // expect(mockToggleChoreInstanceComplete).toHaveBeenCalledWith('inst1'); // This is no longer called for column moves
     expect(mockUpdateChoreInstanceColumn).toHaveBeenCalledWith('inst1', dynamicCol2.id);
 
-    const col1Data = mockKanbanColumn.mock.calls.find(call => call[0].column.id === dynamicCol1.id)[0].column;
-    expect(col1Data.chores.find((c: ChoreInstance) => c.id === 'inst1')).toBeUndefined();
+    const col1Data = mockKanbanColumn.mock.calls.find(call => call[0].column.id === dynamicCol1.id)?.[0]?.column;
+    expect(col1Data?.chores.find((c: ChoreInstance) => c.id === 'inst1')).toBeUndefined();
 
-    const col2Data = mockKanbanColumn.mock.calls.find(call => call[0].column.id === dynamicCol2.id)[0].column;
-    const movedItem = col2Data.chores.find((c: ChoreInstance) => c.id === 'inst1');
+    const col2Data = mockKanbanColumn.mock.calls.find(call => call[0].column.id === dynamicCol2.id)?.[0]?.column;
+    const movedItem = col2Data?.chores.find((c: ChoreInstance) => c.id === 'inst1');
     expect(movedItem).toBeDefined();
-    expect(movedItem.kanbanColumnId).toBe(dynamicCol2.id);
-    // expect(movedItemInCompleted.isComplete).toBe(true); // Status is not changed by column move
+    expect(movedItem?.kanbanColumnId).toBe(dynamicCol2.id);
   });
 
-  // This test might need adjustment as isComplete is no longer tied to column suffixes.
-  // It can test moving an item and ensure its isComplete status *doesn't* change,
-  // and then separately test the toggle button on the card.
-  // For now, focusing on the columnId update.
   test('handleDragEnd - moves item between dynamic columns and updates its kanbanColumnId (status unchanged)', () => {
     const kidId = 'kid1';
     const dynamicCol1: KanbanColumnConfig = { id: 'dynCol1', kidId, title: 'Dynamic Col 1', order: 0 };
     const dynamicCol2: KanbanColumnConfig = { id: 'dynCol2', kidId, title: 'Dynamic Col 2', order: 1 };
     mockGetKanbanColumnConfigs.mockReturnValue([dynamicCol1, dynamicCol2]);
 
-    // Ensure inst2 (which is complete) is in dynCol1 initially
     mockChoreInstancesData = mockChoreInstancesData.map(inst =>
       inst.id === 'inst2' ? { ...inst, kanbanColumnId: dynamicCol1.id, isComplete: true } : inst
     );
@@ -477,9 +478,10 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
 
     const dragEndEvent: DragEndEvent = {
       active: createMockActive('inst2', dynamicCol1.id),
-      over: createMockOver(dynamicCol2.id, dynamicCol2.id), // Drop on dynamicCol2
+      over: createMockOver(dynamicCol2.id, dynamicCol2.id),
       delta: { x: 0, y: 0 },
       collisions: null,
+      activatorEvent: {} as any,
     };
 
     act(() => {
@@ -487,37 +489,38 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
     });
 
     expect(mockUpdateChoreInstanceColumn).toHaveBeenCalledWith('inst2', dynamicCol2.id);
-    expect(mockToggleChoreInstanceComplete).not.toHaveBeenCalled(); // Explicitly check status NOT toggled by move
+    expect(mockToggleChoreInstanceComplete).not.toHaveBeenCalled();
 
-    const col1Data = mockKanbanColumn.mock.calls.find(call => call[0].column.id === dynamicCol1.id)[0].column;
-    expect(col1Data.chores.find((c: ChoreInstance) => c.id === 'inst2')).toBeUndefined();
+    const col1Data = mockKanbanColumn.mock.calls.find(call => call[0].column.id === dynamicCol1.id)?.[0]?.column;
+    expect(col1Data?.chores.find((c: ChoreInstance) => c.id === 'inst2')).toBeUndefined();
 
-    const col2Data = mockKanbanColumn.mock.calls.find(call => call[0].column.id === dynamicCol2.id)[0].column;
-    const movedItem = col2Data.chores.find((c: ChoreInstance) => c.id === 'inst2');
+    const col2Data = mockKanbanColumn.mock.calls.find(call => call[0].column.id === dynamicCol2.id)?.[0]?.column;
+    const movedItem = col2Data?.chores.find((c: ChoreInstance) => c.id === 'inst2');
     expect(movedItem).toBeDefined();
-    expect(movedItem.kanbanColumnId).toBe(dynamicCol2.id);
-    expect(movedItem.isComplete).toBe(true); // isComplete status should remain unchanged by the move
+    expect(movedItem?.kanbanColumnId).toBe(dynamicCol2.id);
+    expect(movedItem?.isComplete).toBe(true);
   });
 
 
   test('handleDragEnd - no change if dropped on self and order is same', () => {
     renderKidKanbanBoard('kid1');
     const activeColumnId = 'daily_active';
-    const initialActiveChores = mockKanbanColumn.mock.calls.find(call => call[0].column.id === activeColumnId)[0].column.chores;
+    const initialActiveChores = mockKanbanColumn.mock.calls.find(call => call[0].column.id === activeColumnId)?.[0]?.column.chores;
 
     const dragEndEvent: DragEndEvent = {
       active: createMockActive('inst1', activeColumnId, 0, ['inst1', 'inst3']),
       over: createMockOver('inst1', activeColumnId, 0, ['inst1', 'inst3']), // Dropped on self, same index
       delta: { x: 0, y: 0 },
       collisions: null,
+      activatorEvent: {} as any,
     };
 
     act(() => {
       dndContextProps.onDragEnd(dragEndEvent);
     });
 
-    const finalActiveChores = mockKanbanColumn.mock.calls.find(call => call[0].column.id === activeColumnId)[0].column.chores;
-    expect(finalActiveChores.map((c:ChoreInstance) => c.id)).toEqual(initialActiveChores.map((c:ChoreInstance) => c.id));
+    const finalActiveChores = mockKanbanColumn.mock.calls.find(call => call[0].column.id === activeColumnId)?.[0]?.column.chores;
+    expect(finalActiveChores?.map((c:ChoreInstance) => c.id)).toEqual(initialActiveChores?.map((c:ChoreInstance) => c.id));
     expect(mockToggleChoreInstanceComplete).not.toHaveBeenCalled();
   });
 
@@ -525,12 +528,12 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
     renderKidKanbanBoard('kid1');
     const initialColumnsState = JSON.stringify(mockKanbanColumn.mock.calls.map(call => call[0].column));
 
-
     const dragEndEvent: DragEndEvent = {
       active: createMockActive('inst1', 'daily_active'),
       over: null, // Dropped outside
       delta: { x: 0, y: 0 },
       collisions: null,
+      activatorEvent: {} as any,
     };
 
     act(() => {
@@ -559,7 +562,7 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
     const sortBySelect = screen.getByLabelText(/Sort by:/i);
     expect(sortBySelect).toHaveValue('instanceDate');
 
-    const activeColumn = mockKanbanColumn.mock.calls.find(call => call[0].column.id === activeColumnId)[0].column;
+    const activeColumn = mockKanbanColumn.mock.calls.find(call => call[0].column.id === activeColumnId)?.[0]?.column;
     const renderedOrder = activeColumn.chores.map((c: ChoreInstance) => c.id);
 
     // Chores in customOrder should appear first, in that order.
@@ -582,7 +585,7 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
     renderKidKanbanBoard(kidId, mockContextValueFactory(mockKanbanChoreOrdersData));
 
     // Verify custom order is initially applied (sortBy is 'instanceDate' by default)
-    let activeColumn = mockKanbanColumn.mock.calls.find(call => call[0].column.id === activeColumnId)[0].column;
+    let activeColumn = mockKanbanColumn.mock.calls.find(call => call[0].column.id === activeColumnId)?.[0]?.column;
     expect(activeColumn.chores.map((c: ChoreInstance) => c.id)).toEqual(['instZ', 'instX', 'instY', 'inst1', 'inst3']);
 
     // User changes sort to "Title"
@@ -598,7 +601,7 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
     // Active chores for kid1: inst1, inst3, instX, instY, instZ
     // Titles: WalkDog, DoHomework, ChoreX, ChoreY, ChoreZ
     // Expected ASC title order: ChoreX, ChoreY, ChoreZ, DoHomework, WalkDog
-    activeColumn = mockKanbanColumn.mock.calls.find(call => call[0].column.id === activeColumnId)[0].column;
+    activeColumn = mockKanbanColumn.mock.calls.find(call => call[0].column.id === activeColumnId)?.[0]?.column;
     expect(activeColumn.chores.map((c: ChoreInstance) => c.id)).toEqual(['instX', 'instY', 'instZ', 'inst3', 'inst1']);
 
     // Verify ARIA attributes for the columns container
@@ -632,9 +635,9 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
     // Verify chores are now in default instanceDate order (all have same date, so original/ID order)
     // Active kid1 chores: inst1, inst3, instX, instY, instZ
     // Default order (assuming by ID as dates are same): inst1, inst3, instX, instY, instZ
-    const activeColumn = mockKanbanColumn.mock.calls.find(call => call[0].column.id === activeColumnId)[0].column;
+    const activeColumn = mockKanbanColumn.mock.calls.find(call => call[0].column.id === activeColumnId)?.[0]?.column;
     const defaultOrder = mockChoreInstancesData
-        .filter(c => c.assignedKidId === kidId && !c.isComplete)
+        .filter(c => !c.isComplete)
         .sort((a,b) => new Date(a.instanceDate).getTime() - new Date(b.instanceDate).getTime() || a.id.localeCompare(b.id)) // Example default sort
         .map(c => c.id);
 
@@ -702,6 +705,7 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
     // 1. Simulate Drag Start to populate activeDragItem
     const dragStartEvent: DragStartEvent = {
       active: createMockActive('instX', dynamicCol1.id),
+      activatorEvent: {} as any,
     };
     act(() => {
       dndContextProps.onDragStart(dragStartEvent);
@@ -713,6 +717,7 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
       over: createMockOver(dynamicCol2.id, dynamicCol2.id), // Drop on dynCol2
       delta: { x: 0, y: 0 },
       collisions: null,
+      activatorEvent: {} as any,
     };
 
     act(() => {

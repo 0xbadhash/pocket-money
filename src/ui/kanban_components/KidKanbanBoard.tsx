@@ -8,8 +8,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { useUserContext } from '../../contexts/UserContext';
-import type { ChoreDefinition, ChoreInstance, KanbanPeriod, KanbanColumn as KanbanColumnType, ColumnThemeOption, KanbanColumnConfig } from '../../types';
+import type { ChoreDefinition, ChoreInstance, KanbanPeriod, KanbanColumn as KanbanColumnType, ColumnThemeOption } from '../../types';
 import KanbanColumn from './KanbanColumn';
+import KanbanCard from './KanbanCard';
 import {
   DndContext,
   PointerSensor,
@@ -17,11 +18,9 @@ import {
   useSensor,
   useSensors,
   closestCenter,
-  DragEndEvent,
-  DragStartEvent,
-  DragCancelEvent,
-  DragOverlay
+  DragOverlay,
 } from '@dnd-kit/core';
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { getTodayDateString, getWeekRange, getMonthRange } from '../../utils/dateUtils';
 
