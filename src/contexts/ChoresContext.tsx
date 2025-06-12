@@ -1,7 +1,7 @@
 // src/contexts/ChoresContext.tsx
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
-import type { ChoreDefinition, ChoreInstance } from '../types';
+import type { ChoreDefinition, ChoreInstance, MatrixKanbanCategory } from '../types'; // Added MatrixKanbanCategory
 import { useFinancialContext } from '../contexts/FinancialContext';
 import { generateChoreInstances } from '../utils/choreUtils';
 
@@ -25,15 +25,10 @@ interface ChoresContextType {
   choreDefinitions: ChoreDefinition[];
   /** Array of all generated chore instances for various periods. */
   choreInstances: ChoreInstance[];
-  /**
-   * Object storing custom sort orders for Kanban columns.
-   * Keys are typically `${kidId}-${period}_${status}` (e.g., "kid1-daily_active").
-   * Values are arrays of chore instance IDs in their custom order.
-   */
-  kanbanChoreOrders: KanbanChoreOrders;
+  // kanbanChoreOrders: KanbanChoreOrders; // Removed for Matrix Kanban
   /** Adds a new chore definition to the system. */
   addChoreDefinition: (choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete'>) => void;
-  /** Toggles the completion status of a specific chore instance. Also handles reward logic. */
+  /** Toggles the overall completion status of a specific chore instance. Also handles reward logic. */
   toggleChoreInstanceComplete: (instanceId: string) => void;
   /** Retrieves all chore definitions assigned to a specific kid. */
   getChoreDefinitionsForKid: (kidId: string) => ChoreDefinition[];
@@ -44,28 +39,21 @@ interface ChoresContextType {
    * New instances will receive the `defaultKanbanColumnId` if provided and they don't have one already.
    * @param {string} startDate - The start date of the period (YYYY-MM-DD) for instance generation.
    * @param {string} endDate - The end date of the period (YYYY-MM-DD) for instance generation.
-   * @param {string} [defaultKanbanColumnId] - Optional ID of the default Kanban column to assign to new instances
-   *                                           if they don't already have a `kanbanColumnId` (e.g., from a previous generation).
+   * @param {string} [defaultKanbanColumnId] - Optional: intended to be a MatrixKanbanCategory for new instances.
    */
-  generateInstancesForPeriod: (startDate: string, endDate: string, defaultKanbanColumnId?: string) => void;
-  /** Toggles the completion status of a sub-task within a chore definition. */
-  toggleSubTaskComplete: (choreDefinitionId: string, subTaskId: string) => void;
-  /**
-   * Updates or clears the custom display order for chores in a specific Kanban column for a kid.
-   * @param {string} kidId - The ID of the kid.
-   * @param {string} columnIdentifier - A unique string identifying the column (e.g., "daily_active").
-   * @param {string[]} orderedChoreIds - An array of chore instance IDs in the desired order.
-   *                                     Pass an empty array to clear the custom order for the column.
-   */
-  updateKanbanChoreOrder: (kidId: string, columnIdentifier: string, orderedChoreIds: string[]) => void;
-  /**
-   * Updates the `kanbanColumnId` of a specific chore instance.
-   * @param {string} instanceId - The ID of the chore instance to update.
-   * @param {string} newKanbanColumnId - The ID of the new Kanban column for this instance.
-   */
-  updateChoreInstanceColumn: (instanceId: string, newKanbanColumnId: string) => void;
+  generateInstancesForPeriod: (startDate: string, endDate: string, defaultCategory?: MatrixKanbanCategory) => void;
+  // toggleSubTaskComplete: (choreDefinitionId: string, subTaskId: string) => void; // Removed, operates on instance now
+  toggleSubtaskCompletionOnInstance: (instanceId: string, subtaskId: string) => void; // New function
+  // updateKanbanChoreOrder: (kidId: string, columnIdentifier: string, orderedChoreIds: string[]) => void; // Removed for Matrix Kanban
+  // updateChoreInstanceColumn: (instanceId: string, newKanbanColumnId: string) => void; // Removed, categoryStatus handled differently
   /** Toggles the active state of a chore definition (isComplete field). */
   toggleChoreDefinitionActiveState: (definitionId: string) => void;
+  /** Updates the category status of a chore instance and handles related subtask logic. */
+  updateChoreInstanceCategory: (
+    instanceId: string,
+    newCategory: MatrixKanbanCategory,
+    // currentSubtaskCompletions is not strictly needed if we fetch from instance state prior to update
+  ) => void;
 }
 
 // Create the context
@@ -134,32 +122,25 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
   // NEW: State for chore instances
   const [choreInstances, setChoreInstances] = useState<ChoreInstance[]>([]);
 
-  /**
-   * State for managing custom Kanban chore orders.
-   * Persisted in localStorage. The key for an order is typically `${kidId}-${columnIdentifier}`,
-   * e.g., "kid1-daily_active", and the value is an array of chore instance IDs.
-   * @type {[KanbanChoreOrders, React.Dispatch<React.SetStateAction<KanbanChoreOrders>>]}
-   */
-  const [kanbanChoreOrders, setKanbanChoreOrders] = useState<KanbanChoreOrders>(() => {
-    try {
-      const savedOrders = localStorage.getItem('kanbanChoreOrders');
-      return savedOrders ? JSON.parse(savedOrders) : {};
-    } catch (error) {
-      console.error("Error parsing kanbanChoreOrders from localStorage:", error);
-      return {}; // Return default value in case of error
-    }
-  });
+  // const [kanbanChoreOrders, setKanbanChoreOrders] = useState<KanbanChoreOrders>(() => { // Removed
+  //   try {
+  //     const savedOrders = localStorage.getItem('kanbanChoreOrders');
+  //     return savedOrders ? JSON.parse(savedOrders) : {};
+  //   } catch (error) {
+  //     console.error("Error parsing kanbanChoreOrders from localStorage:", error);
+  //     return {}; // Return default value in case of error
+  //   }
+  // });
 
   const { addKidReward } = useFinancialContext();
 
-  // Effect to save kanbanChoreOrders to localStorage whenever it changes
-  useEffect(() => {
-    try {
-      localStorage.setItem('kanbanChoreOrders', JSON.stringify(kanbanChoreOrders));
-    } catch (error) {
-      console.error("Error saving kanbanChoreOrders to localStorage:", error);
-    }
-  }, [kanbanChoreOrders]);
+  // useEffect(() => { // Removed for kanbanChoreOrders
+  //   try {
+  //     localStorage.setItem('kanbanChoreOrders', JSON.stringify(kanbanChoreOrders));
+  //   } catch (error) {
+  //     console.error("Error saving kanbanChoreOrders to localStorage:", error);
+  //   }
+  // }, [kanbanChoreOrders]);
 
   // Effect to save choreDefinitions to localStorage
   useEffect(() => {
@@ -220,19 +201,38 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
   const generateInstancesForPeriod = useCallback((
     periodStartDate: string,
     periodEndDate: string,
-    defaultKanbanColumnId?: string // Optional default column ID for new instances
+    defaultCategory?: MatrixKanbanCategory // Updated parameter for Matrix Kanban
   ) => {
-    console.log(`Generating instances for period: ${periodStartDate} to ${periodEndDate}. Default column ID: ${defaultKanbanColumnId}`);
-    let newInstances = generateChoreInstances(choreDefinitions, periodStartDate, periodEndDate);
+    console.log(`Generating instances for period: ${periodStartDate} to ${periodEndDate}. Default category: ${defaultCategory}`);
 
-    // Assign defaultKanbanColumnId to newly generated instances if provided,
-    // but only if they don't already have one (e.g., from a previous generation if definition didn't change but period did)
-    if (defaultKanbanColumnId) {
-      newInstances = newInstances.map(instance => ({
-        ...instance,
-        kanbanColumnId: instance.kanbanColumnId || defaultKanbanColumnId
-      }));
-    }
+    // Generate raw instances based on definitions and date range
+    const rawNewInstances = generateChoreInstances(choreDefinitions, periodStartDate, periodEndDate);
+
+    const newInstancesWithMatrixFields = rawNewInstances.map(rawInstance => {
+      const definition = choreDefinitions.find(def => def.id === rawInstance.choreDefinitionId);
+      let initialSubtaskCompletions: Record<string, boolean> = {};
+      if (definition && definition.subTasks) {
+        definition.subTasks.forEach(st => {
+          // Initialize based on definition's subTask.isComplete or default to false
+          initialSubtaskCompletions[st.id] = st.isComplete || false;
+        });
+      }
+
+      // This is a ChoreInstance from generateChoreInstances, which might be missing some fields
+      // or have fields that need transformation for the new MatrixKanban model.
+      // The 'id' and 'instanceDate' from rawInstance are correct.
+      // 'choreDefinitionId' is also correct.
+      return {
+        ...rawInstance, // Includes id, choreDefinitionId, instanceDate
+        isComplete: false, // Default for new instances, can be updated by other logic
+        categoryStatus: defaultCategory || "TO_DO",
+        subtaskCompletions: initialSubtaskCompletions,
+        previousSubtaskCompletions: undefined,
+        // Ensure kanbanColumnId is not carried over if it existed on rawInstance from an older model
+        // However, generateChoreInstances likely doesn't add it anymore.
+        // If it did, we'd explicitly unset it here: `kanbanColumnId: undefined,`
+      };
+    });
 
     setChoreInstances(prevInstances => {
       // Filter out any old instances that were for the period we are now regenerating
@@ -248,71 +248,150 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
         return instDate < periodStartNorm || instDate > periodEndNorm;
       });
 
-      // For the newly generated instances, try to preserve completion status and an existing kanbanColumnId
-      // if they existed before (e.g. from a previous generation for the same day if definitions changed).
-      const updatedGeneratedForPeriod = newInstances.map(newInstance => {
+      // For the newly generated instances (now with Matrix fields),
+      // try to preserve existing data if an instance for the same ID (choreDefId + date) already exists.
+      const updatedGeneratedForPeriod = newInstancesWithMatrixFields.map(newInstance => {
         const oldMatchingInstance = prevInstances.find(oldInst => oldInst.id === newInstance.id);
         if (oldMatchingInstance) {
+          // If old instance exists, preserve its matrix-specific fields and overall completion,
+          // but update other details from definition if they changed (already handled by newInstance structure).
           return {
-            ...newInstance,
+            ...newInstance, // Contains latest from definition (via rawInstance) + default matrix fields
             isComplete: oldMatchingInstance.isComplete,
-            // Preserve existing kanbanColumnId if it was already set, otherwise use the new default (already set on newInstance if defaultKanbanColumnId was provided)
-            kanbanColumnId: oldMatchingInstance.kanbanColumnId || newInstance.kanbanColumnId
+            categoryStatus: oldMatchingInstance.categoryStatus, // Preserve existing category
+            subtaskCompletions: oldMatchingInstance.subtaskCompletions, // Preserve existing subtask completions
+            previousSubtaskCompletions: oldMatchingInstance.previousSubtaskCompletions, // Preserve this too
           };
         }
-        // If it's a truly new instance (not found in prevInstances), it already has defaultKanbanColumnId (if provided) from the step above.
+        // If it's a truly new instance (not found in prevInstances), it already has default fields.
         return newInstance;
       });
 
       return [...outsideOfPeriod, ...updatedGeneratedForPeriod];
     });
-  }, [choreDefinitions, setChoreInstances, generateChoreInstances]);
+  }, [choreDefinitions, setChoreInstances]);
 
-  const toggleSubTaskComplete = useCallback((choreDefinitionId: string, subTaskId: string) => {
-    setChoreDefinitions(prevDefs =>
-      prevDefs.map(def => {
-        // Ensure subTasks array exists before mapping
-        if (def.id === choreDefinitionId && def.subTasks) {
-          const updatedSubTasks = def.subTasks.map(st => {
-            if (st.id === subTaskId) {
-              return { ...st, isComplete: !st.isComplete };
-            }
-            return st;
-          });
-          // Check if all subtasks are now complete to potentially mark main chore def (optional logic)
-          // const allSubTasksComplete = updatedSubTasks.every(st => st.isComplete);
-          // if (allSubTasksComplete) { /* Logic to update parent chore's isComplete if needed */ }
-          return { ...def, subTasks: updatedSubTasks };
+  // toggleSubTaskComplete (old version operating on definitions) has been removed.
+  // updateKanbanChoreOrder has been removed.
+  // updateChoreInstanceColumn has been removed.
+
+  const toggleSubtaskCompletionOnInstance = useCallback((instanceId: string, subtaskId: string) => {
+    setChoreInstances(prevInstances => {
+      const instanceIndex = prevInstances.findIndex(inst => inst.id === instanceId);
+      if (instanceIndex === -1) return prevInstances;
+
+      const currentInstance = prevInstances[instanceIndex];
+      const definition = choreDefinitions.find(def => def.id === currentInstance.choreDefinitionId);
+
+      // Should not happen if data is consistent, but good to check.
+      if (!definition) return prevInstances;
+
+      // 1. Toggle the subtask
+      const newSubtaskCompletions = {
+        ...currentInstance.subtaskCompletions,
+        [subtaskId]: !currentInstance.subtaskCompletions?.[subtaskId],
+      };
+
+      let updatedInstance = {
+        ...currentInstance,
+        subtaskCompletions: newSubtaskCompletions
+      };
+      let newCategoryForAutoMove: MatrixKanbanCategory | null = null;
+
+      // Determine if all subtasks are complete
+      // Handles case with no subtasks (allSubtasksComplete will be true)
+      const allSubtasksComplete = definition.subTasks && definition.subTasks.length > 0
+        ? definition.subTasks.every(st => !!updatedInstance.subtaskCompletions[st.id])
+        : true;
+
+      // 2. Determine if automated category change is needed
+      if (updatedInstance.categoryStatus === "TO_DO") {
+        // If any subtask is now complete (and not all of them, which is handled next)
+        const anySubtaskComplete = definition.subTasks && definition.subTasks.length > 0
+          ? definition.subTasks.some(st => !!updatedInstance.subtaskCompletions[st.id])
+          : false; // No subtasks means none are "partially" complete for this rule.
+
+        if (anySubtaskComplete && !allSubtasksComplete) {
+          newCategoryForAutoMove = "IN_PROGRESS";
         }
-        return def;
-      })
-    );
-  }, [setChoreDefinitions]);
-
-  const updateKanbanChoreOrder = useCallback((kidId: string, columnIdentifier: string, orderedChoreIds: string[]): void => {
-    const key = `${kidId}-${columnIdentifier}`;
-    setKanbanChoreOrders(prevOrders => {
-      const newOrders = { ...prevOrders };
-      if (orderedChoreIds && orderedChoreIds.length > 0) {
-        newOrders[key] = orderedChoreIds;
-      } else {
-        // If the new order is empty, undefined, or an empty array, remove the key to clear the custom order.
-        delete newOrders[key];
       }
-      return newOrders;
-    });
-  }, [setKanbanChoreOrders]);
 
-  const updateChoreInstanceColumn = useCallback((instanceId: string, newKanbanColumnId: string): void => {
-    setChoreInstances(prevInstances =>
-      prevInstances.map(instance =>
-        instance.id === instanceId
-          // Consider adding an 'updatedAt' field to ChoreInstance for more detailed tracking of changes.
-          ? { ...instance, kanbanColumnId: newKanbanColumnId }
-          : instance
-      )
-    );
-  }, [setChoreInstances]);
+      // This check can override the TO_DO -> IN_PROGRESS if checking the last subtask makes all complete.
+      // Also handles moving from IN_PROGRESS -> COMPLETED.
+      if (allSubtasksComplete && updatedInstance.categoryStatus !== "COMPLETED") {
+        newCategoryForAutoMove = "COMPLETED";
+      }
+
+      // 3. If an automated move is determined, apply category change logic (from updateChoreInstanceCategory)
+      if (newCategoryForAutoMove) {
+        let finalSubtaskCompletions = { ...updatedInstance.subtaskCompletions };
+        let finalPreviousSubtaskCompletions = updatedInstance.previousSubtaskCompletions;
+        let finalOverallInstanceComplete = updatedInstance.isComplete; // Start with current
+
+        const oldCategoryForAutoMove = updatedInstance.categoryStatus; // Category before this auto-move
+
+        if (newCategoryForAutoMove === "COMPLETED") {
+          finalPreviousSubtaskCompletions = { ...updatedInstance.subtaskCompletions };
+          if (definition.subTasks && definition.subTasks.length > 0) {
+            definition.subTasks.forEach(st => finalSubtaskCompletions[st.id] = true);
+          } else {
+            finalSubtaskCompletions = {};
+          }
+          finalOverallInstanceComplete = true;
+        } else if (oldCategoryForAutoMove === "COMPLETED" && newCategoryForAutoMove === "IN_PROGRESS") {
+          // This specific auto-move (COMPLETED -> IN_PROGRESS) is not typically triggered by subtask toggle,
+          // but by direct drag. Included for completeness if a subtask uncheck could trigger it.
+          if (updatedInstance.previousSubtaskCompletions) {
+            finalSubtaskCompletions = { ...updatedInstance.previousSubtaskCompletions };
+          }
+          finalPreviousSubtaskCompletions = undefined;
+          if (definition.subTasks && definition.subTasks.length > 0) {
+            finalOverallInstanceComplete = definition.subTasks.every(st => !!finalSubtaskCompletions[st.id]);
+          } else {
+            finalOverallInstanceComplete = false;
+          }
+        } else if (newCategoryForAutoMove === "TO_DO") { // Should not happen from subtask toggle if already in TO_DO or IN_PROGRESS
+            // This case is mostly for direct moves, but if logic leads here:
+            if (definition.subTasks && definition.subTasks.length > 0) {
+                definition.subTasks.forEach(st => finalSubtaskCompletions[st.id] = false);
+            } else {
+                finalSubtaskCompletions = {};
+            }
+            finalPreviousSubtaskCompletions = undefined;
+            finalOverallInstanceComplete = false;
+        } else if (newCategoryForAutoMove === "IN_PROGRESS") { // Moving from TO_DO
+            if (definition.subTasks && definition.subTasks.length > 0) {
+                finalOverallInstanceComplete = definition.subTasks.every(st => !!finalSubtaskCompletions[st.id]);
+            } else { // No subtasks, cannot be "complete by subtasks"
+                finalOverallInstanceComplete = false;
+            }
+        }
+
+        updatedInstance = {
+          ...updatedInstance,
+          categoryStatus: newCategoryForAutoMove,
+          subtaskCompletions: finalSubtaskCompletions,
+          previousSubtaskCompletions: finalPreviousSubtaskCompletions,
+          isComplete: finalOverallInstanceComplete,
+        };
+      } else { // No category change, but update isComplete if in IN_PROGRESS or TO_DO
+        if (updatedInstance.categoryStatus === "IN_PROGRESS") {
+          if (definition.subTasks && definition.subTasks.length > 0) {
+            updatedInstance.isComplete = definition.subTasks.every(st => !!updatedInstance.subtaskCompletions[st.id]);
+          } else { // No subtasks
+            updatedInstance.isComplete = false; // Not in COMPLETED category, so not "complete"
+          }
+        } else if (updatedInstance.categoryStatus === "TO_DO") {
+          updatedInstance.isComplete = false; // Always false in TO_DO
+        }
+        // If category is COMPLETED, isComplete is true and handled by direct moves or the allSubtasksComplete logic above.
+      }
+
+      const finalInstances = [...prevInstances];
+      finalInstances[instanceIndex] = updatedInstance;
+      return finalInstances;
+    });
+  }, [choreDefinitions, setChoreInstances]);
 
   /**
    * Toggles the active state of a chore definition.
@@ -331,30 +410,103 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     // This won't affect existing chore instances' completion status.
   }, [setChoreDefinitions]);
 
+  const updateChoreInstanceCategory = useCallback((
+    instanceId: string,
+    newCategory: MatrixKanbanCategory,
+  ) => {
+    setChoreInstances(prevInstances =>
+      prevInstances.map(instance => {
+        if (instance.id === instanceId) {
+          const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
+          let updatedSubtaskCompletions = { ...instance.subtaskCompletions };
+          let updatedPreviousSubtaskCompletions = instance.previousSubtaskCompletions;
+          let overallInstanceComplete = instance.isComplete;
+
+          const oldCategory = instance.categoryStatus;
+
+          if (newCategory === "COMPLETED") {
+            updatedPreviousSubtaskCompletions = { ...instance.subtaskCompletions }; // Store current state
+            if (definition && definition.subTasks && definition.subTasks.length > 0) {
+              definition.subTasks.forEach(st => updatedSubtaskCompletions[st.id] = true);
+            } else { // No subtasks, chore is complete by moving to COMPLETED
+              updatedSubtaskCompletions = {}; // Ensure it's an object
+            }
+            overallInstanceComplete = true;
+          } else if (oldCategory === "COMPLETED" && newCategory === "IN_PROGRESS") {
+            if (instance.previousSubtaskCompletions) {
+              updatedSubtaskCompletions = { ...instance.previousSubtaskCompletions };
+            }
+            updatedPreviousSubtaskCompletions = undefined;
+            // Recalculate completion based on restored subtasks
+            if (definition && definition.subTasks && definition.subTasks.length > 0) {
+              overallInstanceComplete = definition.subTasks.every(st => !!updatedSubtaskCompletions[st.id]);
+            } else { // No subtasks
+              overallInstanceComplete = false; // Cannot be "complete" by subtask logic if not in COMPLETED category
+            }
+          } else if (newCategory === "TO_DO") {
+            if (definition && definition.subTasks && definition.subTasks.length > 0) {
+              definition.subTasks.forEach(st => updatedSubtaskCompletions[st.id] = false);
+            } else {
+              updatedSubtaskCompletions = {};
+            }
+            updatedPreviousSubtaskCompletions = undefined;
+            overallInstanceComplete = false;
+          } else if (newCategory === "IN_PROGRESS") {
+              // If moving to IN_PROGRESS (not from COMPLETED), isComplete depends on subtasks
+              if (definition && definition.subTasks && definition.subTasks.length > 0) {
+                  overallInstanceComplete = definition.subTasks.every(st => !!updatedSubtaskCompletions[st.id]);
+              } else { // No subtasks
+                  overallInstanceComplete = false; // Not in COMPLETED, and no subtasks to make it complete by that rule
+              }
+          }
+          // If it's none of the above specific category transitions,
+          // isComplete should ideally be re-evaluated based on subtasks for IN_PROGRESS,
+          // or remain as is if subtasks aren't the sole determinant.
+          // For now, the above conditions cover primary cases.
+          // An instance moved to IN_PROGRESS without subtasks is not 'isComplete'.
+          // An instance moved to TO_DO is not 'isComplete'.
+
+          return {
+            ...instance,
+            categoryStatus: newCategory,
+            subtaskCompletions: updatedSubtaskCompletions,
+            previousSubtaskCompletions: updatedPreviousSubtaskCompletions,
+            isComplete: overallInstanceComplete,
+          };
+        }
+        return instance;
+      })
+    );
+  }, [choreDefinitions, setChoreInstances]); // Added setChoreInstances, choreDefinitions is correct
+
   const contextValue = useMemo(() => ({
     choreDefinitions,
     choreInstances,
-    kanbanChoreOrders,
+    // kanbanChoreOrders, // Removed
     addChoreDefinition,
     toggleChoreInstanceComplete,
     getChoreDefinitionsForKid,
     generateInstancesForPeriod,
-    toggleSubTaskComplete,
-    updateKanbanChoreOrder,
-    updateChoreInstanceColumn,
+    // toggleSubTaskComplete, // Removed
+    // updateKanbanChoreOrder, // Removed
+    // updateChoreInstanceColumn, // Removed
     toggleChoreDefinitionActiveState,
+    toggleSubtaskCompletionOnInstance,
+    updateChoreInstanceCategory, // Added new function
   }), [
     choreDefinitions,
     choreInstances,
-    kanbanChoreOrders,
+    // kanbanChoreOrders, // Removed
     addChoreDefinition,
     toggleChoreInstanceComplete,
     getChoreDefinitionsForKid,
     generateInstancesForPeriod,
-    toggleSubTaskComplete,
-    updateKanbanChoreOrder,
-    updateChoreInstanceColumn,
+    // toggleSubTaskComplete, // Removed
+    // updateKanbanChoreOrder, // Removed
+    // updateChoreInstanceColumn, // Removed
     toggleChoreDefinitionActiveState,
+    toggleSubtaskCompletionOnInstance,
+    updateChoreInstanceCategory, // Added new function
   ]);
   // Note on useCallback/useMemo: All functions (like addChoreDefinition, toggleChoreInstanceComplete)
   // are wrapped in useCallback to stabilize their references. The entire contextValue object

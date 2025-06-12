@@ -5,13 +5,23 @@
  * for chore reordering (persisted via ChoresContext) and moving chores
  * between these dynamic columns (updating choreInstance.kanbanColumnId via ChoresContext).
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { useUserContext } from '../../contexts/UserContext';
-import type { ChoreDefinition, ChoreInstance, KanbanPeriod, KanbanColumn as KanbanColumnType, ColumnThemeOption, KanbanColumnConfig } from '../../types';
-import KanbanColumn from './KanbanColumn';
-import KanbanCard from './KanbanCard';
-import * as DndKit from '@dnd-kit/core';
+import type { ChoreDefinition, ChoreInstance, KanbanPeriod, KanbanColumn as KanbanColumnType, ColumnThemeOption, MatrixKanbanCategory } from '../../types'; // Added MatrixKanbanCategory
+// import KanbanColumn from './KanbanColumn'; // Old column component, commented out
+import KanbanCard from './KanbanCard'; // Still used for DragOverlay if re-enabled, and will be used in swimlanes
+import DateColumnView from './DateColumnView'; // Import the new component
+import {
+  DndContext,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  DragOverlay,
+} from '@dnd-kit/core';
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { getTodayDateString, getWeekRange, getMonthRange } from '../../utils/dateUtils';
 
@@ -54,16 +64,17 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     choreDefinitions,
     choreInstances,
     generateInstancesForPeriod,
-    updateKanbanChoreOrder,
-    kanbanChoreOrders,
-    updateChoreInstanceColumn
+    // updateKanbanChoreOrder, // Old, not used by Matrix D&D
+    // kanbanChoreOrders, // Old, not used by Matrix D&D
+    // updateChoreInstanceColumn, // Old, not used by Matrix D&D
+    updateChoreInstanceCategory, // New function for Matrix D&D
   } = useChoresContext();
-  const { getKanbanColumnConfigs } = useUserContext();
+  const { getKanbanColumnConfigs } = useUserContext(); // Still used for initial default column in generateInstances and potentially filters
 
   /** State for the selected time period (daily, weekly, monthly) for displaying chores. */
   const [selectedPeriod, setSelectedPeriod] = useState<KanbanPeriod>('daily');
   /** State representing the dynamically configured columns and the chores within them for the Kanban board. */
-  const [columns, setColumns] = useState<KanbanColumnType[]>([]);
+  // const [columns, setColumns] = useState<KanbanColumnType[]>([]); // Old state for column-based kanban
   /** State holding the active chore instance and definition being dragged, for DragOverlay. */
   const [activeDragItem, setActiveDragItem] = useState<ActiveDragItem | null>(null);
   /**
@@ -88,6 +99,13 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     return storedTheme || 'default';
   });
 
+  // State for Matrix Kanban date navigation
+  const [currentVisibleStartDate, setCurrentVisibleStartDate] = useState(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Zero out time for consistent day calculations
+    return today;
+  });
+
   /** Effect to save selected column theme to localStorage. */
   useEffect(() => {
     localStorage.setItem('kanban_columnTheme', selectedColumnTheme);
@@ -108,7 +126,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
 
   /** Memoized calculation of the date range for the selected period. */
   const currentPeriodDateRange = useMemo(() => {
-    const today = new Date();
+    const today = new Date(); // Use today for base, then adjust based on selectedPeriod for fixed ranges
     if (selectedPeriod === 'daily') {
       const todayStr = getTodayDateString();
       return { start: todayStr, end: todayStr };
@@ -161,8 +179,8 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     const userColumnConfigs = getKanbanColumnConfigs(kidId);
     const sortedUserColumnConfigs = [...userColumnConfigs].sort((a,b) => a.order - b.order);
     const defaultKanbanColumnId = sortedUserColumnConfigs.length > 0
-                                  ? sortedUserColumnConfigs[0].id
-                                  : undefined;
+                                   ? sortedUserColumnConfigs[0].id
+                                   : undefined;
     if (currentPeriodDateRange.start && currentPeriodDateRange.end) {
       generateInstancesForPeriod(
         currentPeriodDateRange.start,
@@ -190,16 +208,20 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
    */
   useEffect(() => {
     if (!kidId) {
-        setColumns([]);
+        // setColumns([]); // Old state
         return;
     }
-    const userColumnConfigs = getKanbanColumnConfigs(kidId).sort((a, b) => a.order - b.order);
+    // This effect was for the old column-based Kanban.
+    // It might be removed or adapted later if a different data structure is needed for the matrix view
+    // that isn't directly rendered from choreInstances. For now, commenting out its core logic.
+    // const userColumnConfigs = getKanbanColumnConfigs(kidId).sort((a, b) => a.order - b.order);
 
+    /*
     const kidAndPeriodInstances = choreInstances.filter(instance => {
       const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
       return definition && definition.assignedKidId === kidId &&
-             instance.instanceDate >= currentPeriodDateRange.start &&
-             instance.instanceDate <= currentPeriodDateRange.end;
+                   instance.instanceDate >= currentPeriodDateRange.start &&
+                   instance.instanceDate <= currentPeriodDateRange.end;
     });
 
     const filteredInstancesOverall = kidAndPeriodInstances.filter(instance => {
@@ -258,145 +280,178 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     });
 
     setColumns(newKanbanColumns);
+    */
 
   }, [
     kidId, selectedPeriod, choreInstances, choreDefinitions, currentPeriodDateRange,
-    rewardFilter, sortBy, sortDirection, kanbanChoreOrders, getKanbanColumnConfigs
+    rewardFilter, sortBy, sortDirection,
+    // kanbanChoreOrders, // Removed
+    getKanbanColumnConfigs // Kept if filters/sorts are to be re-enabled/adapted
   ]);
 
-  const getDefinitionForInstance = (instance: ChoreInstance): ChoreDefinition | undefined => {
+  const getDefinitionForInstance = useCallback((instance: ChoreInstance): ChoreDefinition | undefined => {
     return choreDefinitions.find(def => def.id === instance.choreDefinitionId);
-  };
+  }, [choreDefinitions]); // Added choreDefinitions dependency
 
-  const sensors = DndKit.useSensors(
-    DndKit.useSensor(DndKit.PointerSensor),
-    DndKit.useSensor(DndKit.KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  function handleDragStart(event: DndKit.DragStartEvent) {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
     const { active } = event;
     const instance = choreInstances.find(inst => inst.id === active.id.toString());
     if (instance) {
       const definition = getDefinitionForInstance(instance);
-      // Store the instance and its definition in activeDragItem for use in DragOverlay and handleDragEnd.
-      if (definition) setActiveDragItem({ instance, definition });
-      else setActiveDragItem(null);
+      if (definition) {
+        setActiveDragItem({ instance, definition });
+      } else {
+        setActiveDragItem(null); // Should not happen if data is consistent
+      }
     } else {
       setActiveDragItem(null);
     }
-  }
+  }, [choreInstances, getDefinitionForInstance]);
 
-  function handleDragEnd(event: DndKit.DragEndEvent) {
-    // Capture activeDragItem before clearing it, to use its data for feedback message.
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    // Logic from the 'main' branch, integrated into the prioritized 'useCallback' structure.
+    // This captures the dragged item and clears the active state, which is important for UI feedback.
     const currentActiveDragItem = activeDragItem;
     setActiveDragItem(null);
+
     const { active, over } = event;
+    // setActiveDragItem(null); // Already handled above
 
-    if (!over) return;
-
-    const activeId = active.id.toString();
-    const overId = over.id.toString();
-    const activeContainerId = active.data.current?.sortable?.containerId;
-    let overContainerId = over.data.current?.sortable?.containerId;
-
-    if (!overContainerId) {
-      const isOverColumn = columns.some(col => col.id === over.id.toString());
-      if (isOverColumn) overContainerId = over.id.toString();
-      else {
-        const columnContainingOverItem = columns.find(col => col.chores.some(chore => chore.id === overId));
-        if (columnContainingOverItem) overContainerId = columnContainingOverItem.id;
-      }
+    if (!over || !active) {
+      return;
     }
 
-    if (!activeContainerId || !overContainerId) return;
+    const activeInstanceId = active.id.toString();
+    const overSwimlaneId = over.id.toString(); // This ID is `${dateString}-${category}`
 
-    if (activeId === overId && activeContainerId === overContainerId) {
-        const itemsInColumn = columns.find(col => col.id === activeContainerId)?.chores || [];
-        const oldIdx = itemsInColumn.findIndex(item => item.id === activeId);
-        const newIdx = itemsInColumn.findIndex(item => item.id === overId);
-        if (oldIdx === newIdx) return;
+    const activeInstance = choreInstances.find(inst => inst.id === activeInstanceId);
+    if (!activeInstance) return;
+
+    // Parse the target date and category from the swimlane ID
+    const parts = overSwimlaneId.split('-');
+    if (parts.length < 4) { // Expecting YYYY-MM-DD-CATEGORY (e.g. 3 parts for date, 1 for category)
+        console.warn("Invalid swimlane ID format:", overSwimlaneId);
+        return;
+    }
+    const targetDateString = parts.slice(0, 3).join('-'); // e.g., "2023-10-01"
+    const newCategory = parts.slice(3).join('-') as MatrixKanbanCategory; // e.g., "TO_DO"
+
+    // Constraint: Only allow category changes within the same date column for this implementation
+    if (activeInstance.instanceDate !== targetDateString) {
+      setActionFeedbackMessage("Chores can only be moved between categories for the same day in this view.");
+      // Optional: Could provide visual indication of invalid drop target earlier (e.g. in useDroppable's data)
+      return;
     }
 
-    setColumns(prev => {
-      const activeColumn = prev.find(col => col.id === activeContainerId);
-      const overColumn = prev.find(col => col.id === overContainerId);
+    // If dropped on a different swimlane (category change) but same date
+    if (activeInstance.categoryStatus !== newCategory) {
+      updateChoreInstanceCategory(activeInstanceId, newCategory);
 
-      if (!activeColumn || !overColumn) return prev;
+      const definition = getDefinitionForInstance(activeInstance);
+      const choreTitle = definition?.title || "Chore";
+      const categoryTitles: Record<MatrixKanbanCategory, string> = {
+        TO_DO: "To Do",
+        IN_PROGRESS: "In Progress",
+        COMPLETED: "Completed"
+      };
+      setActionFeedbackMessage(`${choreTitle} moved to ${categoryTitles[newCategory]}.`);
+    }
+    // Note: Reordering within the same swimlane (active.id !== over.id but same container)
+    // is not explicitly handled here yet. That would require updateKanbanChoreOrder or similar
+    // if `SortableContext` is used per swimlane and items are reordered.
+    // For now, the main goal is category change.
 
-      if (activeContainerId === overContainerId) {
-        const oldIndex = activeColumn.chores.findIndex(item => item.id === activeId);
-        const newIndex = activeColumn.chores.findIndex(item => item.id === overId);
-        if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-          const updatedChores = arrayMove(activeColumn.chores, oldIndex, newIndex);
-          updateKanbanChoreOrder(kidId, activeContainerId, updatedChores.map(c => c.id));
-          // No specific feedback for same-column reorder, but could be added.
-          // Example: setActionFeedbackMessage(`${currentActiveDragItem?.definition.title || 'Chore'} reordered in ${activeColumn.title}.`);
-          return prev.map(col => col.id === activeContainerId ? { ...col, chores: updatedChores } : col);
-        }
-      } else {
-        const sourceChores = [...activeColumn.chores];
-        const destChores = [...overColumn.chores];
-        const activeItemIndex = sourceChores.findIndex(item => item.id === activeId);
+  }, [activeDragItem, setActiveDragItem, choreInstances, updateChoreInstanceCategory, getDefinitionForInstance, setActionFeedbackMessage]);
 
-        if (activeItemIndex === -1) return prev;
-
-        const [movedItemOriginal] = sourceChores.splice(activeItemIndex, 1);
-        let itemToMove = { ...movedItemOriginal, kanbanColumnId: overColumn.id };
-
-        updateChoreInstanceColumn(itemToMove.id, overColumn.id);
-
-        // Set feedback message for inter-column move.
-        const title = currentActiveDragItem?.definition?.title || 'Chore'; // Use title from captured activeDragItem
-        setActionFeedbackMessage(`${title} moved to ${overColumn.title}.`);
-
-        let overIndex = destChores.findIndex(item => item.id === overId);
-        if (overId === overColumn.id || overIndex === -1) {
-          overIndex = destChores.length;
-        }
-        destChores.splice(overIndex, 0, itemToMove);
-
-        return prev.map(col => {
-          if (col.id === activeContainerId) return { ...col, chores: sourceChores };
-          if (col.id === overContainerId) return { ...col, chores: destChores };
-          return col;
-        });
-      }
-      return prev;
-    });
-  }
-
-  function handleDragCancel() {
+  const handleDragCancel = useCallback(() => {
     setActiveDragItem(null);
-  }
+  }, []);
 
-  const userColumnConfigs = getKanbanColumnConfigs(kidId);
+  // const userColumnConfigs = getKanbanColumnConfigs(kidId); // Not directly used for matrix rendering
+
+  // Date Navigation Functions
+  const adjustDate = useCallback((currentDate: Date, adjustment: (date: Date) => void) => {
+    const newDate = new Date(currentDate);
+    adjustment(newDate);
+    newDate.setHours(0,0,0,0); // Ensure time is zeroed out
+    setCurrentVisibleStartDate(newDate);
+  }, []);
+
+  const goToPreviousDay = () => adjustDate(currentVisibleStartDate, date => date.setDate(date.getDate() - 1));
+  const goToNextDay = () => adjustDate(currentVisibleStartDate, date => date.setDate(date.getDate() + 1));
+  const goToPreviousWeek = () => adjustDate(currentVisibleStartDate, date => date.setDate(date.getDate() - 7));
+  const goToNextWeek = () => adjustDate(currentVisibleStartDate, date => date.setDate(date.getDate() + 7));
+  const goToPreviousMonth = () => adjustDate(currentVisibleStartDate, date => date.setMonth(date.getMonth() - 1));
+  const goToNextMonth = () => adjustDate(currentVisibleStartDate, date => date.setMonth(date.getMonth() + 1));
+  const goToToday = () => {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    setCurrentVisibleStartDate(today);
+  };
+
+  const visibleDates = useMemo(() => {
+    const dates: Date[] = [];
+    const startDate = new Date(currentVisibleStartDate);
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(startDate);
+      day.setDate(startDate.getDate() + i);
+      dates.push(day);
+    }
+    return dates;
+  }, [currentVisibleStartDate]);
+
+  // Format function for date headers (e.g., "Mon, Jun 12")
+  const formatDateHeader = (date: Date): string => {
+    return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+
 
   return (
-    <DndKit.DndContext
+    <DndContext
       sensors={sensors}
-      collisionDetection={DndKit.closestCenter}
+      collisionDetection={closestCenter}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
       <div className="kid-kanban-board">
-        {/* Action feedback message display area.
-            Role "status" and aria-live "polite" make it an announcement region for screen readers. */}
+        {/* Action feedback message display area */}
         {actionFeedbackMessage && (
           <div className="kanban-action-feedback" role="status" aria-live="polite">
             {actionFeedbackMessage}
           </div>
         )}
-        <div className="period-selector" style={{ marginBottom: '15px' }}>
+
+        {/* Date Navigation Controls */}
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' }}>
+          <button onClick={goToPreviousMonth}>&lt;&lt; Month</button>
+          <button onClick={goToPreviousWeek}>&lt; Week</button>
+          <button onClick={goToPreviousDay}>&lt; Day</button>
+          <button onClick={goToToday} style={{ fontWeight: 'bold' }}>Today</button>
+          <button onClick={goToNextDay}>Day &gt;</button>
+          <button onClick={goToNextWeek}>Week &gt;</button>
+          <button onClick={goToNextMonth}>Month &gt;&gt;</button>
+        </div>
+
+        {/* Period Selectors (Daily, Weekly, Monthly) - Kept from original */}
+        <div className="period-selector" style={{ marginBottom: '15px', textAlign: 'center' }}>
           <button onClick={() => setSelectedPeriod('daily')} disabled={selectedPeriod === 'daily'}>Daily</button>
           <button onClick={() => setSelectedPeriod('weekly')} disabled={selectedPeriod === 'weekly'}>Weekly</button>
           <button onClick={() => setSelectedPeriod('monthly')} disabled={selectedPeriod === 'monthly'}>Monthly</button>
         </div>
+
+        {/* Current Period Display (e.g., "Week: Sep 10, 2023 - Sep 16, 2023") - Kept from original */}
         <div className="current-period-display" style={{ marginBottom: '15px', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1em' }}>
           {currentPeriodDisplayString}
         </div>
 
-        <div className="kanban-controls" style={{ display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '15px', flexWrap: 'wrap' }}>
+        {/* Old Kanban Controls - Commenting out for now, may be repurposed or removed later */}
+        {/* <div className="kanban-controls" style={{ display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '15px', flexWrap: 'wrap' }}>
           <div>
             <label htmlFor="rewardFilterSelect" style={{ marginRight: '5px' }}>Filter by Reward:</label>
             <select id="rewardFilterSelect" value={rewardFilter} onChange={(e) => setRewardFilter(e.target.value as RewardFilterOption)} style={{ padding: '5px' }}>
@@ -412,12 +467,12 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
                 setSortBy(newSortBy);
                 if (newSortBy === 'rewardAmount') setSortDirection('desc');
                 else setSortDirection('asc');
-                if (newSortBy !== 'instanceDate') {
-                  const currentKidColumns = getKanbanColumnConfigs(kidId);
-                  currentKidColumns.forEach(config => {
-                    updateKanbanChoreOrder(kidId, config.id, []);
-                  });
-                }
+                // if (newSortBy !== 'instanceDate') { // This logic is tied to old kanbanChoreOrders
+                //    const currentKidColumns = getKanbanColumnConfigs(kidId);
+                //    currentKidColumns.forEach(config => {
+                //       updateKanbanChoreOrder(kidId, config.id, []);
+                //    });
+                // }
               }} style={{ padding: '5px' }}>
               <option value="instanceDate">My Order / Due Date</option>
               <option value="title">Title</option>
@@ -438,44 +493,36 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
               <option value="ocean">Ocean</option>
             </select>
           </div>
-        </div>
+        </div> */}
 
-        {kidId && userColumnConfigs.length === 0 && (
-          <div style={{ padding: '20px', textAlign: 'center', backgroundColor: 'var(--surface-color-hover)', borderRadius: 'var(--border-radius-lg)'}}>
-            <p>No Kanban columns are set up for this kid yet.</p>
-            <p>Please go to Settings &gt; Kanban Column Settings to configure them.</p>
-          </div>
-        )}
-
-        <div
-          className="kanban-columns"
-          style={{ display: 'flex', gap: '10px' }}
-          role="list" // Changed from group, as it's a list of columns (which are groups)
-          aria-label="Kanban board columns"
-        >
-          {columns.map(col => (
-            <KanbanColumn
-              key={col.id}
-              column={col}
-              getDefinitionForInstance={getDefinitionForInstance}
-              theme={selectedColumnTheme}
-            />
+        {/* Matrix Kanban Grid */}
+        <div className="matrix-kanban-header" style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '5px', borderBottom: '1px solid #ccc', paddingBottom: '5px' }}>
+          {visibleDates.map(date => (
+            <div key={date.toISOString()} className="date-header" style={{ flex: 1, textAlign: 'center', fontWeight: 'bold' }}>
+              {formatDateHeader(date)}
+            </div>
           ))}
-          {kidId && userColumnConfigs.length > 0 && columns.every(col => col.chores.length === 0) &&
-            <p style={{padding: '20px'}}>No chores to display for this period or matching current filters in any column.</p>
-          }
         </div>
+        <div className="matrix-kanban-body" style={{ display: 'flex', justifyContent: 'space-around', gap: '5px' }}>
+          {visibleDates.map(date => (
+            <DateColumnView key={date.toISOString()} date={date} />
+          ))}
+        </div>
+
+        {/* Old Kanban Columns rendering - Commented out */}
+        {/* {kidId && userColumnConfigs.length === 0 && ( ... ) } */}
+        {/* Old kanban-columns div ... */}
       </div>
-      <DndKit.DragOverlay dropAnimation={null}>
+      <DragOverlay dropAnimation={null}>
         {activeDragItem ? (
           <KanbanCard
             instance={activeDragItem.instance}
             definition={activeDragItem.definition}
-            isOverlay={true} // Pass isOverlay to distinguish the drag preview from the actual sortable item
+            isOverlay={true} // Ensure this prop is used by KanbanCard for distinct styling
           />
         ) : null}
-      </DndKit.DragOverlay>
-    </DndKit.DndContext>
+      </DragOverlay>
+    </DndContext>
   );
 };
 
