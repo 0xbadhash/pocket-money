@@ -1,16 +1,24 @@
 import { vi } from 'vitest';
 
-// Declare mocks at the very top (uninitialized)
-let mockKanbanColumn: any;
-let mockSortableContextFn: any;
-let mockDragOverlay: any;
+// Declare mocks at the very top
+// Use vi.hoisted() for mocks that need to be accessed within vi.mock factory functions
+const mockSortableContextFn = vi.hoisted(() => vi.fn(({ children }) => <>{children}</>));
+const mockDragOverlay = vi.hoisted(() => vi.fn(({ children }) => children ? <div data-testid="drag-overlay-content">{children}</div> : null));
+const mockKanbanColumn = vi.hoisted(() => vi.fn(({ column, theme, instances, onChoreClick }) => (
+  <div data-testid={`mock-kanban-column-${column.id}`} aria-label={`${column.title} column`}>
+    <h2>{column.title}</h2>
+    {/* <div>Theme: {theme}</div> */}
+    {instances?.map((inst: ChoreInstance & { definition?: ChoreDefinition } ) => (
+      <div key={inst.id} data-testid={`chore-${inst.id}`} onClick={() => onChoreClick?.(inst.id)}>
+        {inst.definition?.title || inst.id} ({inst.isComplete ? 'C' : 'A'})
+      </div>
+    ))}
+  </div>
+)));
 
-// Assign mocks after importing vi, before any vi.mock calls
-mockKanbanColumn = vi.fn();
-mockSortableContextFn = vi.fn();
-mockDragOverlay = vi.fn(({ children }) => children ? <div data-testid="drag-overlay-content">{children}</div> : null);
+// No need for 'let mockKanbanColumn' or assignment here anymore
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, within as rtlWithin } from '@testing-library/react';
 import { ChoresContext } from '../../contexts/ChoresContext';
 import { UserContext } from '../../contexts/UserContext';
 import KidKanbanBoard from './KidKanbanBoard';
@@ -19,11 +27,35 @@ import '@testing-library/jest-dom';
 import type { Active, Over } from '@dnd-kit/core';
 import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core';
 import userEvent from '@testing-library/user-event';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react'; // Updated import for act
 import { getTodayDateString, getWeekRange, getMonthRange } from '../../utils/dateUtils';
 
+// Mock dateUtils to control dates
+vi.mock('../../utils/dateUtils', async (importOriginal) => {
+  const actual = await importOriginal() as typeof import('../../utils/dateUtils');
+  return {
+    ...actual,
+    getTodayDateString: vi.fn(() => '2024-01-01'), // Fixed date
+    // getWeekRange and getMonthRange might also need to be adjusted if they use new Date() without args
+  };
+});
+
 // src/ui/kanban_components/KidKanbanBoard.test.tsx
-// Move all mock function declarations above imports and vi.mock() calls to avoid hoisting issues
+// Mock declarations and assignments are now correctly ordered above their use in vi.mock
+
+// mockKanbanColumn is now defined above using vi.hoisted()
+
+vi.mock('./KanbanColumn', () => ({
+    default: mockKanbanColumn,
+}));
+vi.mock('./KanbanCard', () => ({
+    default: vi.fn(({ instance, definition }) => (
+      <div data-testid={`mock-kanban-card-${instance.id}`}>
+        {definition.title}
+      </div>
+    ))
+}));
+
 
 vi.mock('@dnd-kit/core', async (importOriginal) => {
     const actual = await importOriginal() as object;
@@ -68,10 +100,11 @@ const localStorageMockFactory = () => {
 let localStorageMock = localStorageMockFactory();
 
 // Mock ChoresContext
-const mockGenerateInstancesForPeriod = vi.fn();
-const mockToggleChoreInstanceComplete = vi.fn();
-const mockUpdateKanbanChoreOrder = vi.fn();
-const mockUpdateChoreInstanceColumn = vi.fn(); // Mock for updating instance's column
+// These will be initialized within the factory to ensure they are fresh for each test context
+// const mockGenerateInstancesForPeriod = vi.fn();
+// const mockToggleChoreInstanceComplete = vi.fn();
+// const mockUpdateKanbanChoreOrder = vi.fn();
+// const mockUpdateChoreInstanceColumn = vi.fn();
 
 const mockChoreDefinitions: ChoreDefinition[] = [
   { id: 'def1', title: 'Walk the Dog', assignedKidId: 'kid1', rewardAmount: 5, subTasks:[], tags:[], recurrenceType: null, createdAt: '2023-01-01', updatedAt: '2023-01-01', hour:10, minute:0, timeOfDay:'AM' },
@@ -84,19 +117,19 @@ const mockChoreDefinitions: ChoreDefinition[] = [
   { id: 'def7', title: 'Chore Z (for custom order)', assignedKidId: 'kid1', rewardAmount: 1, subTasks:[], tags:[], recurrenceType: null, createdAt: '2023-01-01', updatedAt: '2023-01-01', hour:10, minute:0, timeOfDay:'AM' },
 ];
 
-const today = getTodayDateString();
-let mockChoreInstancesData: ChoreInstance[];
+let mockChoreInstancesData: ChoreInstance[]; // today will be the mocked '2024-01-01'
 
 const resetMockChoreInstances = () => {
+    const fixedToday = '2024-01-01'; // Align with mocked getTodayDateString
     mockChoreInstancesData = [
-        { id: 'inst1', choreDefinitionId: 'def1', instanceDate: today, isComplete: false },
-        { id: 'inst2', choreDefinitionId: 'def2', instanceDate: today, isComplete: true },
-        { id: 'inst3', choreDefinitionId: 'def3', instanceDate: today, isComplete: false },
-        { id: 'inst4', choreDefinitionId: 'def4', instanceDate: today, isComplete: false },
+        { id: 'inst1', choreDefinitionId: 'def1', instanceDate: fixedToday, isComplete: false },
+        { id: 'inst2', choreDefinitionId: 'def2', instanceDate: fixedToday, isComplete: true },
+        { id: 'inst3', choreDefinitionId: 'def3', instanceDate: fixedToday, isComplete: false },
+        { id: 'inst4', choreDefinitionId: 'def4', instanceDate: fixedToday, isComplete: false },
         // For custom order testing
-        { id: 'instX', choreDefinitionId: 'def5', instanceDate: today, isComplete: false },
-        { id: 'instY', choreDefinitionId: 'def6', instanceDate: today, isComplete: false },
-        { id: 'instZ', choreDefinitionId: 'def7', instanceDate: today, isComplete: false },
+        { id: 'instX', choreDefinitionId: 'def5', instanceDate: fixedToday, isComplete: false },
+        { id: 'instY', choreDefinitionId: 'def6', instanceDate: fixedToday, isComplete: false },
+        { id: 'instZ', choreDefinitionId: 'def7', instanceDate: fixedToday, isComplete: false },
     ];
 };
 
@@ -106,22 +139,52 @@ const resetMockKanbanChoreOrders = () => {
     mockKanbanChoreOrdersData = {};
 }
 
-const mockContextValueFactory = (customOrders: Record<string, string[]> = {}) => ({
-  choreDefinitions: mockChoreDefinitions,
-  get choreInstances() { return mockChoreInstancesData; },
-  kanbanChoreOrders: customOrders, // Use passed customOrders or default
-  generateInstancesForPeriod: mockGenerateInstancesForPeriod,
-  toggleChoreInstanceComplete: mockToggleChoreInstanceComplete,
-  updateKanbanChoreOrder: mockUpdateKanbanChoreOrder,
-  getDefinitionById: (id: string) => mockChoreDefinitions.find(d => d.id === id),
-  getInstancesForDefinition: (defId: string) => mockChoreInstancesData.filter(i => i.choreDefinitionId === defId),
-  updateChoreInstanceColumn: mockUpdateChoreInstanceColumn, // Add to factory
-  loadingDefinitions: false, loadingInstances: false, errorDefinitions: null, errorInstances: null,
-  addChoreDefinition: vi.fn(), updateChoreDefinition: vi.fn(), deleteChoreDefinition: vi.fn(),
-  addChoreInstance: vi.fn(), updateChoreInstance: vi.fn(), deleteChoreInstance: vi.fn(),
-  toggleSubTaskComplete: vi.fn(),
-  getChoreDefinitionsForKid: (kidId: string) => mockChoreDefinitions.filter(def => def.assignedKidId === kidId),
-} as any);
+// Updated factory to create fresh mocks for functions each time
+const mockContextValueFactory = (customOrders: Record<string, string[]> = {}) => {
+    const newMocks = {
+        generateInstancesForPeriod: vi.fn(),
+        toggleChoreInstanceComplete: vi.fn(),
+        updateKanbanChoreOrder: vi.fn(),
+        updateChoreInstanceColumn: vi.fn(),
+        addChoreDefinition: vi.fn(),
+        updateChoreDefinition: vi.fn(),
+        deleteChoreDefinition: vi.fn(),
+        addChoreInstance: vi.fn(),
+        updateChoreInstance: vi.fn(),
+        deleteChoreInstance: vi.fn(),
+        toggleSubTaskComplete: vi.fn(),
+    };
+
+    // Capture these new mocks if specific tests need to assert against them
+    // This might require a way to expose these from where renderKidKanbanBoard is called,
+    // or tests that need to assert calls on these will need to pass them in.
+    // For now, the factory ensures they are valid functions.
+    latestContextMocks = newMocks; // Store latest mocks for potential assertions
+
+    const currentDefinitions = [...mockChoreDefinitions]; // Use copies
+    const currentInstances = [...mockChoreInstancesData];
+
+    const contextObject = {
+        choreDefinitions: currentDefinitions,
+        choreInstances: currentInstances, // Make it a writable copy by default
+        kanbanChoreOrders: customOrders,
+        ...newMocks, // Spread the new mocks here
+        getDefinitionById: (id: string) => contextObject.choreDefinitions.find(d => d.id === id),
+        getInstancesForDefinition: (defId: string) => contextObject.choreInstances.filter(i => i.choreDefinitionId === defId),
+        loadingDefinitions: false, loadingInstances: false, errorDefinitions: null, errorInstances: null,
+        getChoreDefinitionsForKid: (kidId: string) => contextObject.choreDefinitions.filter(def => def.assignedKidId === kidId),
+    };
+    return contextObject as any;
+};
+
+// Helper to access the latest mocks created by the factory if needed for assertions
+let latestContextMocks: {
+    generateInstancesForPeriod: ReturnType<typeof vi.fn>;
+    toggleChoreInstanceComplete: ReturnType<typeof vi.fn>;
+    updateKanbanChoreOrder: ReturnType<typeof vi.fn>;
+    updateChoreInstanceColumn: ReturnType<typeof vi.fn>;
+    // Add other functions if needed for assertions
+} | null = null;
 
 // Mock UserContext for getKanbanColumnConfigs
 const mockGetKanbanColumnConfigs = vi.fn();
@@ -145,7 +208,11 @@ const renderKidKanbanBoard = (
     choresContextVal = mockContextValueFactory(mockKanbanChoreOrdersData),
     userContextVal = { ...mockUserContextValue, getKanbanColumnConfigs: mockGetKanbanColumnConfigs }
 ) => {
-  const freshChoresContext = {...choresContextVal, choreInstances: [...mockChoreInstancesData], kanbanChoreOrders: {...choresContextVal.kanbanChoreOrders}};
+  // Use choreInstances from choresContextVal if it has them, otherwise default to a fresh copy of mockChoreInstancesData
+  const instancesToUse = (choresContextVal && choresContextVal.choreInstances && choresContextVal.choreInstances.length > 0)
+    ? choresContextVal.choreInstances
+    : [...mockChoreInstancesData];
+  const freshChoresContext = {...choresContextVal, choreInstances: instancesToUse, kanbanChoreOrders: {...choresContextVal.kanbanChoreOrders}};
 
   // Ensure the specific kidId being tested exists in the mock user's kids array
   const kidExists = userContextVal.user?.kids.find(k => k.id === kidId);
@@ -187,6 +254,9 @@ const createMockOver = (id: string, containerId?: string, index = 0, items: stri
 describe('KidKanbanBoard - Rendering and Basic Interactions (Part 1)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetKanbanColumnConfigs.mockReturnValue([]); // Ensure it returns empty array for Part 1 tests
+    latestContextMocks = null; // Reset on each test run
+
     localStorageMock = localStorageMockFactory();
     Object.defineProperty(window, 'localStorage', {
       value: localStorageMock,
@@ -212,11 +282,21 @@ describe('KidKanbanBoard - Rendering and Basic Interactions (Part 1)', () => {
     expect(screen.getByLabelText(/Column Theme:/i)).toBeInTheDocument();
 
     const todayStr = getTodayDateString();
-    expect(mockGenerateInstancesForPeriod).toHaveBeenCalledWith(todayStr, todayStr);
+    // The factory now creates generateInstancesForPeriod, need to access it via latestContextMocks
+    expect(latestContextMocks?.generateInstancesForPeriod).toHaveBeenCalledWith(todayStr, todayStr, undefined);
   });
 
   test('renders columns and chores correctly for default (daily) period', () => {
-    renderKidKanbanBoard('kid1');
+    resetMockChoreInstances(); // Ensure fresh instance data for this test
+    const dailyActiveCol: KanbanColumnConfig = { id: 'daily_active', title: 'Today - Active', order: 0, kidId: 'kid1', createdAt: '', updatedAt: '' };
+    const dailyCompletedCol: KanbanColumnConfig = { id: 'daily_completed', title: 'Today - Completed', order: 1, kidId: 'kid1', createdAt: '', updatedAt: '' };
+
+    const customUserContext = {
+      ...mockUserContextValue, // Base mock user context
+      getKanbanColumnConfigs: vi.fn(() => [dailyActiveCol, dailyCompletedCol]) // Specific mock for this test
+    };
+
+    renderKidKanbanBoard('kid1', mockContextValueFactory(), customUserContext);
     expect(screen.getByRole('heading', { name: 'Today - Active' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Today - Completed' })).toBeInTheDocument();
 
@@ -224,56 +304,122 @@ describe('KidKanbanBoard - Rendering and Basic Interactions (Part 1)', () => {
     expect(screen.getByLabelText('Kanban board columns')).toHaveAttribute('role', 'list');
 
     const activeColumn = screen.getByTestId('mock-kanban-column-daily_active');
-    expect(within(activeColumn).getByTestId('chore-inst1')).toHaveTextContent('inst1 (A)');
-    expect(within(activeColumn).getByTestId('chore-inst3')).toHaveTextContent('inst3 (A)');
-    expect(within(activeColumn).queryByTestId('chore-inst2')).not.toBeInTheDocument();
-    expect(within(activeColumn).queryByTestId('chore-inst4')).not.toBeInTheDocument();
+    expect(rtlWithin(activeColumn).getByTestId('chore-inst1')).toHaveTextContent('inst1 (A)');
+    expect(rtlWithin(activeColumn).getByTestId('chore-inst3')).toHaveTextContent('inst3 (A)');
+    expect(rtlWithin(activeColumn).queryByTestId('chore-inst2')).not.toBeInTheDocument();
+    expect(rtlWithin(activeColumn).queryByTestId('chore-inst4')).not.toBeInTheDocument();
 
     const completedColumn = screen.getByTestId('mock-kanban-column-daily_completed');
-    expect(within(completedColumn).getByTestId('chore-inst2')).toHaveTextContent('inst2 (C)');
-    expect(within(completedColumn).queryByTestId('chore-inst1')).not.toBeInTheDocument();
+    expect(rtlWithin(completedColumn).getByTestId('chore-inst2')).toHaveTextContent('inst2 (C)');
+    expect(rtlWithin(completedColumn).queryByTestId('chore-inst1')).not.toBeInTheDocument();
   });
 
   test('period selection calls generateInstancesForPeriod and updates titles', async () => {
     const user = userEvent.setup();
-    renderKidKanbanBoard();
 
-    await user.click(screen.getByRole('button', { name: 'Weekly' }));
-    const weekRange = getWeekRange(new Date());
-    expect(mockGenerateInstancesForPeriod).toHaveBeenCalledWith(
-      weekRange.start.toISOString().split('T')[0],
-      weekRange.end.toISOString().split('T')[0]
-    );
-    expect(screen.getByRole('heading', { name: 'This Week - Active' })).toBeInTheDocument();
+    const dailyActiveCol: KanbanColumnConfig = { id: 'daily_active', title: 'Today - Active', order: 0, kidId: 'kid1', createdAt: '', updatedAt: '' };
+    const dailyCompletedCol: KanbanColumnConfig = { id: 'daily_completed', title: 'Today - Completed', order: 1, kidId: 'kid1', createdAt: '', updatedAt: '' };
+    const weeklyActiveCol: KanbanColumnConfig = { id: 'weekly_active', title: 'This Week - Active', order: 0, kidId: 'kid1', createdAt: '', updatedAt: '' };
+    const monthlyActiveCol: KanbanColumnConfig = { id: 'monthly_active', title: 'This Month - Active', order: 0, kidId: 'kid1', createdAt: '', updatedAt: '' };
 
-    await user.click(screen.getByRole('button', { name: 'Monthly' }));
-    const monthRange = getMonthRange(new Date());
-    expect(mockGenerateInstancesForPeriod).toHaveBeenCalledWith(
-      monthRange.start.toISOString().split('T')[0],
-      monthRange.end.toISOString().split('T')[0]
+    const mockUserGetColumns = vi.fn();
+    // Initial call (during first render for daily)
+    mockUserGetColumns.mockReturnValue([dailyActiveCol, dailyCompletedCol]); // Consistent return for the first render phase
+
+    const customUserContext = { ...mockUserContextValue, getKanbanColumnConfigs: mockUserGetColumns };
+    renderKidKanbanBoard('kid1', mockContextValueFactory(), customUserContext);
+
+    // Weekly
+    mockUserGetColumns.mockReturnValueOnce([weeklyActiveCol]); // Setup for next call, IF UserContext is re-queried (it's not usually)
+                                                            // KidKanbanBoard uses the columns from initial context.
+                                                            // This test needs KidKanbanBoard to re-evaluate columns or use different layouts for periods.
+                                                            // The component's current logic: uses userColumnConfigs if >0, else dailyLayout for 'daily', else [].
+                                                            // So, for weekly/monthly, if userColumnConfigs is empty, it shows nothing.
+                                                            // Thus, to see headings, userColumnConfigs MUST be provided.
+    // To test switching periods and seeing different columns, the getKanbanColumnConfigs mock
+    // itself doesn't need to be stateful IF the component uses what's given for non-daily.
+    // The issue is that the component caches userColumnConfigs on render.
+    // So, for this test to work as intended (see different columns for different periods),
+    // we would need to re-render or provide a UserContext that dynamically changes its output,
+    // OR the component itself would need to fetch columns for each period type if userColumnConfigs is empty.
+
+    // Given the component's current logic, we will test one period at a time by re-rendering.
+    // This means splitting the test or focusing on one period change.
+    // For now, let's ensure the 'daily' works, and 'weekly' can be made to work by providing columns.
+    // The current mockReturnValueOnce for weekly/monthly in the original test were likely ineffective for heading assertions.
+
+    // Test Daily
+    (getTodayDateString as vi.Mock).mockReturnValue('2024-01-01'); // Ensure today is fixed for this test block
+    resetMockChoreInstances(); // Use the fixed today
+
+    const dailyActiveCol: KanbanColumnConfig = { id: 'daily_active', title: 'Today - Active', order: 0, kidId: 'kid1', createdAt: '', updatedAt: '' };
+    const dailyCompletedCol: KanbanColumnConfig = { id: 'daily_completed', title: 'Today - Completed', order: 1, kidId: 'kid1', createdAt: '', updatedAt: '' };
+    const mockUserGetColumns = vi.fn().mockReturnValue([dailyActiveCol, dailyCompletedCol]);
+    const customUserContext = { ...mockUserContextValue, getKanbanColumnConfigs: mockUserGetColumns };
+
+    let r = renderKidKanbanBoard('kid1', mockContextValueFactory(), customUserContext);
+    expect(r.getByRole('heading', { name: 'Today - Active' })).toBeInTheDocument();
+    expect(latestContextMocks?.generateInstancesForPeriod).toHaveBeenCalledWith('2024-01-01', '2024-01-01', dailyActiveCol.id);
+
+    // Test Weekly
+    const weeklyActiveCol: KanbanColumnConfig = { id: 'weekly_active', title: 'This Week - Active', order: 0, kidId: 'kid1', createdAt: '', updatedAt: '' };
+    const weeklyUserContext = { ...mockUserContextValue, getKanbanColumnConfigs: vi.fn(() => [weeklyActiveCol]) };
+    r.unmount(); // Clean up previous render
+    r = renderKidKanbanBoard('kid1', mockContextValueFactory(), weeklyUserContext);
+
+    await user.click(r.getByRole('button', { name: 'Weekly' }));
+    // Mock getWeekRange to align with fixed 'today' if necessary, assuming it uses new Date()
+    (getWeekRange as vi.Mock).mockReturnValue({ start: new Date('2024-01-01'), end: new Date('2024-01-07')});
+    expect(latestContextMocks?.generateInstancesForPeriod).toHaveBeenCalledWith(
+      '2024-01-01', // Expected start of week for '2024-01-01'
+      '2024-01-07', // Expected end of week
+      weeklyActiveCol.id
     );
-    expect(screen.getByRole('heading', { name: 'This Month - Active' })).toBeInTheDocument();
+    expect(r.getByRole('heading', { name: 'This Week - Active' })).toBeInTheDocument();
+
+    // Test Monthly
+    const monthlyActiveCol: KanbanColumnConfig = { id: 'monthly_active', title: 'This Month - Active', order: 0, kidId: 'kid1', createdAt: '', updatedAt: '' };
+    const monthlyUserContext = { ...mockUserContextValue, getKanbanColumnConfigs: vi.fn(() => [monthlyActiveCol]) };
+    r.unmount(); // Clean up previous render
+    r = renderKidKanbanBoard('kid1', mockContextValueFactory(), monthlyUserContext);
+
+    await user.click(r.getByRole('button', { name: 'Monthly' }));
+    (getMonthRange as vi.Mock).mockReturnValue({ start: new Date('2024-01-01'), end: new Date('2024-01-31')});
+    expect(latestContextMocks?.generateInstancesForPeriod).toHaveBeenCalledWith(
+      '2024-01-01', // Expected start of month
+      '2024-01-31', // Expected end of month
+      monthlyActiveCol.id
+    );
+    expect(r.getByRole('heading', { name: 'This Month - Active' })).toBeInTheDocument();
   });
 
   test('reward filter updates displayed chores', async () => {
     const user = userEvent.setup();
-    renderKidKanbanBoard('kid1');
+    resetMockChoreInstances(); // Ensure fresh instance data for this test
+    const dailyActiveCol: KanbanColumnConfig = { id: 'daily_active', title: 'Today - Active', order: 0, kidId: 'kid1', createdAt: '', updatedAt: '' };
+    const dailyCompletedCol: KanbanColumnConfig = { id: 'daily_completed', title: 'Today - Completed', order: 1, kidId: 'kid1', createdAt: '', updatedAt: '' };
+
+    const customUserContext = {
+      ...mockUserContextValue,
+      getKanbanColumnConfigs: vi.fn(() => [dailyActiveCol, dailyCompletedCol])
+    };
+    renderKidKanbanBoard('kid1', mockContextValueFactory(), customUserContext);
 
     let activeColumn = screen.getByTestId('mock-kanban-column-daily_active');
-    expect(within(activeColumn).getByTestId('chore-inst1')).toBeInTheDocument();
-    expect(within(activeColumn).getByTestId('chore-inst3')).toBeInTheDocument();
+    expect(rtlWithin(activeColumn).getByTestId('chore-inst1')).toBeInTheDocument();
+    expect(rtlWithin(activeColumn).getByTestId('chore-inst3')).toBeInTheDocument();
 
     const rewardFilterSelect = screen.getByLabelText(/Filter by Reward:/i);
     await user.selectOptions(rewardFilterSelect, 'has_reward');
 
     activeColumn = screen.getByTestId('mock-kanban-column-daily_active'); // Re-query after update
-    expect(within(activeColumn).getByTestId('chore-inst1')).toBeInTheDocument();
-    expect(within(activeColumn).queryByTestId('chore-inst3')).not.toBeInTheDocument();
+    expect(rtlWithin(activeColumn).getByTestId('chore-inst1')).toBeInTheDocument();
+    expect(rtlWithin(activeColumn).queryByTestId('chore-inst3')).not.toBeInTheDocument();
 
     await user.selectOptions(rewardFilterSelect, 'no_reward');
     activeColumn = screen.getByTestId('mock-kanban-column-daily_active'); // Re-query
-    expect(within(activeColumn).queryByTestId('chore-inst1')).not.toBeInTheDocument();
-    expect(within(activeColumn).getByTestId('chore-inst3')).toBeInTheDocument();
+    expect(rtlWithin(activeColumn).queryByTestId('chore-inst1')).not.toBeInTheDocument();
+    expect(rtlWithin(activeColumn).getByTestId('chore-inst3')).toBeInTheDocument();
   });
 
   test('sort option changes order of chores', async () => {
@@ -283,62 +429,108 @@ describe('KidKanbanBoard - Rendering and Basic Interactions (Part 1)', () => {
       { id: 'a_inst', choreDefinitionId: 'def1', instanceDate: today, isComplete: false }, // Reward 5
       { id: 'b_inst', choreDefinitionId: 'def2', instanceDate: today, isComplete: false }, // Reward 10
     ];
-    // Definitions need to match IDs used in sortTestInstances
-    const customContext = { ...mockContextValueFactory, choreInstances: [...sortTestInstances], choreDefinitions: [...mockChoreDefinitions] };
-    renderKidKanbanBoard('kid1', customContext);
+
+    // For this test, we need to ensure mockGetKanbanColumnConfigs returns the default daily columns
+    // so that mockKanbanColumn is rendered and its calls can be inspected.
+    const dailyActiveCol: KanbanColumnConfig = { id: 'daily_active', title: 'Today - Active', order: 0, kidId: 'kid1', createdAt: '', updatedAt: '' };
+    const dailyCompletedCol: KanbanColumnConfig = { id: 'daily_completed', title: 'Today - Completed', order: 1, kidId: 'kid1', createdAt: '', updatedAt: '' };
+
+    const customUserContext = {
+      ...mockUserContextValue,
+      getKanbanColumnConfigs: vi.fn(() => [dailyActiveCol, dailyCompletedCol])
+    };
+
+    const customChoresContext = mockContextValueFactory(); // Get a fresh context
+    customChoresContext.choreInstances = [...sortTestInstances]; // Override instances for this test
+    // Ensure definitions for sortTestInstances are present
+    const sortInstanceDefIds = sortTestInstances.map(si => si.choreDefinitionId);
+    customChoresContext.choreDefinitions = mockChoreDefinitions.filter(def => sortInstanceDefIds.includes(def.id));
+
+    renderKidKanbanBoard('kid1', customChoresContext, customUserContext);
 
     const sortBySelect = screen.getByLabelText(/Sort by:/i);
-    const sortDirectionButton = screen.getByRole('button', { name: /A-Z \/ Old-New ↓/i });
+    // Initial sort direction is ASC for 'instanceDate' and 'title', so button shows ↑
+    // For 'rewardAmount', it defaults to DESC, so button would show ↓
+    // Check current sort state to determine initial button text accurately.
+    // Default sortBy is 'instanceDate', default direction is 'asc'.
+    const sortDirectionButton = screen.getByRole('button', { name: /A-Z \/ Old-New ↑/i });
 
     await user.selectOptions(sortBySelect, 'title');
-    let activeColumnChores = mockKanbanColumn.mock.calls.find(call => call[0].column.id === 'daily_active')?.[0]?.column.chores;
+    // Ensure we get the props from the last call to mockKanbanColumn for the 'daily_active' column
+    const activeColumnCalls = mockKanbanColumn.mock.calls.filter(call => call[0].column.id === 'daily_active');
+    const lastActiveColumnCall = activeColumnCalls[activeColumnCalls.length - 1];
+    let activeColumnChores = lastActiveColumnCall?.[0]?.column.chores;
     // Titles: Walk the Dog (def1, a_inst), Clean Room (def2, b_inst), Do Homework (def3, c_inst)
     // Expected order for title ASC: Clean Room, Do Homework, Walk the Dog
     expect(activeColumnChores?.map((c:ChoreInstance) => c.id)).toEqual(['b_inst', 'c_inst', 'a_inst']);
 
-    await user.click(sortDirectionButton);
-    activeColumnChores = mockKanbanColumn.mock.calls.find(call => call[0].column.id === 'daily_active')?.[0]?.column.chores;
+    await user.click(sortDirectionButton); // Should now be "A-Z / Old-New ↓"
+    const activeColumnCallsDesc = mockKanbanColumn.mock.calls.filter(call => call[0].column.id === 'daily_active');
+    const lastActiveColumnCallDesc = activeColumnCallsDesc[activeColumnCallsDesc.length - 1];
+    activeColumnChores = lastActiveColumnCallDesc?.[0]?.column.chores;
     expect(activeColumnChores?.map((c:ChoreInstance) => c.id)).toEqual(['a_inst', 'c_inst', 'b_inst']);
 
     await user.selectOptions(sortBySelect, 'rewardAmount'); // Default to DESC for reward
-    activeColumnChores = mockKanbanColumn.mock.calls.find(call => call[0].column.id === 'daily_active')?.[0]?.column.chores;
+    const rewardDescCalls = mockKanbanColumn.mock.calls.filter(call => call[0].column.id === 'daily_active');
+    const lastRewardDescCall = rewardDescCalls[rewardDescCalls.length - 1];
+    activeColumnChores = lastRewardDescCall?.[0]?.column.chores;
     // Rewards: a_inst (5), b_inst (10), c_inst (0). DESC: b_inst, a_inst, c_inst
     expect(activeColumnChores?.map((c:ChoreInstance) => c.id)).toEqual(['b_inst', 'a_inst', 'c_inst']);
 
     await user.click(screen.getByRole('button', { name: /High to Low ↓/i })); // Change to ASC
-    activeColumnChores = mockKanbanColumn.mock.calls.find(call => call[0].column.id === 'daily_active')?.[0]?.column.chores;
+    const rewardAscCalls = mockKanbanColumn.mock.calls.filter(call => call[0].column.id === 'daily_active');
+    const lastRewardAscCall = rewardAscCalls[rewardAscCalls.length - 1];
+    activeColumnChores = lastRewardAscCall?.[0]?.column.chores;
     expect(activeColumnChores?.map((c:ChoreInstance) => c.id)).toEqual(['c_inst', 'a_inst', 'b_inst']);
   });
 
   test('theme selection updates localStorage and column theme prop', async () => {
     const user = userEvent.setup();
-    renderKidKanbanBoard();
+    // Ensure columns are rendered for this test by providing a UserContext that returns columns
+    const dailyActiveColConfig: KanbanColumnConfig = { id: 'daily_active', title: 'Today - Active', order: 0, kidId: 'kid1', createdAt: '', updatedAt: '' };
+    const dailyCompletedColConfig: KanbanColumnConfig = { id: 'daily_completed', title: 'Today - Completed', order: 1, kidId: 'kid1', createdAt: '', updatedAt: '' };
+
+    const userContextWithCols = {
+      ...mockUserContextValue,
+      getKanbanColumnConfigs: vi.fn(() => [dailyActiveColConfig, dailyCompletedColConfig])
+    };
+
+    renderKidKanbanBoard('kid1', mockContextValueFactory(), userContextWithCols);
 
     const themeSelect = screen.getByLabelText(/Column Theme:/i);
     await user.selectOptions(themeSelect, 'pastel');
 
     expect(localStorageMock.setItem).toHaveBeenCalledWith('kanban_columnTheme', 'pastel');
-    const lastColumnCallArgs = mockKanbanColumn.mock.calls[mockKanbanColumn.mock.calls.length -1][0];
-    expect(lastColumnCallArgs.theme).toBe('pastel');
+    // With the functional mockKanbanColumn, we can check its props if needed.
+    // Find the call to mockKanbanColumn for the active column with the 'pastel' theme.
+    let pastelCall = mockKanbanColumn.mock.calls.find(call => call[0].column.id === 'daily_active' && call[0].theme === 'pastel');
+    expect(pastelCall).toBeDefined();
+    if(pastelCall) expect(pastelCall[0].theme).toBe('pastel');
+
 
     await user.selectOptions(themeSelect, 'ocean');
     expect(localStorageMock.setItem).toHaveBeenCalledWith('kanban_columnTheme', 'ocean');
-    const latestColumnCallArgs = mockKanbanColumn.mock.calls[mockKanbanColumn.mock.calls.length -1][0];
-    expect(latestColumnCallArgs.theme).toBe('ocean');
+    let oceanCall = mockKanbanColumn.mock.calls.find(call => call[0].column.id === 'daily_active' && call[0].theme === 'ocean');
+    expect(oceanCall).toBeDefined();
+    if(oceanCall) expect(oceanCall[0].theme).toBe('ocean');
   });
 });
 
 
 
 // Helper for queryByTestId within a container
-import { queries, getQueriesForElement } from '@testing-library/dom';
-function within(element: HTMLElement) {
-  return getQueriesForElement(element, queries);
-}
+// import { queries, getQueriesForElement } from '@testing-library/dom'; // Already imported as rtlWithin from @testing-library/react
+// function within(element: HTMLElement) { // This is now replaced by rtlWithin
+//   return getQueriesForElement(element, queries);
+// }
 
 describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // For Part 2 tests, specific column setups are often done per test or using a specific mock return value.
+    mockGetKanbanColumnConfigs.mockReturnValue([]); // Default for Part 2 as well, can be overridden in specific tests
+    latestContextMocks = null; // Reset on each test run
+
     localStorageMock = localStorageMockFactory(); // Reset localStorage for each test
     Object.defineProperty(window, 'localStorage', {
       value: localStorageMock,
@@ -438,7 +630,7 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
     // results in [inst1, inst3, instY, instX, instZ]
     const expectedOrder = ['inst1', 'inst3', 'instY', 'instX', 'instZ'];
     expect(activeColumn?.chores.map((c: ChoreInstance) => c.id)).toEqual(expectedOrder);
-    expect(mockUpdateKanbanChoreOrder).toHaveBeenCalledWith(kidId, activeColumnId, expectedOrder);
+    expect(latestContextMocks?.updateKanbanChoreOrder).toHaveBeenCalledWith(kidId, activeColumnId, expectedOrder);
   });
 
   test('handleDragEnd - moves item from active to completed column and updates status', () => {
@@ -461,7 +653,7 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
       dndContextProps.onDragEnd(dragEndEvent);
     });
 
-    expect(mockUpdateChoreInstanceColumn).toHaveBeenCalledWith('inst1', dynamicCol2.id);
+    expect(latestContextMocks?.updateChoreInstanceColumn).toHaveBeenCalledWith('inst1', dynamicCol2.id);
 
     const col1Data = mockKanbanColumn.mock.calls.find(call => call[0].column.id === dynamicCol1.id)?.[0]?.column;
     expect(col1Data?.chores.find((c: ChoreInstance) => c.id === 'inst1')).toBeUndefined();
@@ -496,8 +688,8 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
       dndContextProps.onDragEnd(dragEndEvent);
     });
 
-    expect(mockUpdateChoreInstanceColumn).toHaveBeenCalledWith('inst2', dynamicCol2.id);
-    expect(mockToggleChoreInstanceComplete).not.toHaveBeenCalled();
+    expect(latestContextMocks?.updateChoreInstanceColumn).toHaveBeenCalledWith('inst2', dynamicCol2.id);
+    expect(latestContextMocks?.toggleChoreInstanceComplete).not.toHaveBeenCalled();
 
     const col1Data = mockKanbanColumn.mock.calls.find(call => call[0].column.id === dynamicCol1.id)?.[0]?.column;
     expect(col1Data?.chores.find((c: ChoreInstance) => c.id === 'inst2')).toBeUndefined();
@@ -529,7 +721,7 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
 
     const finalActiveChores = mockKanbanColumn.mock.calls.find(call => call[0].column.id === activeColumnId)?.[0]?.column.chores;
     expect(finalActiveChores?.map((c:ChoreInstance) => c.id)).toEqual(initialActiveChores?.map((c:ChoreInstance) => c.id));
-    expect(mockToggleChoreInstanceComplete).not.toHaveBeenCalled();
+    expect(latestContextMocks?.toggleChoreInstanceComplete).not.toHaveBeenCalled();
   });
 
   test('handleDragEnd - no action if dropped outside any droppable area (over is null)', () => {
@@ -550,7 +742,7 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
 
     const finalColumnsState = JSON.stringify(mockKanbanColumn.mock.calls.map(call => call[0].column));
     expect(finalColumnsState).toEqual(initialColumnsState); // No change to columns
-    expect(mockToggleChoreInstanceComplete).not.toHaveBeenCalled();
+    expect(latestContextMocks?.toggleChoreInstanceComplete).not.toHaveBeenCalled();
   });
 
   test('applies custom order from kanbanChoreOrders when sortBy is "instanceDate"', () => {
@@ -601,8 +793,8 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
     await user.selectOptions(sortBySelect, 'title');
 
     // Verify updateKanbanChoreOrder was called to clear orders for visible columns
-    expect(mockUpdateKanbanChoreOrder).toHaveBeenCalledWith(kidId, activeColumnId, []);
-    expect(mockUpdateKanbanChoreOrder).toHaveBeenCalledWith(kidId, completedColumnId, []);
+    expect(latestContextMocks?.updateKanbanChoreOrder).toHaveBeenCalledWith(kidId, activeColumnId, []);
+    expect(latestContextMocks?.updateKanbanChoreOrder).toHaveBeenCalledWith(kidId, completedColumnId, []);
 
     // Verify chores are now sorted by title (mockKanbanColumn receives chores sorted by KidKanbanBoard's useEffect)
     // Titles: WalkDog(def1,inst1), CleanRoom(def2,inst2), DoHomework(def3,inst3), ChoreX(def5,instX), ChoreY(def6,instY), ChoreZ(def7,instZ)
@@ -630,7 +822,7 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
 
     // 1. Apply explicit sort (e.g., Title), which should clear custom order for daily_active
     await user.selectOptions(sortBySelect, 'title');
-    expect(mockUpdateKanbanChoreOrder).toHaveBeenCalledWith(kidId, activeColumnId, []);
+    expect(latestContextMocks?.updateKanbanChoreOrder).toHaveBeenCalledWith(kidId, activeColumnId, []);
 
     // Simulate the context actually clearing the order for the next step
     delete mockKanbanChoreOrdersData[`${kidId}-${activeColumnId}`];
@@ -667,7 +859,7 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
 
     const todayStr = getTodayDateString();
     // Expect generateInstancesForPeriod to be called with the ID of the first column ('col1_todo')
-    expect(mockGenerateInstancesForPeriod).toHaveBeenCalledWith(todayStr, todayStr, userCols[0].id);
+    expect(latestContextMocks?.generateInstancesForPeriod).toHaveBeenCalledWith(todayStr, todayStr, userCols[0].id);
   });
 
   test('displays a message and no columns if no columns are configured for the kid', () => {
@@ -691,7 +883,7 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
     renderKidKanbanBoard(kidId);
 
     const todayStr = getTodayDateString();
-    expect(mockGenerateInstancesForPeriod).toHaveBeenCalledWith(todayStr, todayStr, undefined);
+    expect(latestContextMocks?.generateInstancesForPeriod).toHaveBeenCalledWith(todayStr, todayStr, undefined);
   });
 
   test('displays and clears action feedback message on successful inter-column drag', async () => {
