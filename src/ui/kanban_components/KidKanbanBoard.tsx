@@ -64,16 +64,17 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     choreDefinitions,
     choreInstances,
     generateInstancesForPeriod,
-    updateKanbanChoreOrder,
-    kanbanChoreOrders,
-    updateChoreInstanceColumn
+    // updateKanbanChoreOrder, // Old, not used by Matrix D&D
+    // kanbanChoreOrders, // Old, not used by Matrix D&D
+    // updateChoreInstanceColumn, // Old, not used by Matrix D&D
+    updateChoreInstanceCategory, // New function for Matrix D&D
   } = useChoresContext();
-  const { getKanbanColumnConfigs } = useUserContext();
+  const { getKanbanColumnConfigs } = useUserContext(); // Still used for initial default column in generateInstances and potentially filters
 
   /** State for the selected time period (daily, weekly, monthly) for displaying chores. */
   const [selectedPeriod, setSelectedPeriod] = useState<KanbanPeriod>('daily');
   /** State representing the dynamically configured columns and the chores within them for the Kanban board. */
-  const [columns, setColumns] = useState<KanbanColumnType[]>([]);
+  // const [columns, setColumns] = useState<KanbanColumnType[]>([]); // Old state for column-based kanban
   /** State holding the active chore instance and definition being dragged, for DragOverlay. */
   const [activeDragItem, setActiveDragItem] = useState<ActiveDragItem | null>(null);
   /**
@@ -207,11 +208,15 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
    */
   useEffect(() => {
     if (!kidId) {
-        setColumns([]);
+        // setColumns([]); // Old state
         return;
     }
-    const userColumnConfigs = getKanbanColumnConfigs(kidId).sort((a, b) => a.order - b.order);
+    // This effect was for the old column-based Kanban.
+    // It might be removed or adapted later if a different data structure is needed for the matrix view
+    // that isn't directly rendered from choreInstances. For now, commenting out its core logic.
+    // const userColumnConfigs = getKanbanColumnConfigs(kidId).sort((a, b) => a.order - b.order);
 
+    /*
     const kidAndPeriodInstances = choreInstances.filter(instance => {
       const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
       return definition && definition.assignedKidId === kidId &&
@@ -275,13 +280,16 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     });
 
     setColumns(newKanbanColumns);
+    */
 
   }, [
     kidId, selectedPeriod, choreInstances, choreDefinitions, currentPeriodDateRange,
-    rewardFilter, sortBy, sortDirection, kanbanChoreOrders, getKanbanColumnConfigs
+    rewardFilter, sortBy, sortDirection,
+    // kanbanChoreOrders, // Removed
+    getKanbanColumnConfigs // Kept if filters/sorts are to be re-enabled/adapted
   ]);
 
-  const getDefinitionForInstance = (instance: ChoreInstance): ChoreDefinition | undefined => {
+  const getDefinitionForInstance = useCallback((instance: ChoreInstance): ChoreDefinition | undefined => {
     return choreDefinitions.find(def => def.id === instance.choreDefinitionId);
   };
 
@@ -290,98 +298,83 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  function handleDragStart(event: DragStartEvent) {
+  }, [choreDefinitions]); // Added choreDefinitions dependency
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
     const { active } = event;
     const instance = choreInstances.find(inst => inst.id === active.id.toString());
     if (instance) {
       const definition = getDefinitionForInstance(instance);
-      // Store the instance and its definition in activeDragItem for use in DragOverlay and handleDragEnd.
-      if (definition) setActiveDragItem({ instance, definition });
-      else setActiveDragItem(null);
+      if (definition) {
+        setActiveDragItem({ instance, definition });
+      } else {
+        setActiveDragItem(null); // Should not happen if data is consistent
+      }
     } else {
       setActiveDragItem(null);
     }
-  }
+  }, [choreInstances, getDefinitionForInstance]);
 
-  function handleDragEnd(event: DragEndEvent) {
-    // Capture activeDragItem before clearing it, to use its data for feedback message.
-    const currentActiveDragItem = activeDragItem;
-    setActiveDragItem(null);
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
+    setActiveDragItem(null); // Clear overlay item regardless of drop outcome
 
-    if (!over) return;
-
-    const activeId = active.id.toString();
-    const overId = over.id.toString();
-    const activeContainerId = active.data.current?.sortable?.containerId;
-    let overContainerId = over.data.current?.sortable?.containerId;
-
-    if (!overContainerId) {
-      const isOverColumn = columns.some(col => col.id === over.id.toString());
-      if (isOverColumn) overContainerId = over.id.toString();
-      else {
-        const columnContainingOverItem = columns.find(col => col.chores.some(chore => chore.id === overId));
-        if (columnContainingOverItem) overContainerId = columnContainingOverItem.id;
-      }
+    if (!over || !active) {
+      return;
     }
 
-    if (!activeContainerId || !overContainerId) return;
+    const activeInstanceId = active.id.toString();
+    const overSwimlaneId = over.id.toString(); // This ID is `${dateString}-${category}`
 
-    if (activeId === overId && activeContainerId === overContainerId) {
-        const itemsInColumn = columns.find(col => col.id === activeContainerId)?.chores || [];
-        const oldIdx = itemsInColumn.findIndex(item => item.id === activeId);
-        const newIdx = itemsInColumn.findIndex(item => item.id === overId);
-        if (oldIdx === newIdx) return; // Item was dropped in the same position in the same column
+    const activeInstance = choreInstances.find(inst => inst.id === activeInstanceId);
+    if (!activeInstance) return;
+
+    // Parse the target date and category from the swimlane ID
+    const parts = overSwimlaneId.split('-');
+    if (parts.length < 4) { // Expecting YYYY-MM-DD-CATEGORY (e.g. 3 parts for date, 1 for category)
+        console.warn("Invalid swimlane ID format:", overSwimlaneId);
+        return;
+    }
+    const targetDateString = parts.slice(0, 3).join('-'); // e.g., "2023-10-01"
+    const newCategory = parts.slice(3).join('-') as MatrixKanbanCategory; // e.g., "TO_DO"
+
+    // Constraint: Only allow category changes within the same date column for this implementation
+    if (activeInstance.instanceDate !== targetDateString) {
+      setActionFeedbackMessage("Chores can only be moved between categories for the same day in this view.");
+      // Optional: Could provide visual indication of invalid drop target earlier (e.g. in useDroppable's data)
+      return;
     }
 
-    // If the item is dropped in the same column (reordering)
-    if (activeContainerId === overContainerId) {
-      const column = columns.find(col => col.id === activeContainerId);
-      if (column) {
-        const oldIndex = column.chores.findIndex(item => item.id === activeId);
-        const newIndex = column.chores.findIndex(item => item.id === overId);
+    // If dropped on a different swimlane (category change) but same date
+    if (activeInstance.categoryStatus !== newCategory) {
+      updateChoreInstanceCategory(activeInstanceId, newCategory);
 
-        if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-          const reorderedChores = arrayMove(column.chores, oldIndex, newIndex);
-          // Update context first
-          updateKanbanChoreOrder(kidId, activeContainerId, reorderedChores.map(c => c.id));
-          // Optional: Feedback for reorder. The main useEffect will update columns.
-          // const title = currentActiveDragItem?.definition?.title || 'Chore';
-          // setActionFeedbackMessage(`${title} reordered in ${column.title}.`);
-        }
-      }
-    } else { // Item is dropped in a different column
-      // Update context first
-      updateChoreInstanceColumn(activeId, overContainerId);
-
-      // Set feedback message for inter-column move.
-      // Need to find the column title for overContainerId from userColumnConfigs as 'columns' state might not be updated yet.
-      const userCols = getKanbanColumnConfigs(kidId);
-      const destColumnTitle = userCols.find(c => c.id === overContainerId)?.title || 'another column';
-      const title = currentActiveDragItem?.definition?.title || 'Chore';
-      setActionFeedbackMessage(`${title} moved to ${destColumnTitle}.`);
-
-      // The main useEffect listening to choreInstances (which updateChoreInstanceColumn changes)
-      // will handle the re-calculation and setting of the 'columns' state.
-      // It will also handle placing the item correctly if it was dropped onto another item vs the column itself.
-      // For explicit placement if dropped on an item in another column (which dnd-kit might not handle perfectly out of box this way):
-      // This part might need more complex logic if the main useEffect doesn't correctly place it based on overId when columns re-calculate.
-      // However, for now, we rely on the main useEffect to be the single source of truth for columns state.
+      const definition = getDefinitionForInstance(activeInstance);
+      const choreTitle = definition?.title || "Chore";
+      const categoryTitles: Record<MatrixKanbanCategory, string> = {
+        TO_DO: "To Do",
+        IN_PROGRESS: "In Progress",
+        COMPLETED: "Completed"
+      };
+      setActionFeedbackMessage(`${choreTitle} moved to ${categoryTitles[newCategory]}.`);
     }
-    // NOTE: The direct setColumns call has been removed from this handler.
-    // Instead of updating the local 'columns' state directly, this function now
-    // only calls the necessary context update functions (updateKanbanChoreOrder or updateChoreInstanceColumn).
-    // The main useEffect hook, which listens to changes in context states (choreInstances, kanbanChoreOrders),
-    // will then be triggered and become the single source of truth for re-calculating and setting the 'columns' state.
-    // This approach simplifies data flow and helps prevent "Maximum update depth exceeded" errors
-    // by ensuring a more predictable and uni-directional state update pattern.
-  }
+    // Note: Reordering within the same swimlane (active.id !== over.id but same container)
+    // is not explicitly handled here yet. That would require updateKanbanChoreOrder or similar
+    // if `SortableContext` is used per swimlane and items are reordered.
+    // For now, the main goal is category change.
 
-  function handleDragCancel() {
+  }, [choreInstances, updateChoreInstanceCategory, getDefinitionForInstance, setActionFeedbackMessage]);
+
+  const handleDragCancel = useCallback(() => {
     setActiveDragItem(null);
-  }
+  }, []);
 
-  const userColumnConfigs = getKanbanColumnConfigs(kidId);
+  // const userColumnConfigs = getKanbanColumnConfigs(kidId); // Not directly used for matrix rendering
 
   // Date Navigation Functions
   const adjustDate = useCallback((currentDate: Date, adjustment: (date: Date) => void) => {
@@ -421,13 +414,13 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
 
 
   return (
-    // <DndContext // Commenting out old DndContext for now
-    //   sensors={sensors}
-    //   collisionDetection={closestCenter}
-    //   onDragStart={handleDragStart}
-    //   onDragEnd={handleDragEnd}
-    //   onDragCancel={handleDragCancel}
-    // >
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
       <div className="kid-kanban-board">
         {/* Action feedback message display area */}
         {actionFeedbackMessage && (
@@ -519,41 +512,19 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
         </div>
 
         {/* Old Kanban Columns rendering - Commented out */}
-        {/* {kidId && userColumnConfigs.length === 0 && (
-          <div style={{ padding: '20px', textAlign: 'center', backgroundColor: 'var(--surface-color-hover)', borderRadius: 'var(--border-radius-lg)'}}>
-            <p>No Kanban columns are set up for this kid yet.</p>
-            <p>Please go to Settings &gt; Kanban Column Settings to configure them.</p>
-          </div>
-        )}
-        <div
-          className="kanban-columns"
-          style={{ display: 'flex', gap: '10px' }}
-          role="list"
-          aria-label="Kanban board columns"
-        >
-          {columns.map(col => (
-            <KanbanColumn
-              key={col.id}
-              column={col}
-              getDefinitionForInstance={getDefinitionForInstance}
-              theme={selectedColumnTheme}
-            />
-          ))}
-          {kidId && userColumnConfigs.length > 0 && columns.every(col => col.chores.length === 0) &&
-            <p style={{padding: '20px'}}>No chores to display for this period or matching current filters in any column.</p>
-          }
-        </div> */}
+        {/* {kidId && userColumnConfigs.length === 0 && ( ... ) } */}
+        {/* Old kanban-columns div ... */}
       </div>
-      {/* <DragOverlay dropAnimation={null}> // Commenting out old DndContext related DragOverlay
+      <DragOverlay dropAnimation={null}>
         {activeDragItem ? (
           <KanbanCard
             instance={activeDragItem.instance}
             definition={activeDragItem.definition}
-            isOverlay={true}
+            isOverlay={true} // Ensure this prop is used by KanbanCard for distinct styling
           />
         ) : null}
-      </DragOverlay> */}
-    // </DndContext>
+      </DragOverlay>
+    </DndContext>
   );
 };
 

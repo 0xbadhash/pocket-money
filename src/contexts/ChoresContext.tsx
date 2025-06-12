@@ -276,21 +276,122 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
   // updateChoreInstanceColumn has been removed.
 
   const toggleSubtaskCompletionOnInstance = useCallback((instanceId: string, subtaskId: string) => {
-    setChoreInstances(prevInstances =>
-      prevInstances.map(instance => {
-        if (instance.id === instanceId) {
-          const newSubtaskCompletions = {
-            ...instance.subtaskCompletions,
-            [subtaskId]: !instance.subtaskCompletions[subtaskId], // Toggle
-          };
-          // Future: Add logic here to update instance.isComplete or instance.categoryStatus
-          // based on all subtasks being completed, if that's a desired behavior.
-          return { ...instance, subtaskCompletions: newSubtaskCompletions };
+    setChoreInstances(prevInstances => {
+      const instanceIndex = prevInstances.findIndex(inst => inst.id === instanceId);
+      if (instanceIndex === -1) return prevInstances;
+
+      const currentInstance = prevInstances[instanceIndex];
+      const definition = choreDefinitions.find(def => def.id === currentInstance.choreDefinitionId);
+
+      // Should not happen if data is consistent, but good to check.
+      if (!definition) return prevInstances;
+
+      // 1. Toggle the subtask
+      const newSubtaskCompletions = {
+        ...currentInstance.subtaskCompletions,
+        [subtaskId]: !currentInstance.subtaskCompletions?.[subtaskId],
+      };
+
+      let updatedInstance = {
+        ...currentInstance,
+        subtaskCompletions: newSubtaskCompletions
+      };
+      let newCategoryForAutoMove: MatrixKanbanCategory | null = null;
+
+      // Determine if all subtasks are complete
+      // Handles case with no subtasks (allSubtasksComplete will be true)
+      const allSubtasksComplete = definition.subTasks && definition.subTasks.length > 0
+        ? definition.subTasks.every(st => !!updatedInstance.subtaskCompletions[st.id])
+        : true;
+
+      // 2. Determine if automated category change is needed
+      if (updatedInstance.categoryStatus === "TO_DO") {
+        // If any subtask is now complete (and not all of them, which is handled next)
+        const anySubtaskComplete = definition.subTasks && definition.subTasks.length > 0
+          ? definition.subTasks.some(st => !!updatedInstance.subtaskCompletions[st.id])
+          : false; // No subtasks means none are "partially" complete for this rule.
+
+        if (anySubtaskComplete && !allSubtasksComplete) {
+          newCategoryForAutoMove = "IN_PROGRESS";
         }
-        return instance;
-      })
-    );
-  }, [setChoreInstances]);
+      }
+
+      // This check can override the TO_DO -> IN_PROGRESS if checking the last subtask makes all complete.
+      // Also handles moving from IN_PROGRESS -> COMPLETED.
+      if (allSubtasksComplete && updatedInstance.categoryStatus !== "COMPLETED") {
+        newCategoryForAutoMove = "COMPLETED";
+      }
+
+      // 3. If an automated move is determined, apply category change logic (from updateChoreInstanceCategory)
+      if (newCategoryForAutoMove) {
+        let finalSubtaskCompletions = { ...updatedInstance.subtaskCompletions };
+        let finalPreviousSubtaskCompletions = updatedInstance.previousSubtaskCompletions;
+        let finalOverallInstanceComplete = updatedInstance.isComplete; // Start with current
+
+        const oldCategoryForAutoMove = updatedInstance.categoryStatus; // Category before this auto-move
+
+        if (newCategoryForAutoMove === "COMPLETED") {
+          finalPreviousSubtaskCompletions = { ...updatedInstance.subtaskCompletions };
+          if (definition.subTasks && definition.subTasks.length > 0) {
+            definition.subTasks.forEach(st => finalSubtaskCompletions[st.id] = true);
+          } else {
+            finalSubtaskCompletions = {};
+          }
+          finalOverallInstanceComplete = true;
+        } else if (oldCategoryForAutoMove === "COMPLETED" && newCategoryForAutoMove === "IN_PROGRESS") {
+          // This specific auto-move (COMPLETED -> IN_PROGRESS) is not typically triggered by subtask toggle,
+          // but by direct drag. Included for completeness if a subtask uncheck could trigger it.
+          if (updatedInstance.previousSubtaskCompletions) {
+            finalSubtaskCompletions = { ...updatedInstance.previousSubtaskCompletions };
+          }
+          finalPreviousSubtaskCompletions = undefined;
+          if (definition.subTasks && definition.subTasks.length > 0) {
+            finalOverallInstanceComplete = definition.subTasks.every(st => !!finalSubtaskCompletions[st.id]);
+          } else {
+            finalOverallInstanceComplete = false;
+          }
+        } else if (newCategoryForAutoMove === "TO_DO") { // Should not happen from subtask toggle if already in TO_DO or IN_PROGRESS
+            // This case is mostly for direct moves, but if logic leads here:
+            if (definition.subTasks && definition.subTasks.length > 0) {
+                definition.subTasks.forEach(st => finalSubtaskCompletions[st.id] = false);
+            } else {
+                finalSubtaskCompletions = {};
+            }
+            finalPreviousSubtaskCompletions = undefined;
+            finalOverallInstanceComplete = false;
+        } else if (newCategoryForAutoMove === "IN_PROGRESS") { // Moving from TO_DO
+            if (definition.subTasks && definition.subTasks.length > 0) {
+                finalOverallInstanceComplete = definition.subTasks.every(st => !!finalSubtaskCompletions[st.id]);
+            } else { // No subtasks, cannot be "complete by subtasks"
+                finalOverallInstanceComplete = false;
+            }
+        }
+
+        updatedInstance = {
+          ...updatedInstance,
+          categoryStatus: newCategoryForAutoMove,
+          subtaskCompletions: finalSubtaskCompletions,
+          previousSubtaskCompletions: finalPreviousSubtaskCompletions,
+          isComplete: finalOverallInstanceComplete,
+        };
+      } else { // No category change, but update isComplete if in IN_PROGRESS or TO_DO
+        if (updatedInstance.categoryStatus === "IN_PROGRESS") {
+          if (definition.subTasks && definition.subTasks.length > 0) {
+            updatedInstance.isComplete = definition.subTasks.every(st => !!updatedInstance.subtaskCompletions[st.id]);
+          } else { // No subtasks
+            updatedInstance.isComplete = false; // Not in COMPLETED category, so not "complete"
+          }
+        } else if (updatedInstance.categoryStatus === "TO_DO") {
+          updatedInstance.isComplete = false; // Always false in TO_DO
+        }
+        // If category is COMPLETED, isComplete is true and handled by direct moves or the allSubtasksComplete logic above.
+      }
+
+      const finalInstances = [...prevInstances];
+      finalInstances[instanceIndex] = updatedInstance;
+      return finalInstances;
+    });
+  }, [choreDefinitions, setChoreInstances]);
 
   /**
    * Toggles the active state of a chore definition.
