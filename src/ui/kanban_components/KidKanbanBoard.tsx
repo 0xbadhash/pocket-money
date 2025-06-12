@@ -10,6 +10,7 @@ import { useChoresContext } from '../../contexts/ChoresContext';
 import { useUserContext } from '../../contexts/UserContext';
 import type { ChoreDefinition, ChoreInstance, KanbanPeriod, KanbanColumn as KanbanColumnType, ColumnThemeOption, KanbanColumnConfig } from '../../types';
 import KanbanColumn from './KanbanColumn';
+import KanbanCard from './KanbanCard';
 import * as DndKit from '@dnd-kit/core';
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { getTodayDateString, getWeekRange, getMonthRange } from '../../utils/dateUtils';
