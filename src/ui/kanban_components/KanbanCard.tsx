@@ -33,7 +33,9 @@ interface KanbanCardProps {
  * @returns {JSX.Element} The KanbanCard UI.
  */
 const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition, isOverlay = false }) => {
-  const { toggleChoreInstanceComplete, toggleSubTaskComplete } = useChoresContext();
+  // toggleSubTaskComplete is the old one operating on definition,
+  // toggleSubtaskCompletionOnInstance is the new one for instances.
+  const { toggleChoreInstanceComplete, toggleSubtaskCompletionOnInstance } = useChoresContext();
 
   // DEBUG: Log subtask states on re-render
   // console.log(`KanbanCard Render - Chore: ${definition.title}, Instance: ${instance.id}`);
@@ -105,7 +107,8 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition, isOverlay
       <h4>{definition.title}</h4>
 
       {definition.subTasks && definition.subTasks.length > 0 && (() => {
-        const completedCount = definition.subTasks.filter(st => st.isComplete).length;
+        // Calculate progress based on instance.subtaskCompletions
+        const completedCount = definition.subTasks.filter(st => !!instance.subtaskCompletions?.[st.id]).length;
         const progressPercent = (definition.subTasks.length > 0) ? (completedCount / definition.subTasks.length) * 100 : 0;
         return (
           <div className="progress-indicator-container" style={{ margin: '8px 0' }}>
@@ -166,27 +169,29 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition, isOverlay
       {definition.subTasks && definition.subTasks.length > 0 && (
         <div
           className="sub-tasks-list"
-          // Adding a key here that changes when subtask completion state changes.
-          // This is a more forceful way to ensure this part of the component re-renders.
-          // Typically not needed if props are handled correctly and immutably, but can help in complex cases.
-          key={definition.subTasks.map(st => st.isComplete.toString()).join(',')}
+          // Keyed with instance-specific subtask completion states to ensure this section re-renders
+          // when any subtask's 'isComplete' status changes for this particular instance.
+          key={definition.subTasks.map(st => `${st.id}:${!!instance.subtaskCompletions?.[st.id]}`).join(',')}
           style={{ marginTop: '10px', borderTop: '1px solid var(--border-color, #eee)', paddingTop: '8px' }}
         >
           <h5 style={{ fontSize: '0.9em', marginBottom: '5px', color: 'var(--text-color-secondary, #666)', marginTop: '0' }}>Sub-tasks:</h5>
-          {definition.subTasks.map(subTask => (
-            <div key={subTask.id} className="sub-task" style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
-              <input
-                type="checkbox"
-                id={`subtask-${definition.id}-${subTask.id}`}
-                checked={subTask.isComplete}
-                onChange={() => toggleSubTaskComplete(definition.id, subTask.id)}
-                style={{ marginRight: '8px', cursor: 'pointer' }}
-              />
-              <label htmlFor={`subtask-${definition.id}-${subTask.id}`} style={{ fontSize: '0.85em', textDecoration: subTask.isComplete ? 'line-through' : 'none', color: subTask.isComplete ? 'var(--text-color-secondary, #555)' : 'var(--text-color-primary, #333)', cursor: 'pointer' }}>
-                {subTask.title}
-              </label>
-            </div>
-          ))}
+          {definition.subTasks.map(subTask => {
+            const isChecked = !!instance.subtaskCompletions?.[subTask.id];
+            return (
+              <div key={subTask.id} className="sub-task" style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+                <input
+                  type="checkbox"
+                  id={`subtask-${instance.id}-${subTask.id}`} {/* Ensure unique ID using instance.id */}
+                  checked={isChecked}
+                  onChange={() => toggleSubtaskCompletionOnInstance(instance.id, subTask.id)}
+                  style={{ marginRight: '8px', cursor: 'pointer' }}
+                />
+                <label htmlFor={`subtask-${instance.id}-${subTask.id}`} style={{ fontSize: '0.85em', textDecoration: isChecked ? 'line-through' : 'none', color: isChecked ? 'var(--text-color-secondary, #555)' : 'var(--text-color-primary, #333)', cursor: 'pointer' }}>
+                  {subTask.title}
+                </label>
+              </div>
+            );
+          })}
         </div>
       )}
 

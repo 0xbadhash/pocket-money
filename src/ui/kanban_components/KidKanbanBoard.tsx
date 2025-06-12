@@ -5,12 +5,13 @@
  * for chore reordering (persisted via ChoresContext) and moving chores
  * between these dynamic columns (updating choreInstance.kanbanColumnId via ChoresContext).
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react'; // Added useCallback
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { useUserContext } from '../../contexts/UserContext';
-import type { ChoreDefinition, ChoreInstance, KanbanPeriod, KanbanColumn as KanbanColumnType, ColumnThemeOption } from '../../types';
-import KanbanColumn from './KanbanColumn';
-import KanbanCard from './KanbanCard';
+import type { ChoreDefinition, ChoreInstance, KanbanPeriod, KanbanColumn as KanbanColumnType, ColumnThemeOption, MatrixKanbanCategory } from '../../types'; // Added MatrixKanbanCategory
+// import KanbanColumn from './KanbanColumn'; // Old column component, commented out
+import KanbanCard from './KanbanCard'; // Still used for DragOverlay if re-enabled, and will be used in swimlanes
+import DateColumnView from './DateColumnView'; // Import the new component
 import {
   DndContext,
   PointerSensor,
@@ -95,6 +96,13 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   const [selectedColumnTheme, setSelectedColumnTheme] = useState<ColumnThemeOption>(() => {
     const storedTheme = localStorage.getItem('kanban_columnTheme') as ColumnThemeOption | null;
     return storedTheme || 'default';
+  });
+
+  // State for Matrix Kanban date navigation
+  const [currentVisibleStartDate, setCurrentVisibleStartDate] = useState(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Zero out time for consistent day calculations
+    return today;
   });
 
   /** Effect to save selected column theme to localStorage. */
@@ -375,32 +383,84 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
 
   const userColumnConfigs = getKanbanColumnConfigs(kidId);
 
+  // Date Navigation Functions
+  const adjustDate = useCallback((currentDate: Date, adjustment: (date: Date) => void) => {
+    const newDate = new Date(currentDate);
+    adjustment(newDate);
+    newDate.setHours(0,0,0,0); // Ensure time is zeroed out
+    setCurrentVisibleStartDate(newDate);
+  }, []);
+
+  const goToPreviousDay = () => adjustDate(currentVisibleStartDate, date => date.setDate(date.getDate() - 1));
+  const goToNextDay = () => adjustDate(currentVisibleStartDate, date => date.setDate(date.getDate() + 1));
+  const goToPreviousWeek = () => adjustDate(currentVisibleStartDate, date => date.setDate(date.getDate() - 7));
+  const goToNextWeek = () => adjustDate(currentVisibleStartDate, date => date.setDate(date.getDate() + 7));
+  const goToPreviousMonth = () => adjustDate(currentVisibleStartDate, date => date.setMonth(date.getMonth() - 1));
+  const goToNextMonth = () => adjustDate(currentVisibleStartDate, date => date.setMonth(date.getMonth() + 1));
+  const goToToday = () => {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    setCurrentVisibleStartDate(today);
+  };
+
+  const visibleDates = useMemo(() => {
+    const dates: Date[] = [];
+    const startDate = new Date(currentVisibleStartDate);
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(startDate);
+      day.setDate(startDate.getDate() + i);
+      dates.push(day);
+    }
+    return dates;
+  }, [currentVisibleStartDate]);
+
+  // Format function for date headers (e.g., "Mon, Jun 12")
+  const formatDateHeader = (date: Date): string => {
+    return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+
+
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
-    >
+    // <DndContext // Commenting out old DndContext for now
+    //   sensors={sensors}
+    //   collisionDetection={closestCenter}
+    //   onDragStart={handleDragStart}
+    //   onDragEnd={handleDragEnd}
+    //   onDragCancel={handleDragCancel}
+    // >
       <div className="kid-kanban-board">
-        {/* Action feedback message display area.
-            Role "status" and aria-live "polite" make it an announcement region for screen readers. */}
+        {/* Action feedback message display area */}
         {actionFeedbackMessage && (
           <div className="kanban-action-feedback" role="status" aria-live="polite">
             {actionFeedbackMessage}
           </div>
         )}
-        <div className="period-selector" style={{ marginBottom: '15px' }}>
+
+        {/* Date Navigation Controls */}
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' }}>
+          <button onClick={goToPreviousMonth}>&lt;&lt; Month</button>
+          <button onClick={goToPreviousWeek}>&lt; Week</button>
+          <button onClick={goToPreviousDay}>&lt; Day</button>
+          <button onClick={goToToday} style={{ fontWeight: 'bold' }}>Today</button>
+          <button onClick={goToNextDay}>Day &gt;</button>
+          <button onClick={goToNextWeek}>Week &gt;</button>
+          <button onClick={goToNextMonth}>Month &gt;&gt;</button>
+        </div>
+
+        {/* Period Selectors (Daily, Weekly, Monthly) - Kept from original */}
+        <div className="period-selector" style={{ marginBottom: '15px', textAlign: 'center' }}>
           <button onClick={() => setSelectedPeriod('daily')} disabled={selectedPeriod === 'daily'}>Daily</button>
           <button onClick={() => setSelectedPeriod('weekly')} disabled={selectedPeriod === 'weekly'}>Weekly</button>
           <button onClick={() => setSelectedPeriod('monthly')} disabled={selectedPeriod === 'monthly'}>Monthly</button>
         </div>
+
+        {/* Current Period Display (e.g., "Week: Sep 10, 2023 - Sep 16, 2023") - Kept from original */}
         <div className="current-period-display" style={{ marginBottom: '15px', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1em' }}>
           {currentPeriodDisplayString}
         </div>
 
-        <div className="kanban-controls" style={{ display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '15px', flexWrap: 'wrap' }}>
+        {/* Old Kanban Controls - Commenting out for now, may be repurposed or removed later */}
+        {/* <div className="kanban-controls" style={{ display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '15px', flexWrap: 'wrap' }}>
           <div>
             <label htmlFor="rewardFilterSelect" style={{ marginRight: '5px' }}>Filter by Reward:</label>
             <select id="rewardFilterSelect" value={rewardFilter} onChange={(e) => setRewardFilter(e.target.value as RewardFilterOption)} style={{ padding: '5px' }}>
@@ -416,12 +476,12 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
                 setSortBy(newSortBy);
                 if (newSortBy === 'rewardAmount') setSortDirection('desc');
                 else setSortDirection('asc');
-                if (newSortBy !== 'instanceDate') {
-                  const currentKidColumns = getKanbanColumnConfigs(kidId);
-                  currentKidColumns.forEach(config => {
-                    updateKanbanChoreOrder(kidId, config.id, []);
-                  });
-                }
+                // if (newSortBy !== 'instanceDate') { // This logic is tied to old kanbanChoreOrders
+                //   const currentKidColumns = getKanbanColumnConfigs(kidId);
+                //   currentKidColumns.forEach(config => {
+                //     updateKanbanChoreOrder(kidId, config.id, []);
+                //   });
+                // }
               }} style={{ padding: '5px' }}>
               <option value="instanceDate">My Order / Due Date</option>
               <option value="title">Title</option>
@@ -442,19 +502,33 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
               <option value="ocean">Ocean</option>
             </select>
           </div>
+        </div> */}
+
+        {/* Matrix Kanban Grid */}
+        <div className="matrix-kanban-header" style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '5px', borderBottom: '1px solid #ccc', paddingBottom: '5px' }}>
+          {visibleDates.map(date => (
+            <div key={date.toISOString()} className="date-header" style={{ flex: 1, textAlign: 'center', fontWeight: 'bold' }}>
+              {formatDateHeader(date)}
+            </div>
+          ))}
+        </div>
+        <div className="matrix-kanban-body" style={{ display: 'flex', justifyContent: 'space-around', gap: '5px' }}>
+          {visibleDates.map(date => (
+            <DateColumnView key={date.toISOString()} date={date} />
+          ))}
         </div>
 
-        {kidId && userColumnConfigs.length === 0 && (
+        {/* Old Kanban Columns rendering - Commented out */}
+        {/* {kidId && userColumnConfigs.length === 0 && (
           <div style={{ padding: '20px', textAlign: 'center', backgroundColor: 'var(--surface-color-hover)', borderRadius: 'var(--border-radius-lg)'}}>
             <p>No Kanban columns are set up for this kid yet.</p>
             <p>Please go to Settings &gt; Kanban Column Settings to configure them.</p>
           </div>
         )}
-
         <div
           className="kanban-columns"
           style={{ display: 'flex', gap: '10px' }}
-          role="list" // Changed from group, as it's a list of columns (which are groups)
+          role="list"
           aria-label="Kanban board columns"
         >
           {columns.map(col => (
@@ -468,18 +542,18 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
           {kidId && userColumnConfigs.length > 0 && columns.every(col => col.chores.length === 0) &&
             <p style={{padding: '20px'}}>No chores to display for this period or matching current filters in any column.</p>
           }
-        </div>
+        </div> */}
       </div>
-      <DragOverlay dropAnimation={null}>
+      {/* <DragOverlay dropAnimation={null}> // Commenting out old DndContext related DragOverlay
         {activeDragItem ? (
           <KanbanCard
             instance={activeDragItem.instance}
             definition={activeDragItem.definition}
-            isOverlay={true} // Pass isOverlay to distinguish the drag preview from the actual sortable item
+            isOverlay={true}
           />
         ) : null}
-      </DragOverlay>
-    </DndContext>
+      </DragOverlay> */}
+    // </DndContext>
   );
 };
 

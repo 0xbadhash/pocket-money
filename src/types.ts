@@ -3,6 +3,12 @@
 // Re-export Transaction type directly from FinancialContext
 export { type Transaction } from './contexts/FinancialContext';
 
+/**
+ * Defines the fixed categories for the Matrix Kanban board.
+ * These represent the primary status swimlanes for chore instances.
+ */
+export type MatrixKanbanCategory = "TO_DO" | "IN_PROGRESS" | "COMPLETED";
+
 export interface Kid {
   id: string;
   name: string;
@@ -44,11 +50,16 @@ export interface ChoreInstance {
   id: string; // Unique ID for this specific instance (e.g., choreDefId + '_' + instanceDate)
   choreDefinitionId: string;
   instanceDate: string; // The specific date this instance is due (YYYY-MM-DD)
-  isComplete: boolean;
-  /** Identifier of the custom Kanban column this chore instance currently belongs to. Optional for backward compatibility. */
-  kanbanColumnId?: string;
+  isComplete: boolean; // Overall completion of the instance (might be true if all subtasks done or moved to COMPLETED category)
+
+  // New/Modified for Matrix Kanban:
+  categoryStatus: MatrixKanbanCategory; // Replaces/clarifies kanbanColumnId's role
+  subtaskCompletions: Record<string, boolean>; // Tracks completion of subtasks by subtaskId
+  previousSubtaskCompletions?: Record<string, boolean>; // For reverting from COMPLETED status
+
   // Optional: if reward is snapshotted per instance or can vary
   // rewardAmount?: number;
+  // kanbanColumnId?: string; // Removed in favor of categoryStatus for Matrix Kanban
 }
 
 /**
