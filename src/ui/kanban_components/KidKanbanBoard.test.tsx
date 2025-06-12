@@ -1,17 +1,20 @@
-// mockKanbanColumn, mockSortableContextFn, and mockDragOverlay must be declared before imports for Vitest hoisting
+import { vi } from 'vitest';
+
+// Declare mocks at the very top (uninitialized)
 let mockKanbanColumn: any;
 let mockSortableContextFn: any;
 let mockDragOverlay: any;
 
-// Patch for Vitest hoisting: mockKanbanColumn must be declared as vi.fn() before imports and vi.mock
-// const mockKanbanColumn = vi.fn();
+// Assign mocks after importing vi, before any vi.mock calls
+mockKanbanColumn = vi.fn();
+mockSortableContextFn = vi.fn();
+mockDragOverlay = vi.fn(({ children }) => children ? <div data-testid="drag-overlay-content">{children}</div> : null);
 
 import { render, screen } from '@testing-library/react';
 import { ChoresContext } from '../../contexts/ChoresContext';
 import { UserContext } from '../../contexts/UserContext';
 import KidKanbanBoard from './KidKanbanBoard';
 import type { ChoreDefinition, ChoreInstance, KanbanColumnConfig } from '../../types';
-import { vi } from 'vitest';
 import '@testing-library/jest-dom';
 import type { Active, Over } from '@dnd-kit/core';
 import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core';
@@ -21,10 +24,6 @@ import { getTodayDateString, getWeekRange, getMonthRange } from '../../utils/dat
 
 // src/ui/kanban_components/KidKanbanBoard.test.tsx
 // Move all mock function declarations above imports and vi.mock() calls to avoid hoisting issues
-
-mockKanbanColumn = vi.fn();
-mockSortableContextFn = vi.fn();
-mockDragOverlay = vi.fn(({ children }) => children ? <div data-testid="drag-overlay-content">{children}</div> : null);
 
 vi.mock('@dnd-kit/core', async (importOriginal) => {
     const actual = await importOriginal() as object;
@@ -189,7 +188,11 @@ describe('KidKanbanBoard - Rendering and Basic Interactions (Part 1)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorageMock = localStorageMockFactory();
-    Object.defineProperty(window, 'localStorage', { value: localStorageMock, configurable: true });
+    Object.defineProperty(window, 'localStorage', {
+      value: localStorageMock,
+      writable: true,
+      configurable: true,
+    });
     localStorageMock.getItem.mockImplementation((key: string) => {
         if (key === 'kanban_columnTheme') return 'default';
         return null;
@@ -326,6 +329,7 @@ describe('KidKanbanBoard - Rendering and Basic Interactions (Part 1)', () => {
 });
 
 
+
 // Helper for queryByTestId within a container
 import { queries, getQueriesForElement } from '@testing-library/dom';
 function within(element: HTMLElement) {
@@ -336,7 +340,11 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorageMock = localStorageMockFactory(); // Reset localStorage for each test
-    Object.defineProperty(window, 'localStorage', { value: localStorageMock, configurable: true });
+    Object.defineProperty(window, 'localStorage', {
+      value: localStorageMock,
+      writable: true,
+      configurable: true,
+    });
     resetMockChoreInstances();
     resetMockKanbanChoreOrders(); // Reset custom orders for each test
     dndContextProps = {};

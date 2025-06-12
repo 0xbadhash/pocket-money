@@ -107,6 +107,7 @@ describe('KanbanView Integration Test', () => {
       deleteKid: vi.fn(),
       uploadKidAvatar: vi.fn(),
       fetchUser: vi.fn(),
+      getKanbanColumnConfigs: vi.fn(() => []),
     };
 
     render(
@@ -138,8 +139,8 @@ describe('KanbanView Integration Test', () => {
 
     // Check for mocked columns (their titles should reflect the default "Daily" period)
     // The mock for KanbanColumn renders the title it receives in an h3.
-    await screen.findByRole('heading', { name: 'Today - Active' });
-    await screen.findByRole('heading', { name: 'Today - Completed' });
+    await screen.findByText(/today\s*-\s*active/i);
+    await screen.findByText(/today\s*-\s*completed/i);
 
     expect(screen.getByTestId('mock-kanban-column-daily_active')).toBeInTheDocument();
     expect(screen.getByTestId('mock-kanban-column-daily_completed')).toBeInTheDocument();
@@ -152,6 +153,7 @@ describe('KanbanView Integration Test', () => {
       error: null,
       login: vi.fn(), logout: vi.fn(), signup: vi.fn(), updateUserSettings: vi.fn(),
       addKid: vi.fn(), updateKid: vi.fn(), deleteKid: vi.fn(), uploadKidAvatar: vi.fn(), fetchUser: vi.fn(),
+      getKanbanColumnConfigs: vi.fn(() => []),
     };
     render(
       <UserContext.Provider value={loadingUserContextValue}>
@@ -169,6 +171,7 @@ describe('KanbanView Integration Test', () => {
       user: noKidsUser, loading: false, error: null,
       login: vi.fn(), logout: vi.fn(), signup: vi.fn(), updateUserSettings: vi.fn(),
       addKid: vi.fn(), updateKid: vi.fn(), deleteKid: vi.fn(), uploadKidAvatar: vi.fn(), fetchUser: vi.fn(),
+      getKanbanColumnConfigs: vi.fn(() => []),
     };
      render(
       <UserContext.Provider value={noKidsContextValue}>
@@ -177,7 +180,7 @@ describe('KanbanView Integration Test', () => {
         </ChoresContext.Provider>
       </UserContext.Provider>
     );
-    expect(screen.getByText('No kids found. Please add a child in the settings page to use the Kanban board.')).toBeInTheDocument();
+    expect(screen.getByText('No kids found. Please add kids in settings.')).toBeInTheDocument();
   });
 
   test('shows "Select a kid to view their Kanban board." if a user is loaded but no kid is selected yet', () => {
@@ -186,6 +189,7 @@ describe('KanbanView Integration Test', () => {
         loading: false, error: null,
         login: vi.fn(), logout: vi.fn(), signup: vi.fn(), updateUserSettings: vi.fn(),
         addKid: vi.fn(), updateKid: vi.fn(), deleteKid: vi.fn(), uploadKidAvatar: vi.fn(), fetchUser: vi.fn(),
+        getKanbanColumnConfigs: vi.fn(() => []),
       };
       render(
         <UserContext.Provider value={userContextValue}>

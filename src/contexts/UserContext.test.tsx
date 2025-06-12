@@ -38,9 +38,9 @@ describe('UserContext - Kanban Column Config Management', () => {
       writable: true,
       configurable: true,
     });
-    // Ensure UserProvider initializes with no user from localStorage for most tests, unless specified.
+    // Always return null for userData to start with no kids
     localStorageMock.getItem.mockImplementation((key: string) => {
-        if (key === 'userData') return null; // Default to no stored user
+        if (key === 'userData') return null;
         return null;
     });
   });

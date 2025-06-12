@@ -128,7 +128,7 @@ describe('KanbanSettingsView', () => {
     });
 
     // Verify column list ARIA attributes
-    const columnList = screen.getByRole('list', { name: /Kanban columns for Kid Alpha/i });
+    const columnList = screen.getByRole('list', { name: /Existing Columns:/i });
     expect(columnList).toBeInTheDocument();
     // Verify list items (assuming SortableColumnItem renders with role="listitem")
     const columnItems = screen.getAllByRole('listitem');
@@ -276,7 +276,7 @@ describe('KanbanSettingsView', () => {
     expect(mockReorderKanbanColumnConfigs).toHaveBeenCalledWith(kid1Id, expect.arrayContaining(expectedReorderedConfigs));
 
     // Verify column list ARIA attributes after reorder
-    const columnList = screen.getByRole('list', { name: /Kanban columns for Kid Alpha/i });
+    const columnList = screen.getByRole('list', { name: /Existing Columns:/i });
     expect(columnList).toBeInTheDocument();
     const columnItems = screen.getAllByRole('listitem');
     expect(columnItems.length).toBe(initialConfigs.length);
