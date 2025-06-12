@@ -121,6 +121,35 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     }
   }, [selectedPeriod]);
 
+  const currentPeriodDisplayString = useMemo(() => {
+    // Appending 'T00:00:00' to "YYYY-MM-DD" strings (from currentPeriodDateRange) ensures
+    // that the string is parsed as a local time at the very beginning of that day,
+    // rather than potentially being interpreted as UTC. This helps prevent date shifts
+    // when the date is then formatted for display using the user's local timezone.
+    // toLocaleDateString() is then used for basic localized date formatting.
+    if (!currentPeriodDateRange.start) return "";
+
+    // Helper to parse YYYY-MM-DD and treat as local date to avoid timezone shifts converting to other parts of the day.
+    const parseAsLocalDate = (dateString: string) => new Date(dateString + 'T00:00:00');
+
+    const startDate = parseAsLocalDate(currentPeriodDateRange.start);
+
+    if (selectedPeriod === 'daily') {
+      return startDate.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    } else if (selectedPeriod === 'weekly') {
+      const endDate = parseAsLocalDate(currentPeriodDateRange.end);
+      // Format start and end dates. Example: "Week: Sep 10, 2023 - Sep 16, 2023"
+      // Adjust options as needed for desired verbosity.
+      const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+      const formattedStartDate = startDate.toLocaleDateString(undefined, options);
+      const formattedEndDate = endDate.toLocaleDateString(undefined, options);
+      return `Week: ${formattedStartDate} - ${formattedEndDate}`;
+    } else { // monthly
+      // For month, display month and year. Example: "Month: September 2023"
+      return `Month: ${startDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}`;
+    }
+  }, [selectedPeriod, currentPeriodDateRange]);
+
   /**
    * Effect to trigger chore instance generation in `ChoresContext`.
    * This is called when the period, kid, or chore definitions change.
@@ -362,6 +391,9 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
           <button onClick={() => setSelectedPeriod('daily')} disabled={selectedPeriod === 'daily'}>Daily</button>
           <button onClick={() => setSelectedPeriod('weekly')} disabled={selectedPeriod === 'weekly'}>Weekly</button>
           <button onClick={() => setSelectedPeriod('monthly')} disabled={selectedPeriod === 'monthly'}>Monthly</button>
+        </div>
+        <div className="current-period-display" style={{ marginBottom: '15px', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1em' }}>
+          {currentPeriodDisplayString}
         </div>
 
         <div className="kanban-controls" style={{ display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '15px', flexWrap: 'wrap' }}>

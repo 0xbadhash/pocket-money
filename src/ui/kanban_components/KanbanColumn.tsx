@@ -80,6 +80,11 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, getDefinitionForIns
                 console.warn(`Definition not found for instance ${instance.id}`);
                 return null; // Skip rendering if definition is missing
               }
+              // DEBUG: Log definition being passed to KanbanCard
+              // console.log(`KanbanColumn: Passing to KanbanCard - Chore: ${definition.title}, Instance: ${instance.id}`);
+              // if (definition.subTasks && definition.subTasks.length > 0) {
+              //   console.log('KanbanColumn: Subtasks for card: ', JSON.stringify(definition.subTasks.map(st => ({ id: st.id, title: st.title, isComplete: st.isComplete }))));
+              // }
               return (
                 <KanbanCard
                   key={instance.id}

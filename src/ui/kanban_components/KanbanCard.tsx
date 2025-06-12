@@ -35,6 +35,12 @@ interface KanbanCardProps {
 const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition, isOverlay = false }) => {
   const { toggleChoreInstanceComplete, toggleSubTaskComplete } = useChoresContext();
 
+  // DEBUG: Log subtask states on re-render
+  // console.log(`KanbanCard Render - Chore: ${definition.title}, Instance: ${instance.id}`);
+  // if (definition.subTasks && definition.subTasks.length > 0) {
+  //   console.log('Subtasks: ', JSON.stringify(definition.subTasks.map(st => ({ id: st.id, title: st.title, isComplete: st.isComplete }))));
+  // }
+
   /**
    * Props from `useSortable` hook (dnd-kit) to make the card draggable.
    * Includes attributes for ARIA, listeners for drag events, and refs.
@@ -158,7 +164,14 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition, isOverlay
       )}
 
       {definition.subTasks && definition.subTasks.length > 0 && (
-        <div className="sub-tasks-list" style={{ marginTop: '10px', borderTop: '1px solid var(--border-color, #eee)', paddingTop: '8px' }}>
+        <div
+          className="sub-tasks-list"
+          // Adding a key here that changes when subtask completion state changes.
+          // This is a more forceful way to ensure this part of the component re-renders.
+          // Typically not needed if props are handled correctly and immutably, but can help in complex cases.
+          key={definition.subTasks.map(st => st.isComplete.toString()).join(',')}
+          style={{ marginTop: '10px', borderTop: '1px solid var(--border-color, #eee)', paddingTop: '8px' }}
+        >
           <h5 style={{ fontSize: '0.9em', marginBottom: '5px', color: 'var(--text-color-secondary, #666)', marginTop: '0' }}>Sub-tasks:</h5>
           {definition.subTasks.map(subTask => (
             <div key={subTask.id} className="sub-task" style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
