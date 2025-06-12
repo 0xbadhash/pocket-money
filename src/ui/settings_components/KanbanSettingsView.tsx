@@ -6,17 +6,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useUserContext, User } from '../../contexts/UserContext'; // Assuming User type is exported from UserContext
 import type { Kid, KanbanColumnConfig } from '../../types';
-import {
-  DndContext,
-  PointerSensor,
-  KeyboardSensor,
-  useSensor,
-  useSensors,
-  closestCenter,
-  DragEndEvent,
-  DragStartEvent,
-  DragOverlay
-} from '@dnd-kit/core';
+import * as DndKit from '@dnd-kit/core';
 import {
   SortableContext,
   sortableKeyboardCoordinates,
@@ -170,9 +160,9 @@ const KanbanSettingsView: React.FC = () => {
     }
   }, [selectedKidId, user, getKanbanColumnConfigs]); // user dependency to refresh if configs change externally
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
+  const sensors = DndKit.useSensors(
+    DndKit.useSensor(DndKit.PointerSensor),
+    DndKit.useSensor(DndKit.KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
@@ -259,18 +249,18 @@ const KanbanSettingsView: React.FC = () => {
   /**
    * Handles the start of a drag operation for reordering column configurations.
    * Sets the ID of the actively dragged item.
-   * @param {DragStartEvent} event - The drag start event from dnd-kit.
+   * @param {DndKit.DragStartEvent} event - The drag start event from dnd-kit.
    */
-  const handleDragStart = (event: DragStartEvent) => {
+  const handleDragStart = (event: DndKit.DragStartEvent) => {
     setActiveDragId(event.active.id as string);
   };
 
   /**
    * Handles the end of a drag operation for reordering column configurations.
    * Calculates the new order and calls `reorderKanbanColumnConfigs` from UserContext.
-   * @param {DragEndEvent} event - The drag end event from dnd-kit.
+   * @param {DndKit.DragEndEvent} event - The drag end event from dnd-kit.
    */
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = (event: DndKit.DragEndEvent) => {
     setActiveDragId(null);
     const { active, over } = event;
 
@@ -330,9 +320,9 @@ const KanbanSettingsView: React.FC = () => {
           )}
 
           {columnsForSelectedKid.length > 0 && (
-            <DndContext
+            <DndKit.DndContext
               sensors={sensors}
-              collisionDetection={closestCenter}
+              collisionDetection={DndKit.closestCenter}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
             >
@@ -356,7 +346,7 @@ const KanbanSettingsView: React.FC = () => {
                   />
                 ))}
               </SortableContext>
-              <DragOverlay>
+              <DndKit.DragOverlay>
                 {activeDragId && editingColumn?.id !== activeDragId ? ( // Don't show overlay if editing the dragged item
                   <div style={{ padding: '8px', border: '1px dashed #555', backgroundColor: '#eee'}}>
                     {columnsForSelectedKid.find(c => c.id === activeDragId)?.title}
