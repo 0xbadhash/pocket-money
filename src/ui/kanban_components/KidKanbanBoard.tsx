@@ -294,55 +294,50 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
         const itemsInColumn = columns.find(col => col.id === activeContainerId)?.chores || [];
         const oldIdx = itemsInColumn.findIndex(item => item.id === activeId);
         const newIdx = itemsInColumn.findIndex(item => item.id === overId);
-        if (oldIdx === newIdx) return;
+        if (oldIdx === newIdx) return; // Item was dropped in the same position in the same column
     }
 
-    setColumns(prev => {
-      const activeColumn = prev.find(col => col.id === activeContainerId);
-      const overColumn = prev.find(col => col.id === overContainerId);
+    // If the item is dropped in the same column (reordering)
+    if (activeContainerId === overContainerId) {
+      const column = columns.find(col => col.id === activeContainerId);
+      if (column) {
+        const oldIndex = column.chores.findIndex(item => item.id === activeId);
+        const newIndex = column.chores.findIndex(item => item.id === overId);
 
-      if (!activeColumn || !overColumn) return prev;
-
-      if (activeContainerId === overContainerId) {
-        const oldIndex = activeColumn.chores.findIndex(item => item.id === activeId);
-        const newIndex = activeColumn.chores.findIndex(item => item.id === overId);
         if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-          const updatedChores = arrayMove(activeColumn.chores, oldIndex, newIndex);
-          updateKanbanChoreOrder(kidId, activeContainerId, updatedChores.map(c => c.id));
-          // No specific feedback for same-column reorder, but could be added.
-          // Example: setActionFeedbackMessage(`${currentActiveDragItem?.definition.title || 'Chore'} reordered in ${activeColumn.title}.`);
-          return prev.map(col => col.id === activeContainerId ? { ...col, chores: updatedChores } : col);
+          const reorderedChores = arrayMove(column.chores, oldIndex, newIndex);
+          // Update context first
+          updateKanbanChoreOrder(kidId, activeContainerId, reorderedChores.map(c => c.id));
+          // Optional: Feedback for reorder. The main useEffect will update columns.
+          // const title = currentActiveDragItem?.definition?.title || 'Chore';
+          // setActionFeedbackMessage(`${title} reordered in ${column.title}.`);
         }
-      } else {
-        const sourceChores = [...activeColumn.chores];
-        const destChores = [...overColumn.chores];
-        const activeItemIndex = sourceChores.findIndex(item => item.id === activeId);
-
-        if (activeItemIndex === -1) return prev;
-
-        const [movedItemOriginal] = sourceChores.splice(activeItemIndex, 1);
-        let itemToMove = { ...movedItemOriginal, kanbanColumnId: overColumn.id };
-
-        updateChoreInstanceColumn(itemToMove.id, overColumn.id);
-
-        // Set feedback message for inter-column move.
-        const title = currentActiveDragItem?.definition?.title || 'Chore'; // Use title from captured activeDragItem
-        setActionFeedbackMessage(`${title} moved to ${overColumn.title}.`);
-
-        let overIndex = destChores.findIndex(item => item.id === overId);
-        if (overId === overColumn.id || overIndex === -1) {
-          overIndex = destChores.length;
-        }
-        destChores.splice(overIndex, 0, itemToMove);
-
-        return prev.map(col => {
-          if (col.id === activeContainerId) return { ...col, chores: sourceChores };
-          if (col.id === overContainerId) return { ...col, chores: destChores };
-          return col;
-        });
       }
-      return prev;
-    });
+    } else { // Item is dropped in a different column
+      // Update context first
+      updateChoreInstanceColumn(activeId, overContainerId);
+
+      // Set feedback message for inter-column move.
+      // Need to find the column title for overContainerId from userColumnConfigs as 'columns' state might not be updated yet.
+      const userCols = getKanbanColumnConfigs(kidId);
+      const destColumnTitle = userCols.find(c => c.id === overContainerId)?.title || 'another column';
+      const title = currentActiveDragItem?.definition?.title || 'Chore';
+      setActionFeedbackMessage(`${title} moved to ${destColumnTitle}.`);
+
+      // The main useEffect listening to choreInstances (which updateChoreInstanceColumn changes)
+      // will handle the re-calculation and setting of the 'columns' state.
+      // It will also handle placing the item correctly if it was dropped onto another item vs the column itself.
+      // For explicit placement if dropped on an item in another column (which dnd-kit might not handle perfectly out of box this way):
+      // This part might need more complex logic if the main useEffect doesn't correctly place it based on overId when columns re-calculate.
+      // However, for now, we rely on the main useEffect to be the single source of truth for columns state.
+    }
+    // NOTE: The direct setColumns call has been removed from this handler.
+    // Instead of updating the local 'columns' state directly, this function now
+    // only calls the necessary context update functions (updateKanbanChoreOrder or updateChoreInstanceColumn).
+    // The main useEffect hook, which listens to changes in context states (choreInstances, kanbanChoreOrders),
+    // will then be triggered and become the single source of truth for re-calculating and setting the 'columns' state.
+    // This approach simplifies data flow and helps prevent "Maximum update depth exceeded" errors
+    // by ensuring a more predictable and uni-directional state update pattern.
   }
 
   function handleDragCancel() {

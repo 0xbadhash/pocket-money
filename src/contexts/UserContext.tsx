@@ -1,5 +1,5 @@
 // src/contexts/UserContext.tsx
-import React, { createContext, useState, useEffect, ReactNode, useContext } from 'react';
+import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback, useMemo } from 'react';
 import type { Kid, KanbanColumnConfig } from '../types'; // Import Kid and KanbanColumnConfig types
 
 // Define the shape of the user data
@@ -82,6 +82,43 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           ...kid,
           kanbanColumnConfigs: kid.kanbanColumnConfigs || []
         }));
+
+        // Enhancement: Iterate through each kid to ensure default Kanban columns are present.
+        // This ensures that if a user was created before the Kanban columns feature,
+        // or if their column configs were somehow lost/corrupted, they get a default set.
+        parsedUser.kids.forEach(kid => {
+          if (!kid.kanbanColumnConfigs || kid.kanbanColumnConfigs.length === 0) {
+            const now = new Date().toISOString();
+            const defaultColumns: KanbanColumnConfig[] = [
+              {
+                id: `colcfg_default_${kid.id}_0`,
+                kidId: kid.id,
+                title: "To Do",
+                order: 0,
+                createdAt: now,
+                updatedAt: now,
+              },
+              {
+                id: `colcfg_default_${kid.id}_1`,
+                kidId: kid.id,
+                title: "In Progress",
+                order: 1,
+                createdAt: now,
+                updatedAt: now,
+              },
+              {
+                id: `colcfg_default_${kid.id}_2`,
+                kidId: kid.id,
+                title: "Done",
+                order: 2,
+                createdAt: now,
+                updatedAt: now,
+              },
+            ];
+            kid.kanbanColumnConfigs = defaultColumns;
+          }
+        });
+
         setUser(parsedUser);
       } else {
         // For development: Set a default mock user if nothing in localStorage
@@ -120,15 +157,15 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     }
   }, [user]);
 
-  // Placeholder functions - implementations will be added next
-  const login = (userData: User) => setUser(userData);
-  const logout = () => setUser(null); // Simplified logout
-  const updateUser = (updatedUserData: Partial<User>) => {
+  const login = useCallback((userData: User) => setUser(userData), [setUser]);
+  const logout = useCallback(() => setUser(null), [setUser]);
+  const updateUser = useCallback((updatedUserData: Partial<User>) => {
     setUser(prevUser => prevUser ? { ...prevUser, ...updatedUserData } : null);
-  };
-  const addKid = (kidData: Omit<Kid, 'id' | 'kanbanColumnConfigs' | 'totalFunds'> & { totalFunds?: number }) => {
-     setUser(prevUser => {
-       if (!prevUser) return null;
+  }, [setUser]);
+
+  const addKid = useCallback((kidData: Omit<Kid, 'id' | 'kanbanColumnConfigs' | 'totalFunds'> & { totalFunds?: number }) => {
+    setUser(prevUser => {
+      if (!prevUser) return null;
 
        const newKidId = `kid_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
        const defaultColumnHeaders: Omit<KanbanColumnConfig, 'kidId' | 'id' | 'createdAt' | 'updatedAt'>[] = [
@@ -154,8 +191,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
        };
        return { ...prevUser, kids: [...prevUser.kids, newKid] };
      });
-  };
-  const updateKid = (updatedKidData: Kid) => {
+  }, [setUser]);
+
+  const updateKid = useCallback((updatedKidData: Kid) => {
     setUser(prevUser => {
       if (!prevUser) return null;
       return {
@@ -163,27 +201,32 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         kids: prevUser.kids.map(k => k.id === updatedKidData.id ? updatedKidData : k),
       };
     });
-  };
-  const deleteKid = (kidId: string) => {
+  }, [setUser]);
+
+  const deleteKid = useCallback((kidId: string) => {
     setUser(prevUser => {
       if (!prevUser) return null;
       return { ...prevUser, kids: prevUser.kids.filter(k => k.id !== kidId) };
     });
-  };
+  }, [setUser]);
 
   /**
    * Retrieves all Kanban column configurations for a specific kid, sorted by their 'order' property.
    * @param {string} kidId - The ID of the kid whose column configurations are to be retrieved.
    * @returns {KanbanColumnConfig[]} An array of sorted Kanban column configurations, or an empty array if none found.
    */
-  const getKanbanColumnConfigs = (kidId: string): KanbanColumnConfig[] => {
+  const getKanbanColumnConfigs = useCallback((kidId: string): KanbanColumnConfig[] => {
     const kid = user?.kids.find(k => k.id === kidId);
     if (kid && kid.kanbanColumnConfigs) {
       // Return a new sorted array to prevent direct mutation of state if the consumer modifies the array
       return [...kid.kanbanColumnConfigs].sort((a, b) => a.order - b.order);
     }
     return [];
-  };
+  }, [user]);
+  // Note on useCallback: All functions provided by this context are wrapped in useCallback
+  // (e.g., addKid, reorderKanbanColumnConfigs, etc.) to stabilize their references.
+  // This prevents unnecessary re-renders in consumer components that depend on these functions,
+  // particularly if they are used in useEffect dependency arrays or as props to memoized components.
 
   /**
    * Adds a new Kanban column configuration for a specific kid.
@@ -193,7 +236,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
    * @param {string} title - The title for the new Kanban column.
    * @returns {Promise<void>} A promise that resolves when the operation is complete.
    */
-  const addKanbanColumnConfig = async (kidId: string, title: string): Promise<void> => {
+  const addKanbanColumnConfig = useCallback(async (kidId: string, title: string): Promise<void> => {
     setUser(prevUser => {
       if (!prevUser) return null;
       const newKidsArray = prevUser.kids.map(kid => {
@@ -216,7 +259,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       });
       return { ...prevUser, kids: newKidsArray };
     });
-  };
+  }, [setUser]);
 
   /**
    * Updates an existing Kanban column configuration for a kid.
@@ -225,7 +268,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
    *                                            The `id` and `kidId` properties are used to find the target.
    * @returns {Promise<void>} A promise that resolves when the operation is complete.
    */
-  const updateKanbanColumnConfig = async (updatedConfig: KanbanColumnConfig): Promise<void> => {
+  const updateKanbanColumnConfig = useCallback(async (updatedConfig: KanbanColumnConfig): Promise<void> => {
     setUser(prevUser => {
       if (!prevUser) return null;
       const newKidsArray = prevUser.kids.map(kid => {
@@ -242,7 +285,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       });
       return { ...prevUser, kids: newKidsArray };
     });
-  };
+  }, [setUser]);
 
   /**
    * Deletes a Kanban column configuration for a specific kid.
@@ -251,7 +294,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
    * @param {string} configId - The ID of the Kanban column configuration to delete.
    * @returns {Promise<void>} A promise that resolves when the operation is complete.
    */
-  const deleteKanbanColumnConfig = async (kidId: string, configId: string): Promise<void> => {
+  const deleteKanbanColumnConfig = useCallback(async (kidId: string, configId: string): Promise<void> => {
     setUser(prevUser => {
       if (!prevUser) return null;
       const newKidsArray = prevUser.kids.map(kid => {
@@ -268,9 +311,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     });
     // Note: Chore instances referencing this configId might need to be handled (e.g., moved to a default column).
     // This logic would typically be in KidKanbanBoard or a settings UI when this function is invoked.
-  };
+  }, [setUser]);
 
-  const reorderKanbanColumnConfigs = async (kidId: string, orderedConfigsWithNewOrder: KanbanColumnConfig[]): Promise<void> => {
+  const reorderKanbanColumnConfigs = useCallback(async (kidId: string, orderedConfigsWithNewOrder: KanbanColumnConfig[]): Promise<void> => {
     // orderedConfigsWithNewOrder is assumed to be the full list of configs for the kid,
     // already in the desired visual order. This function updates their 'order' property
     // to match their new index in the array and sets their `updatedAt` timestamp.
@@ -293,25 +336,31 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       });
       return { ...prevUser, kids: newKidsArray };
     });
-  };
+  }, [setUser]);
+
+  const contextValue = React.useMemo(() => ({
+    user,
+    loading,
+    error,
+    login,
+    logout,
+    updateUser,
+    addKid,
+    updateKid,
+    deleteKid,
+    getKanbanColumnConfigs,
+    addKanbanColumnConfig,
+    updateKanbanColumnConfig,
+    deleteKanbanColumnConfig,
+    reorderKanbanColumnConfigs
+  }), [user, loading, error, login, logout, updateUser, addKid, updateKid, deleteKid, getKanbanColumnConfigs, addKanbanColumnConfig, updateKanbanColumnConfig, deleteKanbanColumnConfig, reorderKanbanColumnConfigs]);
+  // The contextValue object itself is memoized using React.useMemo. This ensures that the object reference
+  // only changes if its contents (user, loading, error, or any of the memoized functions) change,
+  // further optimizing performance by preventing re-renders of all context consumers when unrelated
+  // state within the provider might change.
 
   return (
-    <UserContext.Provider value={{
-      user,
-      loading,
-      error,
-      login,
-      logout,
-      updateUser,
-      addKid,
-      updateKid,
-      deleteKid,
-      getKanbanColumnConfigs,
-      addKanbanColumnConfig,
-      updateKanbanColumnConfig,
-      deleteKanbanColumnConfig,
-      reorderKanbanColumnConfigs
-    }}>
+    <UserContext.Provider value={contextValue}>
       {children}
     </UserContext.Provider>
   );

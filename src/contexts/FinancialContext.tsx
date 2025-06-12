@@ -1,5 +1,5 @@
 // src/contexts/FinancialContext.tsx
-import React, { createContext, useState, ReactNode, useContext } from 'react';
+import React, { createContext, useState, ReactNode, useContext, useCallback, useMemo } from 'react';
 
 // Define shapes for our financial data
 export interface Transaction { // Exporting for potential use in other files
@@ -53,7 +53,7 @@ export const FinancialProvider: React.FC<FinancialProviderProps> = ({ children }
     ],
   });
 
-  const addFunds = (amount: number, description: string = 'Funds Added', kidId?: string) => {
+  const addFunds = useCallback((amount: number, description: string = 'Funds Added', kidId?: string) => {
     if (amount <= 0) {
       console.warn('Add funds amount must be positive.');
       return;
@@ -70,9 +70,9 @@ export const FinancialProvider: React.FC<FinancialProviderProps> = ({ children }
       currentBalance: prevData.currentBalance + amount,
       transactions: [newTransaction, ...prevData.transactions],
     }));
-  };
+  }, [setFinancialData]);
 
-  const addTransaction = (transactionDetails: Omit<Transaction, 'id' | 'date'>) => {
+  const addTransaction = useCallback((transactionDetails: Omit<Transaction, 'id' | 'date'>) => {
     const newTransaction: Transaction = {
       id: `t${Date.now()}`,
       date: new Date().toISOString().split('T')[0],
@@ -82,9 +82,9 @@ export const FinancialProvider: React.FC<FinancialProviderProps> = ({ children }
       currentBalance: prevData.currentBalance + newTransaction.amount,
       transactions: [newTransaction, ...prevData.transactions],
     }));
-  };
+  }, [setFinancialData]);
 
-  const addKidReward = (kidId: string, rewardAmount: number, choreTitle: string) => {
+  const addKidReward = useCallback((kidId: string, rewardAmount: number, choreTitle: string) => {
     if (rewardAmount <= 0) {
       console.warn('Kid reward amount must be positive.');
       return;
@@ -102,10 +102,21 @@ export const FinancialProvider: React.FC<FinancialProviderProps> = ({ children }
       transactions: [newTransaction, ...prevData.transactions],
     }));
     console.log(`Added reward: $${rewardAmount} for ${kidId} for chore: ${choreTitle}`); // For debugging
-  };
+  }, [setFinancialData]);
+
+  const contextValue = useMemo(() => ({
+    financialData,
+    addFunds,
+    addTransaction,
+    addKidReward
+  }), [financialData, addFunds, addTransaction, addKidReward]);
+  // Note on useCallback/useMemo: All functions (addFunds, addTransaction, addKidReward)
+  // are wrapped in useCallback to stabilize their references. The entire contextValue object
+  // is memoized with useMemo. This strategy is crucial for performance optimization,
+  // preventing unnecessary re-renders in consumer components.
 
   return (
-    <FinancialContext.Provider value={{ financialData, addFunds, addTransaction, addKidReward }}> {/* <-- Add to provider value */}
+    <FinancialContext.Provider value={contextValue}> {/* <-- Add to provider value */}
       {children}
     </FinancialContext.Provider>
   );

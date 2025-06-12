@@ -2,14 +2,14 @@
 import React, { useContext } from 'react';
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { UserContext } from '../../contexts/UserContext'; // To get kid names
-import type { Chore, Kid } from '../../types'; // Import Chore and Kid types
+import type { ChoreDefinition, Kid } from '../../types'; // Import ChoreDefinition and Kid types
 
 interface ChoreListProps {
-  choresToDisplay: Chore[]; // Receives chores to display as a prop
+  choresToDisplay: ChoreDefinition[]; // Receives chores to display as a prop
 }
 
 const ChoreList: React.FC<ChoreListProps> = ({ choresToDisplay }) => {
-  const { toggleChoreComplete } = useChoresContext();
+  const { toggleChoreDefinitionActiveState } = useChoresContext();
   const userContext = useContext(UserContext);
   const kids = userContext?.user?.kids || [];
 
@@ -19,7 +19,7 @@ const ChoreList: React.FC<ChoreListProps> = ({ choresToDisplay }) => {
     return kid ? kid.name : 'Unknown Kid';
   };
 
-  const formatRecurrenceInfo = (chore: Chore): string | null => {
+  const formatRecurrenceInfo = (chore: ChoreDefinition): string | null => {
     if (!chore.recurrenceType || chore.recurrenceType === 'none' || chore.recurrenceType === null) {
       return null;
     }
@@ -60,9 +60,11 @@ const ChoreList: React.FC<ChoreListProps> = ({ choresToDisplay }) => {
             {/* Display Recurrence Info */}
             {recurrenceInfo && <p style={{ fontStyle: 'italic', color: 'var(--text-color-secondary)' }}>{recurrenceInfo}</p>}
 
-            <p>Status: {chore.isComplete ? 'Complete' : 'Incomplete'}</p>
-            <button onClick={() => toggleChoreComplete(chore.id)}>
-              {chore.isComplete ? 'Mark as Incomplete' : 'Mark as Complete'}
+            {/* For ChoreDefinition, isComplete signifies an "archived" or "inactive" state.
+                If true, new instances won't be generated. If false, it's "active". */}
+            <p>Status: {chore.isComplete ? 'Archived/Inactive' : 'Active'}</p>
+            <button onClick={() => toggleChoreDefinitionActiveState(chore.id)}>
+              {chore.isComplete ? 'Mark as Active' : 'Mark as Archived/Inactive'}
             </button>
           </div>
         );

@@ -1,5 +1,5 @@
 // src/contexts/ChoresContext.tsx
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import type { ChoreDefinition, ChoreInstance } from '../types';
 import { useFinancialContext } from '../contexts/FinancialContext';
@@ -64,6 +64,8 @@ interface ChoresContextType {
    * @param {string} newKanbanColumnId - The ID of the new Kanban column for this instance.
    */
   updateChoreInstanceColumn: (instanceId: string, newKanbanColumnId: string) => void;
+  /** Toggles the active state of a chore definition (isComplete field). */
+  toggleChoreDefinitionActiveState: (definitionId: string) => void;
 }
 
 // Create the context
@@ -177,18 +179,16 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     }
   }, [choreInstances]);
 
-  // MODIFIED: Renamed and updated logic
-  const addChoreDefinition = (choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete'>) => {
+  const addChoreDefinition = useCallback((choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete'>) => {
     const newChoreDef: ChoreDefinition = {
       id: `cd${Date.now()}`, // Simple unique ID
       isComplete: false, // New definitions are active by default
       ...choreDefData,
     };
     setChoreDefinitions(prevDefs => [newChoreDef, ...prevDefs]);
-  };
+  }, [setChoreDefinitions]);
 
-  // MODIFIED: Renamed and updated logic for instances
-  const toggleChoreInstanceComplete = (instanceId: string) => {
+  const toggleChoreInstanceComplete = useCallback((instanceId: string) => {
     const instance = choreInstances.find(inst => inst.id === instanceId);
     if (!instance) {
       console.warn(`Chore instance with ID ${instanceId} not found.`);
@@ -211,15 +211,13 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
         inst.id === instanceId ? { ...inst, isComplete: !inst.isComplete } : inst
       )
     );
-  };
+  }, [choreInstances, choreDefinitions, addKidReward, setChoreInstances]);
 
-  // MODIFIED: Renamed and filters definitions
-  const getChoreDefinitionsForKid = (kidId: string): ChoreDefinition[] => {
+  const getChoreDefinitionsForKid = useCallback((kidId: string): ChoreDefinition[] => {
     return choreDefinitions.filter(def => def.assignedKidId === kidId);
-  };
+  }, [choreDefinitions]);
 
-  // MODIFIED: Instance generation logic using utility function
-  const generateInstancesForPeriod = (
+  const generateInstancesForPeriod = useCallback((
     periodStartDate: string,
     periodEndDate: string,
     defaultKanbanColumnId?: string // Optional default column ID for new instances
@@ -268,9 +266,9 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
 
       return [...outsideOfPeriod, ...updatedGeneratedForPeriod];
     });
-  };
+  }, [choreDefinitions, setChoreInstances, generateChoreInstances]);
 
-  const toggleSubTaskComplete = (choreDefinitionId: string, subTaskId: string) => {
+  const toggleSubTaskComplete = useCallback((choreDefinitionId: string, subTaskId: string) => {
     setChoreDefinitions(prevDefs =>
       prevDefs.map(def => {
         // Ensure subTasks array exists before mapping
@@ -289,22 +287,9 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
         return def;
       })
     );
-  };
+  }, [setChoreDefinitions]);
 
-  /**
-   * Updates the custom order of chores for a specific kid and a specific Kanban column identifier.
-   * This order is persisted to localStorage. If an empty array is provided for `orderedChoreIds`,
-   * the custom order for that specific key is removed, reverting to default sorting for that column.
-   *
-   * The `columnIdentifier` is typically a string like "daily_active", "weekly_completed", etc.
-   * The key stored in `kanbanChoreOrders` and localStorage will be `${kidId}-${columnIdentifier}`.
-   *
-   * @param {string} kidId - The ID of the kid for whom the order is being set.
-   * @param {string} columnIdentifier - A string that uniquely identifies the column context (e.g., "daily_active").
-   * @param {string[]} orderedChoreIds - An array of chore instance IDs representing the new custom order.
-   *                                     Pass an empty array to clear the custom order for this specific key.
-   */
-  const updateKanbanChoreOrder = (kidId: string, columnIdentifier: string, orderedChoreIds: string[]): void => {
+  const updateKanbanChoreOrder = useCallback((kidId: string, columnIdentifier: string, orderedChoreIds: string[]): void => {
     const key = `${kidId}-${columnIdentifier}`;
     setKanbanChoreOrders(prevOrders => {
       const newOrders = { ...prevOrders };
@@ -316,16 +301,9 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       }
       return newOrders;
     });
-  };
+  }, [setKanbanChoreOrders]);
 
-  /**
-   * Updates the `kanbanColumnId` for a specific chore instance, effectively moving it to a new Kanban column.
-   * This function is typically called after a drag-and-drop operation moves a chore to a different column.
-   * The change is persisted to localStorage via the `useEffect` hook that watches `choreInstances`.
-   * @param {string} instanceId - The ID of the chore instance to update.
-   * @param {string} newKanbanColumnId - The ID of the new Kanban column this instance should now belong to.
-   */
-  const updateChoreInstanceColumn = (instanceId: string, newKanbanColumnId: string): void => {
+  const updateChoreInstanceColumn = useCallback((instanceId: string, newKanbanColumnId: string): void => {
     setChoreInstances(prevInstances =>
       prevInstances.map(instance =>
         instance.id === instanceId
@@ -334,22 +312,58 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
           : instance
       )
     );
-  };
+  }, [setChoreInstances]);
 
-  // MODIFIED: Update provider value
+  /**
+   * Toggles the active state of a chore definition.
+   * The `isComplete` field on a ChoreDefinition is used to signify if the definition
+   * is "active" (false, meaning new instances can be generated) or "archived/inactive" (true).
+   * This does not affect the completion status of existing chore instances.
+   * @param {string} definitionId - The ID of the chore definition to toggle.
+   */
+  const toggleChoreDefinitionActiveState = useCallback((definitionId: string) => {
+    setChoreDefinitions(prevDefs =>
+      prevDefs.map(def =>
+        def.id === definitionId ? { ...def, isComplete: !def.isComplete } : def
+      )
+    );
+    // Note: isComplete on ChoreDefinition might mean "archived" or "inactive for new instances".
+    // This won't affect existing chore instances' completion status.
+  }, [setChoreDefinitions]);
+
+  const contextValue = useMemo(() => ({
+    choreDefinitions,
+    choreInstances,
+    kanbanChoreOrders,
+    addChoreDefinition,
+    toggleChoreInstanceComplete,
+    getChoreDefinitionsForKid,
+    generateInstancesForPeriod,
+    toggleSubTaskComplete,
+    updateKanbanChoreOrder,
+    updateChoreInstanceColumn,
+    toggleChoreDefinitionActiveState,
+  }), [
+    choreDefinitions,
+    choreInstances,
+    kanbanChoreOrders,
+    addChoreDefinition,
+    toggleChoreInstanceComplete,
+    getChoreDefinitionsForKid,
+    generateInstancesForPeriod,
+    toggleSubTaskComplete,
+    updateKanbanChoreOrder,
+    updateChoreInstanceColumn,
+    toggleChoreDefinitionActiveState,
+  ]);
+  // Note on useCallback/useMemo: All functions (like addChoreDefinition, toggleChoreInstanceComplete)
+  // are wrapped in useCallback to stabilize their references. The entire contextValue object
+  // is memoized with useMemo. This strategy is crucial for performance optimization,
+  // preventing unnecessary re-renders in consumer components, especially those that
+  // rely on these functions in useEffect dependency arrays or pass them to memoized children.
+
   return (
-    <ChoresContext.Provider value={{
-      choreDefinitions,
-      choreInstances,
-      kanbanChoreOrders,
-      addChoreDefinition,
-      toggleChoreInstanceComplete,
-      getChoreDefinitionsForKid,
-      generateInstancesForPeriod,
-      toggleSubTaskComplete,
-      updateKanbanChoreOrder,
-      updateChoreInstanceColumn, // Add new function
-    }}>
+    <ChoresContext.Provider value={contextValue}>
       {children}
     </ChoresContext.Provider>
   );
