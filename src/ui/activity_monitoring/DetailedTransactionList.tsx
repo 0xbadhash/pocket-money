@@ -320,25 +320,28 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     }
 
     const activeInstanceId = active.id.toString();
-    const overSwimlaneId = over.id.toString();
+    const overSwimlaneId = over.id.toString(); // This ID is `${dateString}-${category}`
 
     const activeInstance = choreInstances.find(inst => inst.id === activeInstanceId);
     if (!activeInstance) return;
 
-    // Use new swimlane ID parsing
-    const parsed = parseSwimlaneId(overSwimlaneId);
-    if (!parsed) {
-      console.warn("Invalid swimlane ID format:", overSwimlaneId);
-      return;
+    // Parse the target date and category from the swimlane ID
+    const parts = overSwimlaneId.split('-');
+    if (parts.length < 4) { // Expecting "YYYY-MM-DD-CATEGORY" (e.g. 3 parts for date, 1 for category)
+        console.warn("Invalid swimlane ID format:", overSwimlaneId);
+        return;
     }
-    const { dateString: targetDateString, category: newCategory } = parsed;
+    const targetDateString = parts.slice(0, 3).join('-'); // e.g., "2023-10-01"
+    const newCategory = parts.slice(3).join('-') as MatrixKanbanCategory; // e.g., "TO_DO"
 
     // Constraint: Only allow category changes within the same date column for this implementation
     if (activeInstance.instanceDate !== targetDateString) {
       setActionFeedbackMessage("Chores can only be moved between categories for the same day in this view.");
+      // Optional: Could provide visual indication of invalid drop target earlier (e.g. in useDroppable's data)
       return;
     }
 
+    // If dropped on a different swimlane (category change) but same date
     if (activeInstance.categoryStatus !== newCategory) {
       updateChoreInstanceCategory(activeInstanceId, newCategory);
 
@@ -351,6 +354,11 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
       };
       setActionFeedbackMessage(`${choreTitle} moved to ${categoryTitles[newCategory]}.`);
     }
+    // Note: Reordering within the same swimlane (active.id !== over.id but same container)
+    // is not explicitly handled here yet. That would require updateKanbanChoreOrder or similar
+    // if `SortableContext` is used per swimlane and items are reordered.
+    // For now, the main goal is category change.
+
   }, [choreInstances, updateChoreInstanceCategory, getDefinitionForInstance, setActionFeedbackMessage]);
 
   const handleDragCancel = useCallback(() => {
@@ -412,45 +420,6 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   // Handler to open edit modal
   const handleEditChore = (chore: ChoreDefinition) => setEditingChore(chore);
   const handleCloseEditChore = () => setEditingChore(null);
-
-  // Helper for swimlane ID generation and parsing
-  function getSwimlaneId(dateString: string, category: MatrixKanbanCategory) {
-    // Use a delimiter unlikely to appear in IDs (e.g., '|')
-    return `${dateString}|${category}`;
-  }
-  function parseSwimlaneId(swimlaneId: string): { dateString: string, category: MatrixKanbanCategory } | null {
-    // Accept both new and legacy formats for backward compatibility
-    if (swimlaneId.includes('|')) {
-      const parts = swimlaneId.split('|');
-      if (parts.length !== 2) return null;
-      return { dateString: parts[0], category: parts[1] as MatrixKanbanCategory };
-    }
-    // Legacy fallback: try to parse YYYY-MM-DD-CATEGORY
-    const dashParts = swimlaneId.split('-');
-    if (dashParts.length >= 4) {
-      const dateString = dashParts.slice(0, 3).join('-');
-      const category = dashParts.slice(3).join('-') as MatrixKanbanCategory;
-      return { dateString, category };
-    }
-    return null;
-  }
-
-  // Ensure all visible instances for this kid/period have TO_DO as default category if not set
-  useEffect(() => {
-    if (!kidId) return;
-    choreInstances.forEach(instance => {
-      const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
-      if (
-        definition &&
-        definition.assignedKidId === kidId &&
-        instance.instanceDate >= currentPeriodDateRange.start &&
-        instance.instanceDate <= currentPeriodDateRange.end &&
-        !instance.categoryStatus
-      ) {
-        updateChoreInstanceCategory(instance.id, "TO_DO");
-      }
-    });
-  }, [kidId, choreInstances, choreDefinitions, currentPeriodDateRange, updateChoreInstanceCategory]);
 
   return (
     <DndContext
@@ -572,8 +541,8 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
             <DateColumnView
               key={date.toISOString()}
               date={date}
+              // Pass edit handler to DateColumnView so each KanbanCard can show an edit button
               onEditChore={handleEditChore}
-              getSwimlaneId={getSwimlaneId}
             />
           ))}
         </div>
@@ -585,7 +554,6 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
               <AddChoreForm
                 defaultKidId={kidId}
                 defaultDueDate={addChoreDefaultDate || undefined}
-                defaultCategoryStatus="TO_DO"
                 onSuccess={handleChoreCreated}
                 onCancel={handleCloseAddChore}
                 enableSubtasks={true}

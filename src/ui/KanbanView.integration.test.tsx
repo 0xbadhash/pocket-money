@@ -1,10 +1,8 @@
 // src/ui/KanbanView.integration.test.tsx
-import { render, screen, act, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import KanbanView from './KanbanView'; // The component being tested
-import { UserContext, UserContextType } from '../contexts/UserContext';
-import { ChoresContext, ChoresContextType } from '../contexts/ChoresContext';
-import type { User, Kid, ChoreInstance, ChoreDefinition } from '../types';
+import { UserContext, type UserContextType } from '../contexts/UserContext';
 import { vi } from 'vitest';
 
 // Mock child components of KidKanbanBoard to simplify this integration test
@@ -13,7 +11,7 @@ vi.mock('./kanban_components/KanbanColumn', () => ({
     <div data-testid={`mock-kanban-column-${column.id}`} data-column-title={column.title}>
       {/* Minimal representation of a column */}
       <h3>{column.title}</h3>
-      {column.chores.map((c: ChoreInstance) => <div key={c.id} data-testid={`chore-${c.id}`}>{c.id}</div>)}
+      {column.chores.map((c: any) => <div key={c.id} data-testid={`chore-${c.id}`}>{c.id}</div>)}
     </div>
   ))
 }));
@@ -40,7 +38,7 @@ vi.mock('@dnd-kit/sortable', async (importOriginal) => {
 });
 
 
-const mockUser: User = {
+const mockUser = {
   id: 'user1',
   username: 'testuser',
   email: 'test@example.com',
@@ -54,7 +52,7 @@ const mockUser: User = {
 };
 
 const mockGenerateInstancesForPeriod = vi.fn();
-const mockChoresContextValue: ChoresContextType = {
+const mockChoresContextValue = {
   choreDefinitions: [],
   choreInstances: [],
   generateInstancesForPeriod: mockGenerateInstancesForPeriod,
@@ -100,8 +98,6 @@ describe('KanbanView Integration Test', () => {
       error: null,
       login: vi.fn(),
       logout: vi.fn(),
-      signup: vi.fn(),
-      updateUserSettings: vi.fn(),
       addKid: vi.fn(),
       updateKid: vi.fn(),
       deleteKid: vi.fn(),
@@ -151,7 +147,7 @@ describe('KanbanView Integration Test', () => {
       user: null,
       loading: true,
       error: null,
-      login: vi.fn(), logout: vi.fn(), signup: vi.fn(), updateUserSettings: vi.fn(),
+      login: vi.fn(), logout: vi.fn(),
       addKid: vi.fn(), updateKid: vi.fn(), deleteKid: vi.fn(), uploadKidAvatar: vi.fn(), fetchUser: vi.fn(),
       getKanbanColumnConfigs: vi.fn(() => []),
     };
@@ -166,10 +162,10 @@ describe('KanbanView Integration Test', () => {
   });
 
   test('shows message if no kids are available', () => {
-    const noKidsUser: User = { ...mockUser, kids: [] };
+    const noKidsUser = { ...mockUser, kids: [] };
     const noKidsContextValue: UserContextType = {
       user: noKidsUser, loading: false, error: null,
-      login: vi.fn(), logout: vi.fn(), signup: vi.fn(), updateUserSettings: vi.fn(),
+      login: vi.fn(), logout: vi.fn(),
       addKid: vi.fn(), updateKid: vi.fn(), deleteKid: vi.fn(), uploadKidAvatar: vi.fn(), fetchUser: vi.fn(),
       getKanbanColumnConfigs: vi.fn(() => []),
     };
@@ -187,7 +183,7 @@ describe('KanbanView Integration Test', () => {
     const userContextValue: UserContextType = {
         user: mockUser, // User with kids
         loading: false, error: null,
-        login: vi.fn(), logout: vi.fn(), signup: vi.fn(), updateUserSettings: vi.fn(),
+        login: vi.fn(), logout: vi.fn(),
         addKid: vi.fn(), updateKid: vi.fn(), deleteKid: vi.fn(), uploadKidAvatar: vi.fn(), fetchUser: vi.fn(),
         getKanbanColumnConfigs: vi.fn(() => []),
       };

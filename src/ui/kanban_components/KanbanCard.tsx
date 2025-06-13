@@ -21,6 +21,10 @@ interface KanbanCardProps {
   definition: ChoreDefinition;
   /** Optional flag indicating if the card is being rendered in a DragOverlay. Defaults to false. */
   isOverlay?: boolean;
+  /** Optional callback for editing the chore. */
+  onEditChore?: (chore: ChoreDefinition) => void;
+  /** Optional callback for subtask click events. */
+  onSubtaskClick?: (subtaskId: string) => void;
 }
 
 /**
@@ -32,16 +36,14 @@ interface KanbanCardProps {
  * @param {KanbanCardProps} props - The component props.
  * @returns {JSX.Element} The KanbanCard UI.
  */
-const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition, isOverlay = false }) => {
-  // toggleSubTaskComplete is the old one operating on definition,
-  // toggleSubtaskCompletionOnInstance is the new one for instances.
+const KanbanCard: React.FC<KanbanCardProps> = ({
+  instance,
+  definition,
+  isOverlay = false,
+  onEditChore,
+  onSubtaskClick,
+}) => {
   const { toggleChoreInstanceComplete, toggleSubtaskCompletionOnInstance } = useChoresContext();
-
-  // DEBUG: Log subtask states on re-render
-  // console.log(`KanbanCard Render - Chore: ${definition.title}, Instance: ${instance.id}`);
-  // if (definition.subTasks && definition.subTasks.length > 0) {
-  //   console.log('Subtasks: ', JSON.stringify(definition.subTasks.map(st => ({ id: st.id, title: st.title, isComplete: st.isComplete }))));
-  // }
 
   /**
    * Props from `useSortable` hook (dnd-kit) to make the card draggable.
@@ -69,8 +71,6 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition, isOverlay
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging && !isOverlay ? 0.4 : 1, // Make original item more transparent if not the overlay itself
-    // zIndex: isOverlay ? 1000 : (isDragging ? 100 : 'auto'), // Example for z-index management
-    // cursor: isDragging ? 'grabbing' : (isOverlay ? 'grabbing' : 'grab'),
   };
 
   /**
@@ -200,6 +200,20 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition, isOverlay
       <button onClick={() => toggleChoreInstanceComplete(instance.id)} style={{ padding: 'var(--spacing-xs) var(--spacing-sm)', fontSize: '0.9em', cursor: 'pointer' }} className="button-secondary">
         {instance.isComplete ? 'Mark Incomplete' : 'Mark Complete'}
       </button>
+
+      {onEditChore && (
+        <button
+          type="button"
+          onClick={e => {
+            e.stopPropagation();
+            onEditChore(definition);
+          }}
+          style={{ marginTop: 6, fontSize: '0.9em' }}
+          className="button-edit"
+        >
+          Edit
+        </button>
+      )}
     </div>
   );
 };
