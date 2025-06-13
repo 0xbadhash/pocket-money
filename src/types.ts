@@ -23,6 +23,10 @@ export interface Kid {
 export interface SubTask {
   id: string;          // Unique ID for the sub-task (e.g., generated on client-side)
   title: string;
+  /**
+   * Default completion state for this subtask when a new chore instance is created.
+   * For an active chore instance, the actual completion is tracked in `ChoreInstance.subtaskCompletions`.
+   */
   isComplete: boolean;
 }
 
@@ -47,15 +51,40 @@ export interface ChoreDefinition {
 }
 
 export interface ChoreInstance {
-  id: string; // Unique ID for this specific instance (e.g., choreDefId + '_' + instanceDate)
+  /** Unique ID for this specific instance (e.g., `choreDefId + '_' + instanceDate`). */
+  id: string;
+  /** The ID of the `ChoreDefinition` this instance is derived from. */
   choreDefinitionId: string;
-  instanceDate: string; // The specific date this instance is due (YYYY-MM-DD)
-  isComplete: boolean; // Overall completion of the instance (might be true if all subtasks done or moved to COMPLETED category)
+  /**
+   * The specific date (YYYY-MM-DD format) for which this chore instance is scheduled or relevant.
+   * This is crucial for positioning on the date axis of the Matrix Kanban.
+   */
+  instanceDate: string;
+  /**
+   * Overall completion status of the chore instance.
+   * This is typically true if `categoryStatus` is "COMPLETED".
+   * It can also be updated if all subtasks are completed, potentially leading to an auto-move to "COMPLETED".
+   */
+  isComplete: boolean;
 
   // New/Modified for Matrix Kanban:
-  categoryStatus: MatrixKanbanCategory; // Replaces/clarifies kanbanColumnId's role
-  subtaskCompletions: Record<string, boolean>; // Tracks completion of subtasks by subtaskId
-  previousSubtaskCompletions?: Record<string, boolean>; // For reverting from COMPLETED status
+  /**
+   * The current category (swimlane) of the chore instance in the Matrix Kanban.
+   * Uses the fixed `MatrixKanbanCategory` type ("TO_DO", "IN_PROGRESS", "COMPLETED").
+   */
+  categoryStatus: MatrixKanbanCategory;
+  /**
+   * Tracks the completion status of individual subtasks for this specific chore instance.
+   * Structure: A record where the key is the `subTaskId` (from `ChoreDefinition.subTasks`)
+   * and the value is a boolean indicating if that subtask is completed for this instance.
+   */
+  subtaskCompletions: Record<string, boolean>;
+  /**
+   * Stores the state of `subtaskCompletions` before the chore instance was moved into the "COMPLETED" category.
+   * This is used to restore subtask states if the chore is moved back to "IN_PROGRESS" or "TO_DO",
+   * allowing users to uncheck previously completed subtasks if needed. Optional.
+   */
+  previousSubtaskCompletions?: Record<string, boolean>;
 
   // Optional: if reward is snapshotted per instance or can vary
   // rewardAmount?: number;

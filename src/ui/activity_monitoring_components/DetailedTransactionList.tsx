@@ -27,11 +27,17 @@ const DetailedTransactionList: React.FC<DetailedTransactionListProps> = ({ trans
       ) : (
         <table>
           <thead>
-            <tr><th>Date</th><th>Kid</th><th>Description</th><th>Category</th><th>Amount</th></tr>
+            <tr>
+              <th>Date</th>
+              <th>Kid</th> {/* Re-enable Kid column */}
+              <th>Description</th>
+              <th>Category</th>
+              <th>Amount</th>
+            </tr>
           </thead>
-          <tbody>
+          <tbody>{/* Ensure no whitespace before map */}
             {transactionsToDisplay.map((tx) => (
-              <tr key={tx.id}>
+              <tr key={tx.id}>{/* Ensure no whitespace before td */}
                 <td>{tx.date}</td>
                 <td>{getKidNameForTable(tx.kidId)}</td> {/* Display kid name */}
                 <td>{tx.description}</td>

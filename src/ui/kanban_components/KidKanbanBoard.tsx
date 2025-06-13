@@ -5,7 +5,7 @@
  * for chore reordering (persisted via ChoresContext) and moving chores
  * between these dynamic columns (updating choreInstance.kanbanColumnId via ChoresContext).
  */
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react'; // Added useCallback
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { useUserContext } from '../../contexts/UserContext';
 import type { ChoreDefinition, ChoreInstance, KanbanPeriod, KanbanColumn as KanbanColumnType, ColumnThemeOption, MatrixKanbanCategory } from '../../types'; // Added MatrixKanbanCategory
@@ -126,7 +126,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
 
   /** Memoized calculation of the date range for the selected period. */
   const currentPeriodDateRange = useMemo(() => {
-    const today = new Date(); // Use today for base, then adjust based on selectedPeriod for fixed ranges
+    const today = new Date();
     if (selectedPeriod === 'daily') {
       const todayStr = getTodayDateString();
       return { start: todayStr, end: todayStr };
@@ -179,8 +179,8 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     const userColumnConfigs = getKanbanColumnConfigs(kidId);
     const sortedUserColumnConfigs = [...userColumnConfigs].sort((a,b) => a.order - b.order);
     const defaultKanbanColumnId = sortedUserColumnConfigs.length > 0
-                                   ? sortedUserColumnConfigs[0].id
-                                   : undefined;
+                                  ? sortedUserColumnConfigs[0].id
+                                  : undefined;
     if (currentPeriodDateRange.start && currentPeriodDateRange.end) {
       generateInstancesForPeriod(
         currentPeriodDateRange.start,
@@ -220,8 +220,8 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     const kidAndPeriodInstances = choreInstances.filter(instance => {
       const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
       return definition && definition.assignedKidId === kidId &&
-                   instance.instanceDate >= currentPeriodDateRange.start &&
-                   instance.instanceDate <= currentPeriodDateRange.end;
+             instance.instanceDate >= currentPeriodDateRange.start &&
+             instance.instanceDate <= currentPeriodDateRange.end;
     });
 
     const filteredInstancesOverall = kidAndPeriodInstances.filter(instance => {
@@ -291,6 +291,13 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
 
   const getDefinitionForInstance = useCallback((instance: ChoreInstance): ChoreDefinition | undefined => {
     return choreDefinitions.find(def => def.id === instance.choreDefinitionId);
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
   }, [choreDefinitions]); // Added choreDefinitions dependency
 
   const sensors = useSensors(
@@ -314,13 +321,8 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   }, [choreInstances, getDefinitionForInstance]);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
-    // Logic from the 'main' branch, integrated into the prioritized 'useCallback' structure.
-    // This captures the dragged item and clears the active state, which is important for UI feedback.
-    const currentActiveDragItem = activeDragItem;
-    setActiveDragItem(null);
-
     const { active, over } = event;
-    // setActiveDragItem(null); // Already handled above
+    setActiveDragItem(null); // Clear overlay item regardless of drop outcome
 
     if (!over || !active) {
       return;
@@ -366,7 +368,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     // if `SortableContext` is used per swimlane and items are reordered.
     // For now, the main goal is category change.
 
-  }, [activeDragItem, setActiveDragItem, choreInstances, updateChoreInstanceCategory, getDefinitionForInstance, setActionFeedbackMessage]);
+  }, [choreInstances, updateChoreInstanceCategory, getDefinitionForInstance, setActionFeedbackMessage]);
 
   const handleDragCancel = useCallback(() => {
     setActiveDragItem(null);
@@ -446,7 +448,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
         </div>
 
         {/* Current Period Display (e.g., "Week: Sep 10, 2023 - Sep 16, 2023") - Kept from original */}
-        <div className="current-period-display" style={{ marginBottom: '15px', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1em' }}>
+        <div className="current-period-display" style={{ marginBottom: '20px', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1em' }}> {/* Increased marginBottom */}
           {currentPeriodDisplayString}
         </div>
 
@@ -468,10 +470,10 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
                 if (newSortBy === 'rewardAmount') setSortDirection('desc');
                 else setSortDirection('asc');
                 // if (newSortBy !== 'instanceDate') { // This logic is tied to old kanbanChoreOrders
-                //    const currentKidColumns = getKanbanColumnConfigs(kidId);
-                //    currentKidColumns.forEach(config => {
-                //       updateKanbanChoreOrder(kidId, config.id, []);
-                //    });
+                //   const currentKidColumns = getKanbanColumnConfigs(kidId);
+                //   currentKidColumns.forEach(config => {
+                //     updateKanbanChoreOrder(kidId, config.id, []);
+                //   });
                 // }
               }} style={{ padding: '5px' }}>
               <option value="instanceDate">My Order / Due Date</option>
