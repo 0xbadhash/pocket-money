@@ -71,7 +71,7 @@ const CategorySwimlaneView: React.FC<CategorySwimlaneViewProps> = ({ date, categ
             })
           ) : (
             <p style={{fontSize: '0.8em', color: '#777', textAlign: 'center', marginTop: '20px' }}>
-              No chores here.
+              No chores in {categoryTitles[category].toLowerCase()} for this date.
             </p>
           )}
         </div>
