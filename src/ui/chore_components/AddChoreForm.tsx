@@ -1,22 +1,81 @@
 // src/ui/chore_components/AddChoreForm.tsx
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { useChoresContext } from '../../contexts/ChoresContext';
-import { UserContext } from '../../contexts/UserContext'; // To get kids for dropdown
-import type { Kid, SubTask } from '../../types'; // Import Kid and SubTask type
+import { UserContext } from '../../contexts/UserContext';
+import type { Kid, SubTask } from '../../types';
 
-const AddChoreForm = () => {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [assignedKidId, setAssignedKidId] = useState<string | undefined>(undefined);
-  const [dueDate, setDueDate] = useState(''); // Represents first due date or one-off due date
-  const [rewardAmount, setRewardAmount] = useState<number | string>('');
+const AddChoreForm = ({
+  initialChore,
+  defaultKidId,
+  defaultDueDate,
+  defaultCategoryStatus,
+  onSuccess,
+  onCancel,
+  enableSubtasks,
+  enableRecurrence,
+  defaultIsRecurring,
+}: {
+  initialChore?: any;
+  defaultKidId?: string;
+  defaultDueDate?: Date;
+  defaultCategoryStatus?: string;
+  onSuccess?: () => void;
+  onCancel?: () => void;
+  enableSubtasks?: boolean;
+  enableRecurrence?: boolean;
+  defaultIsRecurring?: boolean;
+}) => {
+  // --- Use effect to populate state when editing ---
+  const [title, setTitle] = useState(initialChore?.title || '');
+  const [description, setDescription] = useState(initialChore?.description || '');
+  const [assignedKidId, setAssignedKidId] = useState<string | undefined>(initialChore?.assignedKidId || defaultKidId || undefined);
+  const [dueDate, setDueDate] = useState(initialChore?.dueDate || (defaultDueDate ? defaultDueDate.toISOString().split('T')[0] : ''));
+  const [rewardAmount, setRewardAmount] = useState<number | string>(initialChore?.rewardAmount ?? '');
 
-  // New state for recurrence
-  const [recurrenceType, setRecurrenceType] = useState<'none' | 'daily' | 'weekly' | 'monthly'>('none');
-  const [recurrenceDay, setRecurrenceDay] = useState<string>(''); // Store as string from select/input
-  const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
-  const [tagsInput, setTagsInput] = useState(''); // New state for tags
-  const [subTasks, setSubTasks] = useState<SubTask[]>([]); // New state for sub-tasks
+  // Recurrence state
+  const [recurrenceType, setRecurrenceType] = useState<'none' | 'daily' | 'weekly' | 'monthly'>(
+    initialChore?.recurrenceType || 'none'
+  );
+  const [recurrenceDaysOfWeek, setRecurrenceDaysOfWeek] = useState<number[]>(
+    initialChore?.recurrenceType === 'weekly'
+      ? (Array.isArray(initialChore?.recurrenceDay) ? initialChore.recurrenceDay : (typeof initialChore?.recurrenceDay === 'number' ? [initialChore.recurrenceDay] : []))
+      : []
+  );
+  const [recurrenceDayOfMonth, setRecurrenceDayOfMonth] = useState<number | ''>(
+    initialChore?.recurrenceType === 'monthly' && initialChore?.recurrenceDay
+      ? initialChore.recurrenceDay
+      : ''
+  );
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState(
+    initialChore?.recurrenceEndDate || ''
+  );
+  const [tagsInput, setTagsInput] = useState(initialChore?.tags?.join(', ') || '');
+  const [subTasks, setSubTasks] = useState<SubTask[]>(initialChore?.subTasks || []);
+
+  // If initialChore changes (editing a different chore), update state
+  useEffect(() => {
+    if (initialChore) {
+      setTitle(initialChore.title || '');
+      setDescription(initialChore.description || '');
+      setAssignedKidId(initialChore.assignedKidId || defaultKidId || undefined);
+      setDueDate(initialChore.dueDate || (defaultDueDate ? defaultDueDate.toISOString().split('T')[0] : ''));
+      setRewardAmount(initialChore.rewardAmount ?? '');
+      setRecurrenceType(initialChore.recurrenceType || 'none');
+      setRecurrenceDaysOfWeek(
+        initialChore.recurrenceType === 'weekly'
+          ? (Array.isArray(initialChore.recurrenceDay) ? initialChore.recurrenceDay : (typeof initialChore.recurrenceDay === 'number' ? [initialChore.recurrenceDay] : []))
+          : []
+      );
+      setRecurrenceDayOfMonth(
+        initialChore.recurrenceType === 'monthly' && initialChore.recurrenceDay
+          ? initialChore.recurrenceDay
+          : ''
+      );
+      setRecurrenceEndDate(initialChore.recurrenceEndDate || '');
+      setTagsInput(initialChore.tags?.join(', ') || '');
+      setSubTasks(initialChore.subTasks || []);
+    }
+  }, [initialChore, defaultKidId, defaultDueDate]);
 
   const { addChoreDefinition } = useChoresContext();
   const userContext = useContext(UserContext);
@@ -29,15 +88,21 @@ const AddChoreForm = () => {
       return;
     }
 
+    let recurrenceDay: number | number[] | null = null;
+    if (recurrenceType === 'weekly') {
+      recurrenceDay = recurrenceDaysOfWeek.length > 0 ? recurrenceDaysOfWeek : null;
+    } else if (recurrenceType === 'monthly') {
+      recurrenceDay = recurrenceDayOfMonth ? Number(recurrenceDayOfMonth) : null;
+    }
+
     const choreData = {
       title: title.trim(),
       description: description.trim() || undefined,
-      assignedKidId: assignedKidId || undefined,
-      dueDate: dueDate || undefined,
+      assignedKidId: assignedKidId || defaultKidId || undefined,
+      dueDate: dueDate || (defaultDueDate ? defaultDueDate.toISOString().split('T')[0] : undefined),
       rewardAmount: rewardAmount ? parseFloat(String(rewardAmount)) : undefined,
-      // Add recurrence data
       recurrenceType: recurrenceType === 'none' ? null : recurrenceType,
-      recurrenceDay: (recurrenceType === 'weekly' || recurrenceType === 'monthly') && recurrenceDay ? parseInt(recurrenceDay, 10) : null,
+      recurrenceDay,
       recurrenceEndDate: recurrenceType !== 'none' && recurrenceEndDate ? recurrenceEndDate : null,
       tags: tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag !== '').length > 0 ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag !== '') : undefined,
       subTasks: subTasks.map(st => ({...st, title: st.title.trim()})).filter(st => st.title !== '').length > 0 ? subTasks.map(st => ({...st, title: st.title.trim()})).filter(st => st.title !== '') : undefined,
@@ -52,17 +117,26 @@ const AddChoreForm = () => {
     setDueDate('');
     setRewardAmount('');
     setRecurrenceType('none');
-    setRecurrenceDay('');
+    setRecurrenceDaysOfWeek([]);
+    setRecurrenceDayOfMonth('');
     setRecurrenceEndDate('');
     setTagsInput(''); // Reset tags input
     setSubTasks([]); // Reset sub-tasks
     alert('Chore added!');
+    if (onSuccess) onSuccess();
   };
 
   const handleRecurrenceTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const type = e.target.value as 'none' | 'daily' | 'weekly' | 'monthly';
     setRecurrenceType(type);
-    setRecurrenceDay(''); // Reset day when type changes
+    setRecurrenceDaysOfWeek([]);
+    setRecurrenceDayOfMonth('');
+  };
+
+  const handleRecurrenceDayOfWeekChange = (day: number) => {
+    setRecurrenceDaysOfWeek(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+    );
   };
 
   // Sub-task handlers
@@ -130,17 +204,19 @@ const AddChoreForm = () => {
 
       {recurrenceType === 'weekly' && (
         <div>
-          <label htmlFor="recurrenceDayOfWeek">Day of the Week:</label>
-          <select id="recurrenceDayOfWeek" value={recurrenceDay} onChange={(e) => setRecurrenceDay(e.target.value)} required={recurrenceType === 'weekly'}>
-            <option value="">Select a day</option>
-            <option value="0">Sunday</option>
-            <option value="1">Monday</option>
-            <option value="2">Tuesday</option>
-            <option value="3">Wednesday</option>
-            <option value="4">Thursday</option>
-            <option value="5">Friday</option>
-            <option value="6">Saturday</option>
-          </select>
+          <label>Days of the Week:</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, idx) => (
+              <label key={day} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <input
+                  type="checkbox"
+                  checked={recurrenceDaysOfWeek.includes(idx)}
+                  onChange={() => handleRecurrenceDayOfWeekChange(idx)}
+                />
+                {day}
+              </label>
+            ))}
+          </div>
         </div>
       )}
 
@@ -150,8 +226,8 @@ const AddChoreForm = () => {
           <input
             type="number"
             id="recurrenceDayOfMonth"
-            value={recurrenceDay}
-            onChange={(e) => setRecurrenceDay(e.target.value)}
+            value={recurrenceDayOfMonth}
+            onChange={e => setRecurrenceDayOfMonth(Number(e.target.value))}
             min="1"
             max="31"
             required={recurrenceType === 'monthly'}
@@ -167,32 +243,39 @@ const AddChoreForm = () => {
             id="recurrenceEndDate"
             value={recurrenceEndDate}
             onChange={(e) => setRecurrenceEndDate(e.target.value)}
-            min={dueDate || new Date().toISOString().split('T')[0]} // End date can't be before due/start date
+            min={dueDate || new Date().toISOString().split('T')[0]}
           />
         </div>
       )}
 
       {/* Sub-tasks Section */}
-      <div className="sub-tasks-section" style={{ marginTop: '15px', borderTop: '1px solid #eee', paddingTop: '10px' }}>
-        <label>Sub-tasks (Optional):</label>
-        {subTasks.map((subTask, index) => (
-          <div key={subTask.id} className="sub-task-item" style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
-            <input
-              type="text"
-              placeholder={`Sub-task ${index + 1}`}
-              value={subTask.title}
-              onChange={(e) => handleSubTaskTitleChange(subTask.id, e.target.value)}
-              style={{ flexGrow: 1, marginRight: '5px' }}
-            />
-            <button type="button" onClick={() => handleRemoveSubTask(subTask.id)}>Remove</button>
-          </div>
-        ))}
-        <button type="button" onClick={handleAddSubTask} style={{ marginTop: '5px' }}>
-          + Add Sub-task
-        </button>
-      </div>
+      {enableSubtasks && (
+        <div className="sub-tasks-section" style={{ marginTop: '15px', borderTop: '1px solid #eee', paddingTop: '10px' }}>
+          <label>Sub-tasks (Optional):</label>
+          {subTasks.map((subTask, index) => (
+            <div key={subTask.id} className="sub-task-item" style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+              <input
+                type="text"
+                placeholder={`Sub-task ${index + 1}`}
+                value={subTask.title}
+                onChange={(e) => handleSubTaskTitleChange(subTask.id, e.target.value)}
+                style={{ flexGrow: 1, marginRight: '5px' }}
+              />
+              <button type="button" onClick={() => handleRemoveSubTask(subTask.id)}>Remove</button>
+            </div>
+          ))}
+          <button type="button" onClick={handleAddSubTask} style={{ marginTop: '5px' }}>
+            + Add Sub-task
+          </button>
+        </div>
+      )}
 
-      <button type="submit">Add Chore</button>
+      <button type="submit">{initialChore ? 'Update Chore' : 'Add Chore'}</button>
+      {onCancel && (
+        <button type="button" onClick={onCancel} style={{ marginLeft: 8 }}>
+          Cancel
+        </button>
+      )}
     </form>
   );
 };

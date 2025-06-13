@@ -19,6 +19,7 @@ const ChoreList: React.FC<ChoreListProps> = ({ choresToDisplay }) => {
     return kid ? kid.name : 'Unknown Kid';
   };
 
+  // Format recurrence info and show both due/start date and recurrence
   const formatRecurrenceInfo = (chore: ChoreDefinition): string | null => {
     if (!chore.recurrenceType || chore.recurrenceType === 'none' || chore.recurrenceType === null) {
       return null;
@@ -47,21 +48,23 @@ const ChoreList: React.FC<ChoreListProps> = ({ choresToDisplay }) => {
   return (
     <div className="chore-list">
       {choresToDisplay.map((chore) => {
-        const recurrenceInfo = formatRecurrenceInfo(chore); // Get formatted recurrence string
+        const recurrenceInfo = formatRecurrenceInfo(chore);
         return (
           <div key={chore.id} className={`chore-item ${chore.isComplete ? 'complete' : ''}`}>
             <h3>{chore.title}</h3>
             {chore.description && <p className="chore-description">Description: {chore.description}</p>}
             <p>Assigned to: {getKidName(chore.assignedKidId)}</p>
-            {/* Display Due Date - consider its meaning for recurring chores */}
-            {chore.dueDate && <p>Due Date / Starts On: {chore.dueDate}</p>}
+            {/* Show Due Date as Start Date for recurring chores */}
+            {chore.dueDate && (
+              <p>
+                {chore.recurrenceType && chore.recurrenceType !== 'none' && chore.recurrenceType !== null
+                  ? `Start Date: ${chore.dueDate}`
+                  : `Due Date: ${chore.dueDate}`}
+              </p>
+            )}
             {chore.rewardAmount && <p>Reward: ${chore.rewardAmount.toFixed(2)}</p>}
-
             {/* Display Recurrence Info */}
             {recurrenceInfo && <p style={{ fontStyle: 'italic', color: 'var(--text-color-secondary)' }}>{recurrenceInfo}</p>}
-
-            {/* For ChoreDefinition, isComplete signifies an "archived" or "inactive" state.
-                If true, new instances won't be generated. If false, it's "active". */}
             <p>Status: {chore.isComplete ? 'Archived/Inactive' : 'Active'}</p>
             <button onClick={() => toggleChoreDefinitionActiveState(chore.id)}>
               {chore.isComplete ? 'Mark as Active' : 'Mark as Archived/Inactive'}

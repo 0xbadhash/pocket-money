@@ -206,38 +206,32 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     console.log(`Generating instances for period: ${periodStartDate} to ${periodEndDate}. Default category: ${defaultCategory}`);
 
     // Generate raw instances based on definitions and date range
-    const rawNewInstances = generateChoreInstances(choreDefinitions, periodStartDate, periodEndDate);
+    // Only generate instances for active (not archived) definitions
+    const rawNewInstances = generateChoreInstances(
+      choreDefinitions.filter(def => !def.isComplete), // Only active definitions
+      periodStartDate,
+      periodEndDate
+    );
 
     const newInstancesWithMatrixFields = rawNewInstances.map(rawInstance => {
       const definition = choreDefinitions.find(def => def.id === rawInstance.choreDefinitionId);
       let initialSubtaskCompletions: Record<string, boolean> = {};
       if (definition && definition.subTasks) {
         definition.subTasks.forEach(st => {
-          // Initialize based on definition's subTask.isComplete or default to false
           initialSubtaskCompletions[st.id] = st.isComplete || false;
         });
       }
-
-      // This is a ChoreInstance from generateChoreInstances, which might be missing some fields
-      // or have fields that need transformation for the new MatrixKanban model.
-      // The 'id' and 'instanceDate' from rawInstance are correct.
-      // 'choreDefinitionId' is also correct.
       return {
-        ...rawInstance, // Includes id, choreDefinitionId, instanceDate
-        isComplete: false, // Default for new instances, can be updated by other logic
+        ...rawInstance,
+        isComplete: false,
         categoryStatus: defaultCategory || "TO_DO",
         subtaskCompletions: initialSubtaskCompletions,
         previousSubtaskCompletions: undefined,
-        // Ensure kanbanColumnId is not carried over if it existed on rawInstance from an older model
-        // However, generateChoreInstances likely doesn't add it anymore.
-        // If it did, we'd explicitly unset it here: `kanbanColumnId: undefined,`
       };
     });
 
     setChoreInstances(prevInstances => {
-      // Filter out any old instances that were for the period we are now regenerating
-      // This needs to be careful not to remove instances outside the current kid's scope if context becomes multi-kid for instances
-      // For now, assuming choreInstances in context are generally for the "active" scope being managed.
+      // Remove old instances for the period, for all kids
       const outsideOfPeriod = prevInstances.filter(inst => {
         const instDate = new Date(inst.instanceDate);
         instDate.setUTCHours(0,0,0,0);
@@ -248,22 +242,18 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
         return instDate < periodStartNorm || instDate > periodEndNorm;
       });
 
-      // For the newly generated instances (now with Matrix fields),
-      // try to preserve existing data if an instance for the same ID (choreDefId + date) already exists.
+      // Preserve existing data for instances that already exist
       const updatedGeneratedForPeriod = newInstancesWithMatrixFields.map(newInstance => {
         const oldMatchingInstance = prevInstances.find(oldInst => oldInst.id === newInstance.id);
         if (oldMatchingInstance) {
-          // If old instance exists, preserve its matrix-specific fields and overall completion,
-          // but update other details from definition if they changed (already handled by newInstance structure).
           return {
-            ...newInstance, // Contains latest from definition (via rawInstance) + default matrix fields
+            ...newInstance,
             isComplete: oldMatchingInstance.isComplete,
-            categoryStatus: oldMatchingInstance.categoryStatus, // Preserve existing category
-            subtaskCompletions: oldMatchingInstance.subtaskCompletions, // Preserve existing subtask completions
-            previousSubtaskCompletions: oldMatchingInstance.previousSubtaskCompletions, // Preserve this too
+            categoryStatus: oldMatchingInstance.categoryStatus,
+            subtaskCompletions: oldMatchingInstance.subtaskCompletions,
+            previousSubtaskCompletions: oldMatchingInstance.previousSubtaskCompletions,
           };
         }
-        // If it's a truly new instance (not found in prevInstances), it already has default fields.
         return newInstance;
       });
 

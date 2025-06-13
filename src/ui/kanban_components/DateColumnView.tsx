@@ -1,71 +1,116 @@
 // src/ui/kanban_components/DateColumnView.tsx
 import React, { useMemo } from 'react';
-import CategorySwimlaneView from './CategorySwimlaneView';
 import KanbanCard from './KanbanCard';
 import { useChoresContext } from '../../contexts/ChoresContext';
+import { useUserContext } from '../../contexts/UserContext';
 import type { MatrixKanbanCategory, ChoreInstance, ChoreDefinition } from '../../types';
 
 interface DateColumnViewProps {
   date: Date;
   onEditChore?: (chore: ChoreDefinition) => void;
   getSwimlaneId?: (dateString: string, category: MatrixKanbanCategory) => string;
+  kidId?: string;
+  swimlaneCategory?: string;
+  swimlaneId?: string;
 }
 
-const DateColumnView: React.FC<DateColumnViewProps> = ({ date, onEditChore, getSwimlaneId }) => {
+// Default swimlane color mapping (can be extended to use settings)
+const DEFAULT_SWIMLANE_COLORS: Record<string, React.CSSProperties> = {
+  'TO_DO': { background: '#fff', color: '#222', borderLeft: '4px solid #bbb' },
+  'IN_PROGRESS': { background: '#fffbe7', color: '#8a6d1b', borderLeft: '4px solid #ffe082' },
+  'COMPLETED': { background: '#e8f5e9', color: '#256029', borderLeft: '4px solid #81c784' },
+};
+
+// Add a new modern "Oceanic" theme for swimlanes
+const OCEANIC_SWIMLANE_COLORS: Record<string, React.CSSProperties> = {
+  'TO_DO': { background: '#e3f2fd', color: '#01579b', borderLeft: '4px solid #0288d1' },         // Light blue
+  'IN_PROGRESS': { background: '#e0f7fa', color: '#006064', borderLeft: '4px solid #26c6da' },  // Aqua
+  'COMPLETED': { background: '#e8f5e9', color: '#1b5e20', borderLeft: '4px solid #43a047' },    // Green
+};
+
+// To use the theme, swap DEFAULT_SWIMLANE_COLORS with OCEANIC_SWIMLANE_COLORS below:
+const THEME = OCEANIC_SWIMLANE_COLORS; // Change this to switch themes
+
+const DateColumnView: React.FC<DateColumnViewProps> = ({
+  date,
+  onEditChore,
+  getSwimlaneId,
+  kidId,
+  swimlaneCategory,
+  swimlaneId,
+}) => {
   const { choreInstances, choreDefinitions } = useChoresContext();
 
   const dateString = date.toISOString().split('T')[0];
 
-  // Show only chores for this date and the correct category (e.g., "TO_DO")
+  // Determine swimlane key (MatrixKanbanCategory) from swimlaneCategory or swimlaneId
+  let swimlaneKey: string = '';
+  if (swimlaneCategory) {
+    if (swimlaneCategory.toUpperCase().includes('PROGRESS')) swimlaneKey = 'IN_PROGRESS';
+    else if (swimlaneCategory.toUpperCase().includes('COMPLETE')) swimlaneKey = 'COMPLETED';
+    else swimlaneKey = 'TO_DO';
+  } else if (swimlaneId) {
+    swimlaneKey = swimlaneId;
+  }
+
+  // Show all chores (including recurring) for this kid, date, and swimlane
   const choresForThisDate = useMemo(
     () =>
-      choreInstances.filter(
-        (instance) =>
+      choreInstances.filter((instance) => {
+        const def = choreDefinitions.find(d => d.id === instance.choreDefinitionId);
+        // Show if:
+        // - assigned to this kid
+        // - instance is for this date
+        // - instance is in this swimlane/category
+        // - definition is not archived
+        return (
+          def &&
+          (!def.isComplete) &&
+          (!kidId || def.assignedKidId === kidId) &&
           instance.instanceDate === dateString &&
-          instance.categoryStatus === "TO_DO" // Only show "To Do" by default
-      ),
-    [choreInstances, dateString]
+          instance.categoryStatus === swimlaneKey
+        );
+      }),
+    [choreInstances, dateString, kidId, choreDefinitions, swimlaneKey]
   );
 
-  const getDefinitionForInstance = (instance: ChoreInstance) =>
-    choreDefinitions.find((def) => def.id === instance.choreDefinitionId);
-
-  // Handler for subtask click (toggle completion or show details)
-  const handleSubtaskClick = (subtaskId: string) => {
-    // Implement your logic here (e.g., toggle completion, open modal, etc.)
-    alert(`Clicked subtask: ${subtaskId}`);
-  };
-
-  const categories: MatrixKanbanCategory[] = ["TO_DO", "IN_PROGRESS", "COMPLETED"];
+  // Pick color style for swimlane
+  const swimlaneStyle = THEME[swimlaneKey] || { background: '#f5f5f5', color: '#333' };
 
   return (
-    <div className="date-column-view" style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: '1 1 0px', minWidth: '150px' /* Adjust as needed */ }}>
-      {/* Optional: Display date again here if header is separate or for clarity,
-          but KidKanbanBoard already has a main date header for this column. */}
-      {/* <h4 className="date-column-header-inline" style={{ textAlign: 'center', marginBottom: '5px' }}>
-        {date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-      </h4> */}
-      {categories.map(category => (
-        <CategorySwimlaneView
-          key={category}
-          date={date}
-          category={category}
-        />
-      ))}
-      {/* Assuming choresForThisDate and getDefinitionForInstance are available in this scope */}
-      {choresForThisDate.map((instance) => {
-        const definition = getDefinitionForInstance(instance);
-        if (!definition) return null;
-        return (
-          <KanbanCard
-            key={instance.id}
-            instance={instance}
-            definition={definition}
-            onEditChore={onEditChore}
-            onSubtaskClick={handleSubtaskClick}
-          />
-        );
-      })}
+    <div
+      className={`swimlane-view swimlane-${swimlaneKey.toLowerCase()}`}
+      style={{
+        ...swimlaneStyle,
+        borderRadius: 6,
+        marginBottom: 8,
+        padding: '8px 6px 8px 12px',
+        minHeight: 80,
+        boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+        transition: 'background 0.2s'
+      }}
+    >
+      <div style={{ fontWeight: 'bold', marginBottom: 6, fontSize: '1em' }}>
+        {swimlaneCategory || swimlaneKey}
+      </div>
+      {choresForThisDate.length === 0 ? (
+        <p style={{fontSize: '0.8em', color: '#777', textAlign: 'center', marginTop: '20px' }}>
+          No chores in this swimlane for this date.
+        </p>
+      ) : (
+        choresForThisDate.map((instance) => {
+          const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
+          if (!definition) return null;
+          return (
+            <KanbanCard
+              key={instance.id}
+              instance={instance}
+              definition={definition}
+              onEditChore={onEditChore}
+            />
+          );
+        })
+      )}
     </div>
   );
 };

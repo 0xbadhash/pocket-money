@@ -517,8 +517,8 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
           <button onClick={goToNextMonth}>Month &gt;&gt;</button>
         </div>
 
-        {/* Remove Period Selectors (Daily, Weekly, Monthly) */}
-        {/* <div className="period-selector" style={{ marginBottom: '15px', textAlign: 'center' }}>
+        {/* Period Selectors (Daily, Weekly, Monthly) - Kept from original */}
+        <div className="period-selector" style={{ marginBottom: '15px', textAlign: 'center' }}>
           <label style={{ marginRight: 10 }}>
             <input
               type="radio"
@@ -546,9 +546,9 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
               onChange={() => setSelectedPeriod('monthly')}
             /> Monthly
           </label>
-        </div> */}
+        </div>
 
-        {/* Current Period Display */}
+        {/* Current Period Display (e.g., "Week: Sep 10, 2023 - Sep 16, 2023") - Kept from original */}
         <div className="current-period-display" style={{ marginBottom: '20px', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1em' }}>
           {currentPeriodDisplayString}
         </div>
@@ -597,7 +597,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
           {visibleDates.map(date => (
             <div key={date.toISOString()} className="date-header" style={{ flex: 1, textAlign: 'center', fontWeight: 'bold' }}>
               {formatDateHeader(date)}
-              {/* Removed "+ Add" button */}
+              <button onClick={() => handleOpenAddChore(date)} style={{ marginLeft: 8, fontSize: '0.9em' }}>+ Add</button>
             </div>
           ))}
         </div>

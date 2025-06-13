@@ -4,7 +4,7 @@
  * Displays chore details, sub-tasks, recurrence info, and provides interaction
  * for marking chores/sub-tasks as complete. It's also a draggable item via dnd-kit.
  */
-import React from 'react';
+import React, { useState } from 'react';
 import type { ChoreInstance, ChoreDefinition } from '../../types';
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { useSortable } from '@dnd-kit/sortable';
@@ -95,6 +95,23 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   };
 
   const recurrenceInfo = formatRecurrenceInfoShort(definition);
+
+  // Fix: Quick action menu state and handler
+  const [showMenu, setShowMenu] = useState(false);
+
+  // Close menu when clicking outside
+  React.useEffect(() => {
+    if (!showMenu) return;
+    function handleClick(e: MouseEvent) {
+      // Only close if click is outside the menu
+      const menu = document.getElementById(`quick-action-menu-${instance.id}`);
+      if (menu && !menu.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showMenu, instance.id]);
 
   return (
     <div
@@ -214,8 +231,73 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
           Edit
         </button>
       )}
+
+      <div style={{ position: 'relative', display: 'inline-block' }}>
+        <button
+          aria-label="Quick actions"
+          onClick={e => {
+            e.stopPropagation();
+            setShowMenu(v => !v);
+          }}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '1.2em',
+            padding: 0,
+            marginLeft: 4,
+            color: '#888'
+          }}
+        >
+          ⋮
+        </button>
+        {showMenu && (
+          <div
+            id={`quick-action-menu-${instance.id}`}
+            style={{
+              position: 'absolute',
+              top: 24,
+              right: 0,
+              background: '#fff',
+              border: '1px solid #ccc',
+              borderRadius: 4,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              zIndex: 100,
+              minWidth: 120
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              style={{
+                display: 'block',
+                width: '100%',
+                background: 'none',
+                border: 'none',
+                padding: '8px 12px',
+                textAlign: 'left',
+                cursor: 'pointer'
+              }}
+              onClick={() => {
+                setShowMenu(false);
+                if (onEditChore) onEditChore(definition);
+              }}
+            >
+              Edit Chore
+            </button>
+            {/* Add more quick actions here as needed */}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
 
 export default KanbanCard;
+
+// If you have a progress bar SVG or similar, make sure viewBox uses only numbers, not percentages.
+// Example fix for a progress bar SVG:
+// <svg width="100%" height="4" viewBox="0 0 100% 4"> ... </svg>
+// With:
+<svg width="100%" height="4" viewBox="0 0 100 4">
+  {/* ...existing SVG content... */}
+</svg>
