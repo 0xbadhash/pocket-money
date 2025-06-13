@@ -1,7 +1,7 @@
 // src/ui/kanban_components/DateColumnView.tsx
 import React from 'react';
 import CategorySwimlaneView from './CategorySwimlaneView';
-import { MatrixKanbanCategory } from '../../types';
+import type { MatrixKanbanCategory } from '../../types';
 
 interface DateColumnViewProps {
   date: Date;

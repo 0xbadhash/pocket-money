@@ -1,6 +1,6 @@
 // src/ui/kanban_components/CategorySwimlaneView.tsx
 import React from 'react';
-import { MatrixKanbanCategory, ChoreInstance, ChoreDefinition } from '../../types';
+import type { MatrixKanbanCategory, ChoreInstance, ChoreDefinition } from '../../types';
 import KanbanCard from './KanbanCard';
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { useDroppable } from '@dnd-kit/core';

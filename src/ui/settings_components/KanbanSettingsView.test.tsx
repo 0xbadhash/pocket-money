@@ -7,7 +7,8 @@ import { UserContext, UserContextType, User } from '../../contexts/UserContext';
 // For now, assuming UserProvider is self-contained for these tests.
 import type { Kid, KanbanColumnConfig } from '../../types';
 import { vi } from 'vitest';
-import React, { ReactNode } from 'react'; // Import ReactNode for wrapper type
+import type { DragEndEvent } from '@dnd-kit/core';
+import type { ReactNode } from 'react'; // Import as type only
 
 // Mock dnd-kit
 let dndContextProps: any = {}; // To capture DndContext props like onDragEnd
@@ -255,6 +256,7 @@ describe('KanbanSettingsView', () => {
       active: { id: 'cfgC', data: { current: { sortable: { index: 2, containerId: kid1Id } } } } as any,
       over: { id: 'cfgA', data: { current: { sortable: { index: 0, containerId: kid1Id } } } } as any,
       delta: {x:0, y:0}, collisions: null,
+      activatorEvent: {} as any, // Add dummy property to satisfy type
     };
 
     // Manually call onDragEnd captured from DndContext mock
