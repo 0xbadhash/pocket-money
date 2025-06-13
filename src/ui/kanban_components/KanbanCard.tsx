@@ -181,7 +181,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ instance, definition, isOverlay
               <div key={subTask.id} className="sub-task" style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
                 <input
                   type="checkbox"
-                  id={`subtask-${instance.id}-${subTask.id}`} {/* Ensure unique ID using instance.id */}
+                  id={`subtask-${instance.id}-${subTask.id}`} // Ensure unique ID using instance.id
                   checked={isChecked}
                   onChange={() => toggleSubtaskCompletionOnInstance(instance.id, subTask.id)}
                   style={{ marginRight: '8px', cursor: 'pointer' }}
