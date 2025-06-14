@@ -751,3 +751,175 @@ describe('KidKanbanBoard - Drag and Drop Event Handling (Part 2)', () => {
   });
 
 });
+
+
+// New tests for the Matrix Kanban Board structure
+describe('KidKanbanBoard - Matrix View', () => {
+  let mockMatrixChoresContext: any;
+  let mockMatrixUserContext: any;
+  let mockMatrixChoreInstances: ChoreInstance[];
+  let mockMatrixChoreDefinitions: ChoreDefinition[];
+  let mockMatrixSwimlaneConfigs: KanbanColumnConfig[];
+
+  // Mock DateColumnView to inspect props passed to it
+  const MockDateColumnView = vi.fn(() => <div data-testid="date-column-view-mock">DateColumnView</div>);
+  vi.mock('./DateColumnView', () => ({
+    default: MockDateColumnView,
+  }));
+
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorageMock = localStorageMockFactory();
+    Object.defineProperty(window, 'localStorage', {
+      value: localStorageMock,
+      writable: true,
+      configurable: true,
+    });
+     localStorageMock.getItem.mockReturnValue(null); // Default to no persisted data for these tests
+
+
+    mockMatrixChoreDefinitions = [
+      { id: 'def1_matrix', title: 'Matrix Chore 1', assignedKidId: 'kid_matrix', isComplete: false, dueDate: getTodayDateString(), recurrenceType: null, subTasks: [], tags: [], rewardAmount: 1 },
+      { id: 'def2_matrix', title: 'Matrix Chore 2', assignedKidId: 'kid_matrix', isComplete: false, dueDate: getTodayDateString(), recurrenceType: null, subTasks: [], tags: [], rewardAmount: 2 },
+    ];
+    mockMatrixChoreInstances = [
+      { id: 'inst1_matrix', choreDefinitionId: 'def1_matrix', instanceDate: getTodayDateString(), isComplete: false, categoryStatus: 'TO_DO', subtaskCompletions: {} },
+      { id: 'inst2_matrix', choreDefinitionId: 'def2_matrix', instanceDate: getTodayDateString(), isComplete: false, categoryStatus: 'IN_PROGRESS', subtaskCompletions: {} },
+    ];
+    mockMatrixSwimlaneConfigs = [
+      { id: 'swim1', kidId: 'kid_matrix', title: 'To Do Tasks', order: 0, color: '#FF0000', createdAt: 't', updatedAt: 't' },
+      { id: 'swim2', kidId: 'kid_matrix', title: 'In Progress Tasks', order: 1, color: '#00FF00', createdAt: 't', updatedAt: 't' },
+      { id: 'swim3', kidId: 'kid_matrix', title: 'Done Tasks', order: 2, color: '#0000FF', createdAt: 't', updatedAt: 't' },
+    ];
+
+    mockMatrixChoresContext = {
+      choreDefinitions: mockMatrixChoreDefinitions,
+      choreInstances: mockMatrixChoreInstances,
+      generateInstancesForPeriod: vi.fn(),
+      updateChoreInstanceCategory: vi.fn(),
+      // Add other necessary mocks if KidKanbanBoard uses them
+      getChoreDefinitionsForKid: (kidId: string) => mockMatrixChoreDefinitions.filter(d => d.assignedKidId === kidId),
+      toggleChoreInstanceComplete: vi.fn(),
+      toggleSubtaskCompletionOnInstance: vi.fn(),
+      toggleChoreDefinitionActiveState: vi.fn(),
+    };
+
+    mockMatrixUserContext = {
+      user: {
+        id: 'user_matrix',
+        username: 'Matrix User',
+        email: 'matrix@example.com',
+        kids: [{ id: 'kid_matrix', name: 'Matrix Kid', kanbanColumnConfigs: mockMatrixSwimlaneConfigs }],
+      },
+      loading: false,
+      error: null,
+      getKanbanColumnConfigs: vi.fn((kidId: string) => {
+        if (kidId === 'kid_matrix') return mockMatrixSwimlaneConfigs;
+        return [];
+      }),
+      // Add other necessary mocks
+      login: vi.fn(), logout: vi.fn(), updateUser: vi.fn(), addKid: vi.fn(), updateKid: vi.fn(), deleteKid: vi.fn(),
+      addKanbanColumnConfig: vi.fn(), updateKanbanColumnConfig: vi.fn(), deleteKanbanColumnConfig: vi.fn(), reorderKanbanColumnConfigs: vi.fn(),
+    };
+  });
+
+  const renderMatrixBoard = (kidId = 'kid_matrix') => {
+    return render(
+      <UserContext.Provider value={mockMatrixUserContext as UserContextType}>
+        <ChoresContext.Provider value={mockMatrixChoresContext as any}>
+          <KidKanbanBoard kidId={kidId} />
+        </ChoresContext.Provider>
+      </UserContext.Provider>
+    );
+  };
+
+  test('renders the matrix grid with date headers and swimlanes', () => {
+    renderMatrixBoard();
+
+    // Check for date headers (default 7 days)
+    // Example: Check for "Today" button as a proxy for date navigation being present
+    expect(screen.getByRole('button', { name: 'Today' })).toBeInTheDocument();
+
+    // Check if DateColumnView mocks are rendered for each swimlane for each visible date
+    // By default, KidKanbanBoard shows 7 visible dates.
+    const expectedDateColumnViewCalls = 7 * mockMatrixSwimlaneConfigs.length;
+    expect(MockDateColumnView).toHaveBeenCalledTimes(expectedDateColumnViewCalls);
+  });
+
+  test('passes correct swimlaneConfig (including color) to DateColumnView', () => {
+    renderMatrixBoard();
+
+    // Example: Check props for the first call to DateColumnView for the first swimlane
+    const firstSwimlaneConfig = mockMatrixSwimlaneConfigs[0]; // To Do Tasks, color #FF0000
+
+    // Find a call to MockDateColumnView that corresponds to the first swimlane.
+    // This is a bit indirect as we don't know which exact call it is without more specific identifiers
+    // in the mock rendering, but we can check if *any* call received these props for the first date.
+
+    const today = new Date(); // currentVisibleStartDate defaults to today
+    today.setHours(0,0,0,0);
+
+    expect(MockDateColumnView).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kidId: 'kid_matrix',
+        swimlaneConfig: expect.objectContaining({
+          id: firstSwimlaneConfig.id,
+          title: firstSwimlaneConfig.title,
+          color: firstSwimlaneConfig.color,
+        }),
+        date: expect.any(Date), // Check that a date is passed
+      }),
+      expect.anything() // React context/ref argument
+    );
+
+    // Check if the date passed to one of the DateColumnView instances is today
+     const firstCallArgs = MockDateColumnView.mock.calls.find(call => call[0].swimlaneConfig.id === firstSwimlaneConfig.id);
+     expect(firstCallArgs).toBeDefined();
+     if (firstCallArgs) {
+        const passedDate = new Date(firstCallArgs[0].date);
+        passedDate.setHours(0,0,0,0);
+        expect(passedDate.getTime()).toEqual(today.getTime());
+     }
+
+    // Check for the second swimlane
+    const secondSwimlaneConfig = mockMatrixSwimlaneConfigs[1]; // In Progress Tasks, color #00FF00
+     expect(MockDateColumnView).toHaveBeenCalledWith(
+      expect.objectContaining({
+        swimlaneConfig: expect.objectContaining({
+          id: secondSwimlaneConfig.id,
+          title: secondSwimlaneConfig.title,
+          color: secondSwimlaneConfig.color,
+        }),
+      }),
+      expect.anything()
+    );
+  });
+
+  test('Kid selection buttons are rendered and functional', async () => {
+    const user = userEvent.setup();
+    // Add another kid to the mock user context for selection
+    mockMatrixUserContext.user.kids.push({ id: 'kid_matrix_2', name: 'Matrix Kid Two', kanbanColumnConfigs: [] });
+
+    renderMatrixBoard('kid_matrix');
+
+    expect(screen.getByRole('button', { name: 'Matrix Kid' })).toBeInTheDocument();
+    const kidTwoButton = screen.getByRole('button', { name: 'Matrix Kid Two' });
+    expect(kidTwoButton).toBeInTheDocument();
+
+    // Check initial selection style (kid_matrix is selected by prop)
+    expect(screen.getByRole('button', { name: 'Matrix Kid' })).toHaveStyle('font-weight: bold');
+    expect(kidTwoButton).not.toHaveStyle('font-weight: bold');
+
+    // Click on the other kid
+    await user.click(kidTwoButton);
+
+    // Check style update
+    expect(kidTwoButton).toHaveStyle('font-weight: bold');
+    expect(screen.getByRole('button', { name: 'Matrix Kid' })).not.toHaveStyle('font-weight: bold');
+
+    // Verify getKanbanColumnConfigs was called for the new kid
+    expect(mockMatrixUserContext.getKanbanColumnConfigs).toHaveBeenCalledWith('kid_matrix_2');
+  });
+
+});

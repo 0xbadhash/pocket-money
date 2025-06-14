@@ -105,20 +105,19 @@ describe('KanbanSettingsView', () => {
     });
   });
 
-  test('renders kid selection dropdown and loads columns on kid selection', async () => {
+  test('renders kid selection dropdown and loads swimlanes on kid selection', async () => {
     const user = userEvent.setup();
     const kid1Configs: KanbanColumnConfig[] = [
-      { id: 'cfg1', kidId: 'kid1', title: 'To Do', order: 0, createdAt: 't', updatedAt: 't' },
-      { id: 'cfg2', kidId: 'kid1', title: 'Done', order: 1, createdAt: 't', updatedAt: 't' },
+      { id: 'cfg1', kidId: 'kid1', title: 'To Do', order: 0, color: '#FFFFFF', createdAt: 't', updatedAt: 't' },
+      { id: 'cfg2', kidId: 'kid1', title: 'Done', order: 1, color: '#90EE90', createdAt: 't', updatedAt: 't' },
     ];
     mockUserKids[0].kanbanColumnConfigs = kid1Configs; // Setup kid1 with configs
 
     render(<KanbanSettingsView />, { wrapper: wrapper(mockUserKids) });
 
-    const kidSelect = screen.getByLabelText('Select a kid to manage their Kanban columns');
+    const kidSelect = screen.getByLabelText('Select a kid to manage their Kanban swimlanes'); // Terminology updated
     expect(kidSelect).toBeInTheDocument();
     expect(kidSelect).toHaveRole('combobox');
-    // expect(screen.getByText('Select a Kid')).toBeInTheDocument(); // This might be the default option, not a label
 
     await user.selectOptions(kidSelect, 'kid1');
 
@@ -128,73 +127,84 @@ describe('KanbanSettingsView', () => {
       expect(screen.getByText(/Done/i)).toBeInTheDocument();
     });
 
-    // Verify column list ARIA attributes
-    const columnList = screen.getByRole('list', { name: /Existing Columns:/i });
-    expect(columnList).toBeInTheDocument();
-    // Verify list items (assuming SortableColumnItem renders with role="listitem")
-    const columnItems = screen.getAllByRole('listitem');
-    expect(columnItems.length).toBe(kid1Configs.length);
+    // Verify swimlane list ARIA attributes
+    const swimlaneList = screen.getByRole('list', { name: /Existing Swimlanes:/i }); // Terminology updated
+    expect(swimlaneList).toBeInTheDocument();
+    const swimlaneItems = screen.getAllByRole('listitem');
+    expect(swimlaneItems.length).toBe(kid1Configs.length);
   });
 
-  test('adds a new column when form is submitted', async () => {
+  test('adds a new swimlane with title and color when form is submitted', async () => {
     const user = userEvent.setup();
     render(<KanbanSettingsView />, { wrapper: wrapper(mockUserKids) });
 
-    const kidSelect = screen.getByLabelText('Select a kid to manage their Kanban columns');
+    const kidSelect = screen.getByLabelText('Select a kid to manage their Kanban swimlanes');
     await user.selectOptions(kidSelect, 'kid1');
 
-    const titleInput = screen.getByLabelText('Title for new column');
+    const titleInput = screen.getByLabelText('Title for new swimlane'); // Terminology updated
     expect(titleInput).toBeInTheDocument();
-    const addButton = screen.getByRole('button', { name: 'Add Column' });
+    const colorInput = screen.getByLabelText('Color for new swimlane');
+    expect(colorInput).toBeInTheDocument();
+    expect(colorInput).toHaveValue('#e0e0e0'); // Default color
+
+    const addButton = screen.getByRole('button', { name: 'Add Swimlane' }); // Terminology updated
 
     await user.type(titleInput, 'Backlog');
+    // For <input type="color">, userEvent.type() might not work as expected.
+    // Directly changing the value is more reliable for testing.
+    fireEvent.input(colorInput, { target: { value: '#aabbcc' } });
+
     await user.click(addButton);
 
-    expect(mockAddKanbanColumnConfig).toHaveBeenCalledWith('kid1', 'Backlog');
+    expect(mockAddKanbanColumnConfig).toHaveBeenCalledWith('kid1', 'Backlog', '#aabbcc');
   });
 
-  test('edits a column title', async () => {
+  test('edits a swimlane title and color', async () => {
     const user = userEvent.setup();
+    const initialColor = '#123456';
     const kid1Configs: KanbanColumnConfig[] = [
-      { id: 'cfg1', kidId: 'kid1', title: 'To Do', order: 0, createdAt: 't', updatedAt: 't' },
+      { id: 'cfg1', kidId: 'kid1', title: 'To Do', order: 0, color: initialColor, createdAt: 't', updatedAt: 't' },
     ];
     mockUserKids[0].kanbanColumnConfigs = kid1Configs;
-     // Mock getKanbanColumnConfigs to return the (updated) list when called after an update
     mockGetKanbanColumnConfigs.mockImplementation((kidId: string) => {
         const kid = mockUserKids.find(k => k.id === kidId);
         return kid?.kanbanColumnConfigs || [];
     });
 
-
     render(<KanbanSettingsView />, { wrapper: wrapper(mockUserKids) });
     await user.selectOptions(screen.getByRole('combobox'), 'kid1');
 
-    await waitFor(() => { // Wait for columns to render
+    await waitFor(() => {
         expect(screen.getByText(/To Do/i)).toBeInTheDocument();
     });
 
-    // There should be only one edit button initially if only one column
     const editButtons = screen.getAllByRole('button', { name: 'Edit' });
     await user.click(editButtons[0]);
 
-    const editInput = screen.getByLabelText(`Edit title for column ${kid1Configs[0].title}`);
-    expect(editInput).toBeInTheDocument();
-    expect(editInput).toHaveValue(kid1Configs[0].title); // Ensure it's the correct input
+    const editTitleInput = screen.getByLabelText(`Edit title for swimlane ${kid1Configs[0].title}`);
+    expect(editTitleInput).toBeInTheDocument();
+    expect(editTitleInput).toHaveValue(kid1Configs[0].title);
 
-    await user.clear(editInput);
-    await user.type(editInput, 'My Tasks');
+    const editColorInput = screen.getByLabelText(`Edit color for swimlane ${kid1Configs[0].title}`);
+    expect(editColorInput).toBeInTheDocument();
+    expect(editColorInput).toHaveValue(initialColor);
+
+    await user.clear(editTitleInput);
+    await user.type(editTitleInput, 'My Tasks Updated');
+    fireEvent.input(editColorInput, { target: { value: '#fedcba' } });
+
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(mockUpdateKanbanColumnConfig).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'cfg1', title: 'My Tasks' })
+      expect.objectContaining({ id: 'cfg1', title: 'My Tasks Updated', color: '#fedcba' })
     );
   });
 
-  test('deletes a column after confirmation', async () => {
+  test('deletes a swimlane after confirmation', async () => {
     const user = userEvent.setup();
     window.confirm = vi.fn(() => true); // Mock confirm
     const kid1Configs: KanbanColumnConfig[] = [
-      { id: 'cfg1', kidId: 'kid1', title: 'To Delete', order: 0, createdAt: 't', updatedAt: 't' },
+      { id: 'cfg1', kidId: 'kid1', title: 'To Delete', order: 0, color: '#111', createdAt: 't', updatedAt: 't' },
     ];
     mockUserKids[0].kanbanColumnConfigs = kid1Configs;
 
@@ -212,11 +222,11 @@ describe('KanbanSettingsView', () => {
     expect(mockDeleteKanbanColumnConfig).toHaveBeenCalledWith('kid1', 'cfg1');
   });
 
-  test('does not delete a column if confirmation is cancelled', async () => {
+  test('does not delete a swimlane if confirmation is cancelled', async () => {
     const user = userEvent.setup();
     window.confirm = vi.fn(() => false); // Mock confirm to return false
     const kid1Configs: KanbanColumnConfig[] = [
-      { id: 'cfg1', kidId: 'kid1', title: 'To Keep', order: 0, createdAt: 't', updatedAt: 't' },
+      { id: 'cfg1', kidId: 'kid1', title: 'To Keep', order: 0, color: '#222', createdAt: 't', updatedAt: 't' },
     ];
     mockUserKids[0].kanbanColumnConfigs = kid1Configs;
 
@@ -234,12 +244,12 @@ describe('KanbanSettingsView', () => {
     expect(mockDeleteKanbanColumnConfig).not.toHaveBeenCalled();
   });
 
-  test('reorders columns on drag end', async () => {
+  test('reorders swimlanes on drag end', async () => {
     const kid1Id = 'kid1';
     const initialConfigs: KanbanColumnConfig[] = [
-      { id: 'cfgA', kidId: kid1Id, title: 'Column A', order: 0, createdAt: 't', updatedAt: 't' },
-      { id: 'cfgB', kidId: kid1Id, title: 'Column B', order: 1, createdAt: 't', updatedAt: 't' },
-      { id: 'cfgC', kidId: kid1Id, title: 'Column C', order: 2, createdAt: 't', updatedAt: 't' },
+      { id: 'cfgA', kidId: kid1Id, title: 'Swimlane A', order: 0, color: '#AAA', createdAt: 't', updatedAt: 't' },
+      { id: 'cfgB', kidId: kid1Id, title: 'Swimlane B', order: 1, color: '#BBB', createdAt: 't', updatedAt: 't' },
+      { id: 'cfgC', kidId: kid1Id, title: 'Swimlane C', order: 2, color: '#CCC', createdAt: 't', updatedAt: 't' },
     ];
     mockUserKids[0].kanbanColumnConfigs = initialConfigs;
 
@@ -247,20 +257,16 @@ describe('KanbanSettingsView', () => {
     await userEvent.selectOptions(screen.getByRole('combobox'), kid1Id);
 
     await waitFor(() => {
-      expect(screen.getByText(/Column A/i)).toBeInTheDocument();
+      expect(screen.getByText(/Swimlane A/i)).toBeInTheDocument();
     });
 
-    // Simulate drag end: move Column C (cfgC) to the position of Column A (cfgA)
-    // Original order: A, B, C. New order: C, A, B
-    const dragEndEvent: DragEndEvent = { // Type DragEndEvent from @dnd-kit/core
+    const dragEndEvent: DragEndEvent = {
       active: { id: 'cfgC', data: { current: { sortable: { index: 2, containerId: kid1Id } } } } as any,
       over: { id: 'cfgA', data: { current: { sortable: { index: 0, containerId: kid1Id } } } } as any,
       delta: {x:0, y:0}, collisions: null,
-      activatorEvent: {} as any, // Add dummy property to satisfy type
+      activatorEvent: {} as any,
     };
 
-    // Manually call onDragEnd captured from DndContext mock
-    // Ensure onDragEnd is defined before calling
     if (dndContextProps.onDragEnd) {
         act(() => {
             dndContextProps.onDragEnd(dragEndEvent);
@@ -269,7 +275,6 @@ describe('KanbanSettingsView', () => {
         throw new Error("onDragEnd is not defined on dndContextProps");
     }
 
-    // Expected reordered array (cfgC, cfgA, cfgB) with updated order properties
     const expectedReorderedConfigs = [
       expect.objectContaining({ id: 'cfgC', order: 0 }),
       expect.objectContaining({ id: 'cfgA', order: 1 }),
@@ -277,30 +282,28 @@ describe('KanbanSettingsView', () => {
     ];
     expect(mockReorderKanbanColumnConfigs).toHaveBeenCalledWith(kid1Id, expect.arrayContaining(expectedReorderedConfigs));
 
-    // Verify column list ARIA attributes after reorder
-    const columnList = screen.getByRole('list', { name: /Existing Columns:/i });
-    expect(columnList).toBeInTheDocument();
-    const columnItems = screen.getAllByRole('listitem');
-    expect(columnItems.length).toBe(initialConfigs.length);
+    const swimlaneList = screen.getByRole('list', { name: /Existing Swimlanes:/i });
+    expect(swimlaneList).toBeInTheDocument();
+    const swimlaneItems = screen.getAllByRole('listitem');
+    expect(swimlaneItems.length).toBe(initialConfigs.length);
   });
 
-  test('shows "Setup Default Columns" button and calls add multiple times on click', async () => {
+  test('shows "Setup Default Swimlanes" button and calls addKanbanColumnConfig with correct colors', async () => {
     const user = userEvent.setup();
-    // Ensure kid1 has no columns initially
-    mockUserKids[0].kanbanColumnConfigs = [];
+    mockUserKids[0].kanbanColumnConfigs = []; // Ensure kid1 has no swimlanes
 
     render(<KanbanSettingsView />, { wrapper: wrapper(mockUserKids) });
     await user.selectOptions(screen.getByRole('combobox'), 'kid1');
 
-    const setupButton = await screen.findByRole('button', { name: /Setup Default Columns/i });
+    const setupButton = await screen.findByRole('button', { name: /Setup Default Swimlanes/i }); // Terminology updated
     expect(setupButton).toBeInTheDocument();
 
     await user.click(setupButton);
 
     expect(mockAddKanbanColumnConfig).toHaveBeenCalledTimes(3);
-    expect(mockAddKanbanColumnConfig).toHaveBeenCalledWith('kid1', 'To Do');
-    expect(mockAddKanbanColumnConfig).toHaveBeenCalledWith('kid1', 'In Progress');
-    expect(mockAddKanbanColumnConfig).toHaveBeenCalledWith('kid1', 'Done');
+    expect(mockAddKanbanColumnConfig).toHaveBeenCalledWith('kid1', 'To Do', '#FFFFFF');
+    expect(mockAddKanbanColumnConfig).toHaveBeenCalledWith('kid1', 'In Progress', '#FFFFE0');
+    expect(mockAddKanbanColumnConfig).toHaveBeenCalledWith('kid1', 'Done', '#90EE90');
   });
 
 });
