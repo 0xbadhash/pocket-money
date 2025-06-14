@@ -15,7 +15,7 @@ export interface Kid {
   age?: number;
   avatarFilename?: string; // Assuming this was added in UserContext or similar
   totalFunds?: number;     // Assuming this was added
-  /** Optional list of custom Kanban column configurations for this kid. */
+  /** Optional list of custom Kanban swimlane configurations for this kid (UI term: swimlane). */
   kanbanColumnConfigs?: KanbanColumnConfig[];
   // Add other kid-specific fields here if needed later
 }
@@ -92,21 +92,24 @@ export interface ChoreInstance {
 }
 
 /**
- * Represents the configuration for a custom Kanban column defined by a user for a specific kid.
- * These are user-defined columns beyond the default "Active" and "Completed".
+ * Represents the configuration for a custom Kanban column/swimlane defined by a user for a specific kid.
+ * In the UI, these are referred to as "swimlanes".
+ * These are user-defined swimlanes beyond the default "Active" and "Completed".
  */
 export interface KanbanColumnConfig {
-  /** Unique identifier for the column configuration (e.g., UUID). */
+  /** Unique identifier for the swimlane configuration (e.g., UUID). */
   id: string;
-  /** Identifier of the kid this column config belongs to. */
+  /** Identifier of the kid this swimlane config belongs to. */
   kidId: string;
-  /** Display title of the Kanban column (e.g., "To Do", "In Progress", "Waiting for Review"). */
+  /** Display title of the Kanban swimlane (e.g., "To Do", "In Progress", "Waiting for Review"). */
   title: string;
-  /** Order in which this column should be displayed on the board relative to other custom columns. */
+  /** Order in which this swimlane should be displayed on the board relative to other custom swimlanes. */
   order: number;
-  /** Optional: Timestamp for when this column configuration was created. */
+  /** Optional: Background color for the swimlane. */
+  color?: string;
+  /** Optional: Timestamp for when this swimlane configuration was created. */
   createdAt?: string;
-  /** Optional: Timestamp for when this column configuration was last updated. */
+  /** Optional: Timestamp for when this swimlane configuration was last updated. */
   updatedAt?: string;
 }
 
@@ -114,6 +117,9 @@ export interface KanbanColumnConfig {
 // if they directly reference 'Chore' which is now 'ChoreDefinition'
 export type KanbanPeriod = 'daily' | 'weekly' | 'monthly';
 
+/**
+ * Represents a Kanban column in the data structure, often referred to as a "swimlane" in the UI.
+ */
 export interface KanbanColumn {
   id: string;
   title: string;

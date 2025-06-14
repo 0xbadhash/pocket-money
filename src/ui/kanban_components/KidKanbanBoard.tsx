@@ -181,10 +181,14 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
                                    ? sortedUserColumnConfigs[0].id
                                    : undefined;
     if (currentPeriodDateRange.start && currentPeriodDateRange.end) {
+      // Pass only startDate and endDate. The defaultCategory in generateInstancesForPeriod (ChoresContext)
+      // will correctly default to "TO_DO". The subsequent effect that ensures categoryStatus
+      // on instances will handle any specific logic if needed, but generation should be simple.
       generateInstancesForPeriod(
         currentPeriodDateRange.start,
-        currentPeriodDateRange.end,
-        defaultKanbanColumnId
+        currentPeriodDateRange.end
+        // defaultKanbanColumnId was previously passed here, but it's an ID, not a MatrixKanbanCategory.
+        // ChoresContext.generateInstancesForPeriod already defaults to "TO_DO" if no category is passed.
       );
     }
   }, [kidId, currentPeriodDateRange, generateInstancesForPeriod, getKanbanColumnConfigs, choreDefinitions]);
@@ -609,10 +613,9 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
                   key={swimlane.id}
                   date={date}
                   onEditChore={handleEditChore}
-                  getSwimlaneId={getSwimlaneId}
+                  getSwimlaneId={getSwimlaneId} // This might be removable if DateColumnView doesn't need to construct droppable IDs itself
                   kidId={selectedKidId}
-                  swimlaneCategory={swimlane.title} // Pass swimlane info if needed
-                  swimlaneId={swimlane.id}
+                  swimlaneConfig={swimlane} // Pass the entire swimlane config object
                 />
               ))}
             </div>

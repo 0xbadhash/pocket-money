@@ -37,7 +37,7 @@ export interface UserContextType {
   /** Retrieves all Kanban column configurations for a specific kid, sorted by their 'order' property. */
   getKanbanColumnConfigs: (kidId: string) => KanbanColumnConfig[];
   /** Adds a new Kanban column configuration for a specific kid. */
-  addKanbanColumnConfig: (kidId: string, title: string) => Promise<void>;
+  addKanbanColumnConfig: (kidId: string, title: string, color?: string) => Promise<void>;
   /** Updates an existing Kanban column configuration. */
   updateKanbanColumnConfig: (updatedConfig: KanbanColumnConfig) => Promise<void>;
   /** Deletes a Kanban column configuration for a specific kid and re-calculates order of remaining. */
@@ -95,6 +95,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
                 kidId: kid.id,
                 title: "To Do",
                 order: 0,
+                color: "#FFFFFF", // Default color for To Do
                 createdAt: now,
                 updatedAt: now,
               },
@@ -103,6 +104,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
                 kidId: kid.id,
                 title: "In Progress",
                 order: 1,
+                color: "#FFFFE0", // Default color for In Progress
                 createdAt: now,
                 updatedAt: now,
               },
@@ -111,6 +113,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
                 kidId: kid.id,
                 title: "Done",
                 order: 2,
+                color: "#90EE90", // Default color for Done
                 createdAt: now,
                 updatedAt: now,
               },
@@ -168,10 +171,10 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       if (!prevUser) return null;
 
        const newKidId = `kid_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-       const defaultColumnHeaders: Omit<KanbanColumnConfig, 'kidId' | 'id' | 'createdAt' | 'updatedAt'>[] = [
-        { title: 'To Do', order: 0 },
-        { title: 'In Progress', order: 1 },
-        { title: 'Done', order: 2 },
+       const defaultColumnHeaders: Array<Omit<KanbanColumnConfig, 'kidId' | 'id' | 'createdAt' | 'updatedAt' | 'color'> & { color: string }> = [
+        { title: 'To Do', order: 0, color: "#FFFFFF" },
+        { title: 'In Progress', order: 1, color: "#FFFFE0" },
+        { title: 'Done', order: 2, color: "#90EE90" },
       ];
 
       const defaultKidKanbanConfigs: KanbanColumnConfig[] = defaultColumnHeaders.map((col, index) => ({
@@ -179,6 +182,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         kidId: newKidId,
         title: col.title,
         order: col.order,
+        color: col.color, // Assign specific color
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }));
@@ -230,13 +234,14 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
   /**
    * Adds a new Kanban column configuration for a specific kid.
-   * The new column is added to the end of the existing columns.
+   * The new column is added to the end of the existing columns. Color is set to provided value or default.
    * Timestamps (`createdAt`, `updatedAt`) are automatically set.
    * @param {string} kidId - The ID of the kid for whom to add the column.
    * @param {string} title - The title for the new Kanban column.
+   * @param {string} [color] - Optional color for the new swimlane. Defaults to #E0E0E0.
    * @returns {Promise<void>} A promise that resolves when the operation is complete.
    */
-  const addKanbanColumnConfig = useCallback(async (kidId: string, title: string): Promise<void> => {
+  const addKanbanColumnConfig = useCallback(async (kidId: string, title: string, color?: string): Promise<void> => {
     setUser(prevUser => {
       if (!prevUser) return null;
       const newKidsArray = prevUser.kids.map(kid => {
@@ -247,6 +252,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
             kidId,
             title,
             order: existingConfigs.length, // Appends to the end
+            color: color || '#E0E0E0', // Assign provided color or default
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };

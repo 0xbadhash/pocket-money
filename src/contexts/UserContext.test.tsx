@@ -223,4 +223,95 @@ describe('UserContext - Kanban Column Config Management', () => {
     expect(loadedConfigs[1].title).toBe('Custom Col 2');
   });
 
+  // New tests for swimlane colors
+  describe('UserContext - Kanban Column Config Color Management', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      localStorageMock = localStorageMockFactory();
+      Object.defineProperty(window, 'localStorage', {
+        value: localStorageMock,
+        writable: true,
+        configurable: true,
+      });
+      localStorageMock.getItem.mockImplementation((key: string) => {
+          if (key === 'userData') return null; // Start fresh, no persisted user
+          return null;
+      });
+    });
+
+    test('addKid creates default Kanban column configurations with specific default colors', () => {
+      const { result } = renderHook(() => useUserContext(), { wrapper });
+      act(() => {
+        result.current.addKid({ name: 'Color Kid' });
+      });
+      const kidConfigs = result.current.getKanbanColumnConfigs(result.current.user!.kids[0].id);
+      expect(kidConfigs[0].title).toBe('To Do');
+      expect(kidConfigs[0].color).toBe('#FFFFFF');
+      expect(kidConfigs[1].title).toBe('In Progress');
+      expect(kidConfigs[1].color).toBe('#FFFFE0');
+      expect(kidConfigs[2].title).toBe('Done');
+      expect(kidConfigs[2].color).toBe('#90EE90');
+    });
+
+    test('addKanbanColumnConfig assigns default color if none provided', () => {
+      const { result } = renderHook(() => useUserContext(), { wrapper });
+      let kidId: string;
+      act(() => {
+        result.current.addKid({ name: 'Default Color Kid' });
+        kidId = result.current.user!.kids[0].id;
+      });
+
+      act(() => {
+        result.current.addKanbanColumnConfig(kidId, 'Test Swimlane No Color');
+      });
+
+      const kidConfigs = result.current.getKanbanColumnConfigs(kidId);
+      const newSwimlane = kidConfigs.find(c => c.title === 'Test Swimlane No Color');
+      expect(newSwimlane).toBeDefined();
+      expect(newSwimlane?.color).toBe('#E0E0E0'); // Default color
+    });
+
+    test('addKanbanColumnConfig assigns specific color if provided', () => {
+      const { result } = renderHook(() => useUserContext(), { wrapper });
+      let kidId: string;
+      act(() => {
+        result.current.addKid({ name: 'Specific Color Kid' });
+        kidId = result.current.user!.kids[0].id;
+      });
+
+      const customColor = '#ABCDEF';
+      act(() => {
+        result.current.addKanbanColumnConfig(kidId, 'Test Swimlane With Color', customColor);
+      });
+
+      const kidConfigs = result.current.getKanbanColumnConfigs(kidId);
+      const newSwimlane = kidConfigs.find(c => c.title === 'Test Swimlane With Color');
+      expect(newSwimlane).toBeDefined();
+      expect(newSwimlane?.color).toBe(customColor);
+    });
+
+    test('updateKanbanColumnConfig updates a swimlane\'s color', () => {
+      const { result } = renderHook(() => useUserContext(), { wrapper });
+      let kidId: string;
+      act(() => {
+        result.current.addKid({ name: 'Update Color Kid' });
+        kidId = result.current.user!.kids[0].id;
+      });
+
+      let kidConfigs = result.current.getKanbanColumnConfigs(kidId);
+      const swimlaneToUpdate = kidConfigs.find(c => c.title === 'To Do'); // Default color #FFFFFF
+      expect(swimlaneToUpdate?.color).toBe('#FFFFFF');
+
+      const newColor = '#FF0000';
+      const updatedConfigData: KanbanColumnConfig = { ...swimlaneToUpdate!, color: newColor };
+
+      act(() => {
+        result.current.updateKanbanColumnConfig(updatedConfigData);
+      });
+
+      kidConfigs = result.current.getKanbanColumnConfigs(kidId);
+      const refetchedSwimlane = kidConfigs.find(c => c.id === swimlaneToUpdate!.id);
+      expect(refetchedSwimlane?.color).toBe(newColor);
+    });
+  });
 });

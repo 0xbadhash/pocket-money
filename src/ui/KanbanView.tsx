@@ -30,12 +30,12 @@ const KanbanView: React.FC = () => {
   }
 
   /**
-   * Handles changes in the kid selection dropdown.
-   * Updates the selectedKidId state with the new value.
-   * @param {React.ChangeEvent<HTMLSelectElement>} event - The change event from the select element.
+   * Handles the selection of a kid.
+   * Updates the selectedKidId state with the ID of the clicked kid.
+   * @param {string} kidId - The ID of the kid to select.
    */
-  const handleKidSelection = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedKidId(event.target.value || null); // Ensure null if value is empty string
+  const handleKidSelection = (kidId: string) => {
+    setSelectedKidId(kidId);
   };
 
   return (
@@ -47,14 +47,26 @@ const KanbanView: React.FC = () => {
       <section className="kid-selection" style={{ marginBottom: '20px' }}>
         <h2>Select Kid</h2>
         {kids.length > 0 ? (
-          <select onChange={handleKidSelection} value={selectedKidId || ''} aria-label="Select a kid">
-            <option value="" disabled>Select a kid</option>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {kids.map((kid: Kid) => (
-              <option key={kid.id} value={kid.id}>
+              <button
+                key={kid.id}
+                onClick={() => handleKidSelection(kid.id)}
+                style={{
+                  fontWeight: selectedKidId === kid.id ? 'bold' : 'normal',
+                  background: selectedKidId === kid.id ? '#1976d2' : '#f5f5f5', // Example active/inactive colors
+                  color: selectedKidId === kid.id ? '#fff' : '#333',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  padding: '8px 16px',
+                  cursor: 'pointer',
+                }}
+                aria-pressed={selectedKidId === kid.id}
+              >
                 {kid.name}
-              </option>
+              </button>
             ))}
-          </select>
+          </div>
         ) : (
           <p>No kids found. Please add kids in settings.</p>
         )}
@@ -63,7 +75,7 @@ const KanbanView: React.FC = () => {
       {selectedKidId ? (
         <KidKanbanBoard kidId={selectedKidId} />
       ) : (
-        kids.length > 0 && <p>Select a kid to view their Kanban board.</p> // Show only if kids exist but none selected
+        kids.length > 0 && <p>Select a kid to view their Kanban board.</p>
       )}
     </div>
   );

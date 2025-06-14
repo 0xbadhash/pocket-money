@@ -334,3 +334,80 @@ const useChoresContextInitialStateForTest = {
         }
     ]
 };
+
+describe('ChoresContext - Matrix Kanban Instance Generation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorageMock = localStorageMockFactory();
+    Object.defineProperty(window, 'localStorage', {
+      value: localStorageMock,
+      writable: true,
+      configurable: true,
+    });
+    // Provide default empty arrays for definitions and instances in localStorage for a clean slate
+    localStorageMock.getItem.mockImplementation((key: string) => {
+        if (key === 'choreDefinitions') return JSON.stringify(useChoresContextInitialStateForTest.choreDefinitions); // Start with some defs
+        if (key === 'choreInstances') return JSON.stringify([]);
+        // No need to mock kanbanChoreOrders for these tests
+        return null;
+    });
+  });
+
+  test('generateInstancesForPeriod assigns "TO_DO" categoryStatus by default if no defaultCategory is passed', () => {
+    const { result } = renderHook(() => useChoresContext(), { wrapper });
+
+    act(() => {
+      // Call generateInstancesForPeriod without the third 'defaultCategory' argument
+      result.current.generateInstancesForPeriod("2023-12-01", "2023-12-01");
+    });
+
+    const generatedInstances = result.current.choreInstances;
+    expect(generatedInstances.length).toBeGreaterThan(0);
+    // Check if all newly generated instances (for 'cd1' from initial state) have 'TO_DO'
+    generatedInstances.forEach(instance => {
+      if (instance.choreDefinitionId === 'cd1') { // Assuming 'cd1' generates instances for this period
+        expect(instance.categoryStatus).toBe('TO_DO');
+      }
+    });
+  });
+
+  test('generateInstancesForPeriod assigns a specific MatrixKanbanCategory if defaultCategory is passed', () => {
+    const { result } = renderHook(() => useChoresContext(), { wrapper });
+
+    act(() => {
+      result.current.generateInstancesForPeriod("2023-12-01", "2023-12-01", 'IN_PROGRESS');
+    });
+
+    const generatedInstances = result.current.choreInstances;
+    expect(generatedInstances.length).toBeGreaterThan(0);
+    generatedInstances.forEach(instance => {
+      if (instance.choreDefinitionId === 'cd1') {
+        expect(instance.categoryStatus).toBe('IN_PROGRESS');
+      }
+    });
+  });
+
+  test('generateInstancesForPeriod preserves existing categoryStatus if an instance already exists', () => {
+    const existingInstances: Partial<ChoreInstance>[] = [
+        { id: 'cd1_2023-12-01', choreDefinitionId: 'cd1', instanceDate: '2023-12-01', categoryStatus: 'COMPLETED', isComplete: true }
+    ];
+    localStorageMock.getItem.mockImplementation((key: string) => {
+        if (key === 'choreDefinitions') return JSON.stringify(useChoresContextInitialStateForTest.choreDefinitions);
+        if (key === 'choreInstances') return JSON.stringify(existingInstances);
+        return null;
+    });
+
+    const { result } = renderHook(() => useChoresContext(), { wrapper });
+
+    act(() => {
+      // Attempt to regenerate, which should respect the existing instance's category
+      result.current.generateInstancesForPeriod("2023-12-01", "2023-12-01", 'TO_DO');
+    });
+
+    const finalInstances = result.current.choreInstances;
+    const targetInstance = finalInstances.find(inst => inst.id === 'cd1_2023-12-01');
+    expect(targetInstance).toBeDefined();
+    expect(targetInstance?.categoryStatus).toBe('COMPLETED'); // Should remain COMPLETED, not TO_DO
+  });
+
+});
