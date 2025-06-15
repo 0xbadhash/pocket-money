@@ -3,9 +3,9 @@ import React, { useMemo } from 'react';
 import KanbanCard from './KanbanCard';
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { useUserContext } from '../../contexts/UserContext';
-import type { MatrixKanbanCategory, ChoreInstance, ChoreDefinition } from '../../types';
-
 import type { MatrixKanbanCategory, ChoreInstance, ChoreDefinition, KanbanColumnConfig } from '../../types';
+
+// Duplicate import removed by consolidation above
 
 interface DateColumnViewProps {
   date: Date;
