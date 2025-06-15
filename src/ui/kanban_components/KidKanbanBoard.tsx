@@ -60,8 +60,12 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     choreInstances,
     generateInstancesForPeriod,
     updateChoreInstanceCategory,
+    batchToggleCompleteChoreInstances, // New
+    batchUpdateChoreInstancesCategory, // New
+    batchAssignChoreDefinitionsToKid,  // New
   } = useChoresContext();
   const { getKanbanColumnConfigs, user } = useUserContext();
+  const allKids = user?.kids || []; // Get all kids for "Assign to Kid" modal
 
   /** State for the selected time period (daily, weekly, monthly) for displaying chores. */
   const [selectedPeriod, setSelectedPeriod] = useState<KanbanPeriod>('daily');
@@ -88,6 +92,14 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     const storedTheme = localStorage.getItem('kanban_columnTheme') as ColumnThemeOption | null;
     return storedTheme || 'default';
   });
+
+  // State for selected chore instances for batch actions
+  const [selectedInstanceIds, setSelectedInstanceIds] = useState<string[]>([]);
+
+  // State for Modals
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showKidModal, setShowKidModal] = useState(false);
+  // No need for targetCategoryForBatch/targetKidIdForBatch state, can pass directly from modal handler
 
   // State for Matrix Kanban date navigation
   const [currentVisibleStartDate, setCurrentVisibleStartDate] = useState(() => {
@@ -460,6 +472,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   const [selectedKidId, setSelectedKidId] = useState<string>(kidId);
   useEffect(() => {
     setSelectedKidId(kidId);
+    setSelectedInstanceIds([]); // Clear selection when kid changes
   }, [kidId]);
 
   // --- Get all kids for selection ---
@@ -470,6 +483,97 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     return getKanbanColumnConfigs(selectedKidId).sort((a, b) => a.order - b.order);
   }, [getKanbanColumnConfigs, selectedKidId]);
 
+  const handleToggleSelection = useCallback((instanceId: string, newIsSelectedState: boolean) => {
+    setSelectedInstanceIds(prevSelectedIds => {
+      if (newIsSelectedState) {
+        return prevSelectedIds.includes(instanceId) ? prevSelectedIds : [...prevSelectedIds, instanceId];
+      } else {
+        return prevSelectedIds.filter(id => id !== instanceId);
+      }
+    });
+  }, []);
+
+  const handleClearSelection = () => {
+    setSelectedInstanceIds([]);
+  };
+
+  // Basic styling for the batch actions toolbar
+  const batchActionsToolbarStyle: React.CSSProperties = {
+    padding: '10px',
+    margin: '10px 0',
+    backgroundColor: '#f0f0f0',
+    border: '1px solid #ccc',
+    borderRadius: '4px',
+    display: 'flex',
+    gap: '10px',
+    alignItems: 'center',
+  };
+
+  const batchActionButtonStyle: React.CSSProperties = {
+    padding: '8px 12px',
+    border: '1px solid #bbb',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  };
+
+  const modalOverlayStyle: React.CSSProperties = {
+    position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+    backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex',
+    alignItems: 'center', justifyContent: 'center', zIndex: 1050, // Higher zIndex for modals
+  };
+  const modalContentStyle: React.CSSProperties = {
+    background: 'white', padding: '20px', borderRadius: '5px',
+    minWidth: '300px', boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+  };
+
+
+  // --- Batch Action Handlers ---
+  const handleBatchMarkComplete = async () => {
+    if (selectedInstanceIds.length === 0) return;
+    // Optional: Add confirmation dialog here
+    await batchToggleCompleteChoreInstances(selectedInstanceIds, true);
+    alert(`${selectedInstanceIds.length} chore(s) marked as complete.`);
+    setSelectedInstanceIds([]);
+  };
+
+  const handleBatchMarkIncomplete = async () => {
+    if (selectedInstanceIds.length === 0) return;
+    await batchToggleCompleteChoreInstances(selectedInstanceIds, false);
+    alert(`${selectedInstanceIds.length} chore(s) marked as incomplete.`);
+    setSelectedInstanceIds([]);
+  };
+
+  const handleConfirmCategoryChange = async (newCategory: MatrixKanbanCategory) => {
+    if (selectedInstanceIds.length === 0 || !newCategory) return;
+    await batchUpdateChoreInstancesCategory(selectedInstanceIds, newCategory);
+    alert(`${selectedInstanceIds.length} chore(s) moved to ${newCategory}.`);
+    setShowCategoryModal(false);
+    setSelectedInstanceIds([]);
+  };
+
+  const handleConfirmKidReassign = async (newKidId: string | null) => {
+    if (selectedInstanceIds.length === 0) return;
+
+    const uniqueDefinitionIds = Array.from(
+      new Set(
+        selectedInstanceIds
+          .map(id => choreInstances.find(inst => inst.id === id)?.choreDefinitionId)
+          .filter((id): id is string => !!id)
+      )
+    );
+
+    if (uniqueDefinitionIds.length > 0) {
+      await batchAssignChoreDefinitionsToKid(uniqueDefinitionIds, newKidId);
+      const kidName = newKidId ? allKids.find(k => k.id === newKidId)?.name : 'Unassigned';
+      alert(`${uniqueDefinitionIds.length} chore definition(s) (for ${selectedInstanceIds.length} selected instances) assigned to ${kidName || 'Unassigned'}.`);
+    } else {
+      alert("Could not find definitions for selected chores.");
+    }
+    setShowKidModal(false);
+    setSelectedInstanceIds([]);
+  };
+
+
   return (
     <DndContext
       sensors={sensors}
@@ -479,6 +583,65 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
       onDragCancel={handleDragCancel}
     >
       <div className="kid-kanban-board">
+        {/* Batch Actions Toolbar */}
+        {selectedInstanceIds.length > 0 && (
+          <div style={batchActionsToolbarStyle} role="toolbar" aria-label="Batch actions">
+            <span style={{ marginRight: '10px', fontWeight: 'bold' }}>
+              {selectedInstanceIds.length} selected
+            </span>
+            <button style={batchActionButtonStyle} onClick={() => setShowKidModal(true)}>
+              Assign to Kid
+            </button>
+            <button style={batchActionButtonStyle} onClick={handleBatchMarkComplete}>
+              Mark as Complete
+            </button>
+            <button style={batchActionButtonStyle} onClick={handleBatchMarkIncomplete}>
+              Mark as Incomplete
+            </button>
+            <button style={batchActionButtonStyle} onClick={() => setShowCategoryModal(true)}>
+              Change Swimlane
+            </button>
+            <button style={batchActionButtonStyle} onClick={handleClearSelection}>
+              Clear Selection
+            </button>
+          </div>
+        )}
+
+        {/* Modals for Batch Actions */}
+        {showCategoryModal && (
+          <div style={modalOverlayStyle}>
+            <div style={modalContentStyle}>
+              <h4>Select New Swimlane/Category</h4>
+              {(['TO_DO', 'IN_PROGRESS', 'COMPLETED'] as MatrixKanbanCategory[]).map(cat => (
+                <button key={cat} onClick={() => handleConfirmCategoryChange(cat)} style={{ ...batchActionButtonStyle, marginRight: '5px', marginBottom: '5px' }}>
+                  {cat.replace('_', ' ')}
+                </button>
+              ))}
+              <button onClick={() => setShowCategoryModal(false)} style={{ ...batchActionButtonStyle, marginTop: '10px' }}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {showKidModal && (
+          <div style={modalOverlayStyle}>
+            <div style={modalContentStyle}>
+              <h4>Assign to Kid</h4>
+              <select
+                onChange={(e) => handleConfirmKidReassign(e.target.value === "UNASSIGNED" ? null : e.target.value)}
+                defaultValue=""
+                style={{padding: '8px', marginBottom: '10px', width: '100%'}}
+              >
+                <option value="" disabled>Select a Kid or Unassign</option>
+                {allKids.map(kid => (
+                  <option key={kid.id} value={kid.id}>{kid.name}</option>
+                ))}
+                <option value="UNASSIGNED">Unassign</option>
+              </select>
+              <button onClick={() => setShowKidModal(false)} style={batchActionButtonStyle}>Cancel</button>
+            </div>
+          </div>
+        )}
+
         {/* Kid selection buttons */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
           {kids.map(kid => (
@@ -613,9 +776,11 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
                   key={swimlane.id}
                   date={date}
                   onEditChore={handleEditChore}
-                  getSwimlaneId={getSwimlaneId} // This might be removable if DateColumnView doesn't need to construct droppable IDs itself
+                  getSwimlaneId={getSwimlaneId}
                   kidId={selectedKidId}
-                  swimlaneConfig={swimlane} // Pass the entire swimlane config object
+                  swimlaneConfig={swimlane}
+                  selectedInstanceIds={selectedInstanceIds}
+                  onToggleSelection={handleToggleSelection}
                 />
               ))}
             </div>

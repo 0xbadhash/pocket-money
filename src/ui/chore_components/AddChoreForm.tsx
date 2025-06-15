@@ -30,6 +30,7 @@ const AddChoreForm = ({
   const [description, setDescription] = useState(initialChore?.description || '');
   const [assignedKidId, setAssignedKidId] = useState<string | undefined>(initialChore?.assignedKidId || defaultKidId || undefined);
   const [dueDate, setDueDate] = useState(initialChore?.dueDate || (defaultDueDate ? defaultDueDate.toISOString().split('T')[0] : ''));
+  const [earlyStartDate, setEarlyStartDate] = useState(initialChore?.earlyStartDate || '');
   const [rewardAmount, setRewardAmount] = useState<number | string>(initialChore?.rewardAmount ?? '');
 
   // Recurrence state
@@ -59,6 +60,7 @@ const AddChoreForm = ({
       setDescription(initialChore.description || '');
       setAssignedKidId(initialChore.assignedKidId || defaultKidId || undefined);
       setDueDate(initialChore.dueDate || (defaultDueDate ? defaultDueDate.toISOString().split('T')[0] : ''));
+      setEarlyStartDate(initialChore.earlyStartDate || '');
       setRewardAmount(initialChore.rewardAmount ?? '');
       setRecurrenceType(initialChore.recurrenceType || 'none');
       setRecurrenceDaysOfWeek(
@@ -100,6 +102,7 @@ const AddChoreForm = ({
       description: description.trim() || undefined,
       assignedKidId: assignedKidId || defaultKidId || undefined,
       dueDate: dueDate || (defaultDueDate ? defaultDueDate.toISOString().split('T')[0] : undefined),
+      earlyStartDate: earlyStartDate || undefined, // Add earlyStartDate
       rewardAmount: rewardAmount ? parseFloat(String(rewardAmount)) : undefined,
       recurrenceType: recurrenceType === 'none' ? null : recurrenceType,
       recurrenceDay,
@@ -115,6 +118,7 @@ const AddChoreForm = ({
     setDescription('');
     setAssignedKidId(undefined);
     setDueDate('');
+    setEarlyStartDate(''); // Reset earlyStartDate
     setRewardAmount('');
     setRecurrenceType('none');
     setRecurrenceDaysOfWeek([]);
@@ -173,6 +177,26 @@ const AddChoreForm = ({
       <div>
         <label htmlFor="dueDate">Due Date (Optional, or Start Date for Recurring):</label>
         <input type="date" id="dueDate" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+      </div>
+      <div>
+        <label htmlFor="earlyStartDate">Early Start Date (Optional):</label>
+        <input
+          type="date"
+          id="earlyStartDate"
+          value={earlyStartDate}
+          onChange={(e) => {
+            setEarlyStartDate(e.target.value);
+            // Basic validation: earlyStartDate should not be after dueDate
+            if (dueDate && e.target.value > dueDate) {
+              // Optionally clear dueDate or show a warning. For now, just a console log.
+              console.warn("Early start date is after the due date.");
+            }
+          }}
+          max={dueDate || undefined} // HTML5 validation: not after dueDate
+        />
+         {dueDate && earlyStartDate && earlyStartDate > dueDate && (
+          <p style={{ color: 'orange', fontSize: '0.8em' }}>Warning: Early start is after due date.</p>
+        )}
       </div>
       <div>
         <label htmlFor="rewardAmount">Reward Amount (Optional):</label>
