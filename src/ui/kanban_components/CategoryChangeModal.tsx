@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { MatrixKanbanCategory } from '../../types';
+import { useChoresContext } from '../../contexts/ChoresContext';
 
 interface CategoryChangeModalProps {
   isVisible: boolean;
   onClose: () => void;
-  onConfirm: (targetCategory: MatrixKanbanCategory) => void;
+  selectedInstanceIds: string[];
+  onActionSuccess: () => void; // Renamed from onConfirm, signals successful action attempt
   // Typically, categories would be the fixed MatrixKanbanCategory values
   categories?: MatrixKanbanCategory[];
 }
@@ -31,34 +33,77 @@ const buttonStyle: React.CSSProperties = {
 const CategoryChangeModal: React.FC<CategoryChangeModalProps> = ({
   isVisible,
   onClose,
-  onConfirm,
+  selectedInstanceIds,
+  onActionSuccess,
   categories = ['TO_DO', 'IN_PROGRESS', 'COMPLETED'], // Default to standard categories
 }) => {
+  const [selectedCategoryInternal, setSelectedCategoryInternal] = useState<MatrixKanbanCategory | null>(null);
+  const { batchUpdateChoreInstancesCategory } = useChoresContext();
+
   if (!isVisible) {
     return null;
   }
+
+  const handleConfirmClick = async () => {
+    if (!selectedCategoryInternal) {
+      alert('Please select a category.'); // Or disable confirm button
+      return;
+    }
+    if (selectedInstanceIds.length === 0) {
+      alert('No chores selected.'); // Should ideally not happen if modal is opened correctly
+      onClose(); // Close modal if no items
+      return;
+    }
+    try {
+      await batchUpdateChoreInstancesCategory(selectedInstanceIds, selectedCategoryInternal);
+      onActionSuccess(); // Signal success to parent for feedback/clearing selection
+    } catch (error) {
+      console.error("Failed to batch update chore categories:", error);
+      alert("Failed to update categories. Please try again.");
+      // Optionally, don't call onActionSuccess or onClose if there's an error,
+      // or pass error details back. For now, keeping it simple.
+    }
+    onClose(); // Close the modal
+  };
+
+  const handleCategorySelect = (category: MatrixKanbanCategory) => {
+    setSelectedCategoryInternal(category);
+  };
 
   return (
     <div style={modalOverlayStyle} onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="category-change-modal-title">
       <div style={modalContentStyle} onClick={(e) => e.stopPropagation()}>
         <h4 id="category-change-modal-title">Select New Swimlane/Category</h4>
-        <div>
+        <div style={{ marginBottom: '15px' }}>
           {categories.map(cat => (
             <button
               key={cat}
-              onClick={() => onConfirm(cat)}
-              style={buttonStyle}
+              onClick={() => handleCategorySelect(cat)}
+              style={{
+                ...buttonStyle,
+                backgroundColor: selectedCategoryInternal === cat ? '#4CAF50' : '#f0f0f0',
+                color: selectedCategoryInternal === cat ? 'white' : 'black',
+              }}
             >
               {cat.replace('_', ' ')}
             </button>
           ))}
         </div>
-        <button
-          onClick={onClose}
-          style={{ ...buttonStyle, marginTop: '10px', backgroundColor: '#eee' }}
-        >
-          Cancel
-        </button>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+          <button
+            onClick={onClose}
+            style={{ ...buttonStyle, backgroundColor: '#eee' }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirmClick}
+            style={{ ...buttonStyle, backgroundColor: '#2196F3', color: 'white' }}
+            disabled={!selectedCategoryInternal || selectedInstanceIds.length === 0}
+          >
+            Confirm
+          </button>
+        </div>
       </div>
     </div>
   );

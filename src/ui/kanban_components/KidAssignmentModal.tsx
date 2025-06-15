@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Kid } from '../../types';
+import { useUserContext } from '../../contexts/UserContext';
+import { useChoresContext } from '../../contexts/ChoresContext';
 
 interface KidAssignmentModalProps {
   isVisible: boolean;
   onClose: () => void;
-  onConfirm: (targetKidId: string | null) => void;
-  kids: Kid[];
+  selectedDefinitionIds: string[];
+  onActionSuccess: () => void; // Renamed from onConfirm
+  // kids prop removed, will be fetched from UserContext
 }
 
 // Basic styling
@@ -37,21 +40,47 @@ const selectStyle: React.CSSProperties = {
 const KidAssignmentModal: React.FC<KidAssignmentModalProps> = ({
   isVisible,
   onClose,
-  onConfirm,
-  kids,
+  selectedDefinitionIds,
+  onActionSuccess,
 }) => {
-  const [selectedKid, setSelectedKid] = useState<string>(""); // Store ID or "UNASSIGNED"
+  const { user } = useUserContext();
+  const { batchAssignChoreDefinitionsToKid } = useChoresContext();
+  const [selectedKidIdInternal, setSelectedKidIdInternal] = useState<string>(""); // Store ID or "UNASSIGNED"
+
+  const kidsList = user?.kids || [];
+
+  // Reset internal state when modal visibility changes (e.g., when it's opened)
+  useEffect(() => {
+    if (isVisible) {
+      setSelectedKidIdInternal(""); // Reset selection when modal becomes visible
+    }
+  }, [isVisible]);
 
   if (!isVisible) {
     return null;
   }
 
-  const handleConfirm = () => {
-    if (selectedKid === "") { // No selection made
-        onClose(); // Or show an alert: "Please select an option"
-        return;
+  const handleConfirmClick = async () => {
+    if (selectedKidIdInternal === "") {
+      alert('Please select an option.'); // Or disable confirm button
+      return;
     }
-    onConfirm(selectedKid === "UNASSIGNED" ? null : selectedKid);
+    if (selectedDefinitionIds.length === 0) {
+      alert('No chores selected to assign.'); // Should ideally not happen
+      onClose();
+      return;
+    }
+
+    const targetKidId = selectedKidIdInternal === "UNASSIGNED" ? null : selectedKidIdInternal;
+
+    try {
+      await batchAssignChoreDefinitionsToKid(selectedDefinitionIds, targetKidId);
+      onActionSuccess(); // Signal success to parent
+    } catch (error) {
+      console.error("Failed to batch assign chore definitions:", error);
+      alert("Failed to assign chores. Please try again.");
+    }
+    onClose(); // Close the modal
   };
 
   return (
@@ -59,18 +88,18 @@ const KidAssignmentModal: React.FC<KidAssignmentModalProps> = ({
       <div style={modalContentStyle} onClick={(e) => e.stopPropagation()}>
         <h4 id="kid-assignment-modal-title">Assign to Kid</h4>
         <select
-          value={selectedKid}
-          onChange={(e) => setSelectedKid(e.target.value)}
+          value={selectedKidIdInternal}
+          onChange={(e) => setSelectedKidIdInternal(e.target.value)}
           style={selectStyle}
         >
           <option value="" disabled>Select a Kid or Unassign</option>
-          {kids.map(kid => (
+          {kidsList.map(kid => (
             <option key={kid.id} value={kid.id}>{kid.name}</option>
           ))}
           <option value="UNASSIGNED">Unassign</option>
         </select>
-        <div>
-            <button onClick={handleConfirm} style={{...buttonStyle, marginRight: '5px', backgroundColor: '#007bff', color: 'white'}}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+            <button onClick={handleConfirmClick} style={{...buttonStyle, backgroundColor: '#007bff', color: 'white'}} disabled={selectedKidIdInternal === "" || selectedDefinitionIds.length === 0}>
             Confirm
             </button>
             <button onClick={onClose} style={{...buttonStyle, backgroundColor: '#eee'}}>
