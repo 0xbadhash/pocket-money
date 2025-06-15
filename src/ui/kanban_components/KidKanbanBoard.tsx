@@ -262,7 +262,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({
     });
   }, [selectedKidId, instancesForThisKidAndPeriod, updateChoreInstanceCategory, getDefinitionForInstance]);
 
-  const kidsForSwitcher = user?.kids || [];
+  // const kidsForSwitcher = user?.kids || []; // Removed as kid selection buttons are removed
   const swimlaneConfigs = useMemo(() => getKanbanColumnConfigs(selectedKidId).sort((a, b) => a.order - b.order), [getKanbanColumnConfigs, selectedKidId]);
 
   // Batch Action Handlers wrapped in useCallback
@@ -353,7 +353,6 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({
         .filter((id): id is string => !!id)
     ));
   }, [selectedInstanceIds, filteredSortedParentInstances]);
-
   const currentPeriodDisplayString = useMemo(() => {
     if (!currentPeriodDateRange.start) return "";
     const parseAsLocalDate = (dateString: string) => new Date(dateString + 'T00:00:00');
@@ -403,7 +402,8 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({
           cancelButtonText="Keep Selection"
         />
 
-        {/* Kid selection buttons */}
+        {/* Kid selection buttons UI removed */}
+        {/*
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
           {kidsForSwitcher.map(kid => (
             <button key={kid.id} onClick={() => setSelectedKidId(kid.id)}
@@ -412,6 +412,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({
             </button>
           ))}
         </div>
+        */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
           <button onClick={() => handleOpenAddChore()} style={{ fontWeight: 'bold', padding: '6px 16px' }}>+ Assign New Chore</button>
         </div>
