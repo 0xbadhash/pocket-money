@@ -7,7 +7,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { ChoreInstance, ChoreDefinition } from '../../types';
 import { useChoresContext } from '../../contexts/ChoresContext';
-import EditScopeModal from './EditScopeModal'; // Moved import to the top
+import { useNotification } from '../../contexts/NotificationContext'; // Import useNotification
+import EditScopeModal from './EditScopeModal';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -51,8 +52,9 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
     toggleSubtaskCompletionOnInstance,
     updateChoreDefinition,
     updateChoreInstanceField,
-    updateChoreSeries, // Added for series edits
+    updateChoreSeries,
   } = useChoresContext();
+  const { addNotification } = useNotification(); // Get addNotification
 
   const [isEditingReward, setIsEditingReward] = useState(false);
   const [editingRewardValue, setEditingRewardValue] = useState<string | number>('');
@@ -62,9 +64,27 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   const [editingDateValue, setEditingDateValue] = useState<string>('');
   const dateInputRef = useRef<HTMLInputElement>(null);
 
+  // State for Title Editing
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editingTitleValue, setEditingTitleValue] = useState('');
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // State for Tags Editing
+  const [isEditingTags, setIsEditingTags] = useState(false);
+  const [editingTagsValue, setEditingTagsValue] = useState('');
+  const tagsInputRef = useRef<HTMLInputElement>(null);
+
+  // Loading states for inline edits
+  const [loadingStates, setLoadingStates] = useState({
+    title: false,
+    tags: false,
+    reward: false,
+    date: false,
+  });
+
   // State for EditScopeModal
   const [isEditScopeModalVisible, setIsEditScopeModalVisible] = useState(false);
-  const closeEditScopeModal = () => {
+  let closeEditScopeModal = () => { // Allow reassignment for wrapping
     setIsEditScopeModalVisible(false);
     setPendingEdit(undefined);
   };
@@ -76,29 +96,57 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
     fromDateForSeries: string // This is the instanceDate of the edited instance
   } | undefined>(undefined);
 
-  const handleConfirmEditScope = async (scope: 'instance' | 'series') => {
+  let handleConfirmEditScope = async (scope: 'instance' | 'series') => { // Allow reassignment for wrapping
     if (!pendingEdit) return;
 
     const { fieldName, value, definitionId, instanceId, fromDateForSeries } = pendingEdit;
 
-    if (scope === 'instance') {
-      if (fieldName === 'instanceDate') {
-        await updateChoreInstanceField(instanceId, 'instanceDate', value);
-      } else if (fieldName === 'rewardAmount') {
-        await updateChoreInstanceField(instanceId, 'overriddenRewardAmount', value);
+    // Original logic moved to a separate function to be wrapped
+    const originalConfirmLogic = async () => {
+      if (scope === 'instance') {
+        if (fieldName === 'instanceDate') {
+          await updateChoreInstanceField(instanceId, 'instanceDate', value);
+        } else if (fieldName === 'rewardAmount') {
+          await updateChoreInstanceField(instanceId, 'overriddenRewardAmount', value);
+        }
+      } else if (scope === 'series') {
+        if (fieldName === 'instanceDate') {
+          await updateChoreSeries(definitionId, { dueDate: value }, fromDateForSeries, 'dueDate');
+        } else if (fieldName === 'rewardAmount') {
+          await updateChoreInstanceField(instanceId, 'overriddenRewardAmount', undefined);
+          await updateChoreSeries(definitionId, { rewardAmount: value }, fromDateForSeries, 'rewardAmount');
+        }
       }
-    } else if (scope === 'series') {
-      if (fieldName === 'instanceDate') {
-        await updateChoreSeries(definitionId, { dueDate: value }, fromDateForSeries, 'dueDate');
-      } else if (fieldName === 'rewardAmount') {
-        // For series reward edit, we also clear any instance-specific override on the current instance
-        // to ensure it reflects the new series value.
-        await updateChoreInstanceField(instanceId, 'overriddenRewardAmount', undefined);
-        await updateChoreSeries(definitionId, { rewardAmount: value }, fromDateForSeries, 'rewardAmount');
+      // Add any user feedback (e.g., toast notification) here if desired
+      closeEditScopeModal(); // Call the potentially wrapped version
+    };
+
+    // Wrapping the original confirm logic with loading state management
+    const specificLoadingKey = fieldName === 'rewardAmount' ? 'reward' : (fieldName === 'instanceDate' ? 'date' : null);
+    if (specificLoadingKey) {
+      // setLoadingStates(prev => ({ ...prev, [specificLoadingKey]: true })); // Already set before modal opens
+    }
+    try {
+      await originalConfirmLogic();
+    } catch (error) {
+      console.error(`Failed to confirm edit scope for ${fieldName}:`, error);
+    } finally {
+      if (specificLoadingKey) {
+        setLoadingStates(prev => ({ ...prev, [specificLoadingKey]: false }));
       }
     }
-    // Add any user feedback (e.g., toast notification) here if desired
-    closeEditScopeModal();
+  };
+
+  // Wrap closeEditScopeModal to reset loading states if a pending edit was cancelled
+  const originalCloseEditScopeModal = closeEditScopeModal;
+  closeEditScopeModal = () => {
+    originalCloseEditScopeModal();
+    if (pendingEdit) {
+      const specificLoadingKey = pendingEdit.fieldName === 'rewardAmount' ? 'reward' : (pendingEdit.fieldName === 'instanceDate' ? 'date' : null);
+      if (specificLoadingKey) {
+        setLoadingStates(prev => ({ ...prev, [specificLoadingKey]: false }));
+      }
+    }
   };
 
 
@@ -116,7 +164,21 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
     }
   }, [isEditingDate]);
 
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isEditingTitle]);
+
+  useEffect(() => {
+    if (isEditingTags && tagsInputRef.current) {
+      tagsInputRef.current.focus();
+    }
+  }, [isEditingTags]);
+
   const handleEditReward = () => {
+    if (loadingStates.reward) return;
     const currentReward = instance.overriddenRewardAmount !== undefined
       ? instance.overriddenRewardAmount
       : definition.rewardAmount;
@@ -125,36 +187,95 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   };
 
   const handleSaveReward = async () => {
-    setIsEditingReward(false);
     const newAmount = parseFloat(editingRewardValue as string);
 
     if (isNaN(newAmount) || newAmount < 0) {
       console.warn("Invalid reward amount entered.");
+      setIsEditingReward(false);
       return;
     }
 
     const currentBaseReward = definition.rewardAmount;
     const currentInstanceOverride = instance.overriddenRewardAmount;
-
-    // If there's an override, compare to that. Otherwise, compare to definition.
     const effectiveCurrentReward = currentInstanceOverride !== undefined ? currentInstanceOverride : currentBaseReward;
 
     if (effectiveCurrentReward === newAmount) {
-        return; // No change from the currently displayed/effective reward
+      setIsEditingReward(false);
+      return;
     }
 
-    if (definition.recurrenceType && definition.recurrenceType !== null) {
-      setPendingEdit({
-        fieldName: 'rewardAmount',
-        value: newAmount,
-        definitionId: definition.id,
-        instanceId: instance.id,
-        fromDateForSeries: instance.instanceDate
-      });
-      setIsEditScopeModalVisible(true);
+    setLoadingStates(prev => ({ ...prev, reward: true }));
+    setIsEditingReward(false);
+
+    try {
+      if (definition.recurrenceType && definition.recurrenceType !== null) {
+        setPendingEdit({
+          fieldName: 'rewardAmount',
+          value: newAmount,
+          definitionId: definition.id,
+          instanceId: instance.id,
+          fromDateForSeries: instance.instanceDate
+        });
+        setIsEditScopeModalVisible(true);
+        // Notification for series edit will be handled upon modal confirmation if needed
+      } else {
+        await updateChoreDefinition(definition.id, { rewardAmount: newAmount });
+        addNotification({ message: 'Reward updated!', type: 'success' });
+      }
+    } catch (error) {
+      console.error("Failed to save reward:", error);
+      addNotification({ message: 'Failed to update reward.', type: 'error' });
+    } finally {
+      // Only reset loading state if not opening modal, as modal flow will handle it
+      if (!(definition.recurrenceType && definition.recurrenceType !== null)) {
+        setLoadingStates(prev => ({ ...prev, reward: false }));
+      }
+    }
+  };
+
+  // Handlers for Tags Editing
+  const handleEditTags = () => {
+    if (loadingStates.tags) return;
+    setEditingTagsValue(definition.tags ? definition.tags.join(', ') : '');
+    setIsEditingTags(true);
+  };
+
+  const handleSaveTags = async () => {
+    const newTagsArray = editingTagsValue
+      .split(',')
+      .map(tag => tag.trim())
+      .filter(tag => tag !== '');
+
+    const currentTags = definition.tags || [];
+    const tagsHaveChanged =
+      currentTags.length !== newTagsArray.length ||
+      currentTags.some(tag => !newTagsArray.includes(tag)) ||
+      newTagsArray.some(tag => !currentTags.includes(tag));
+
+    if (tagsHaveChanged) {
+      setLoadingStates(prev => ({ ...prev, tags: true }));
+      setIsEditingTags(false);
+      try {
+        await updateChoreDefinition(definition.id, { tags: newTagsArray });
+        addNotification({ message: 'Tags updated!', type: 'success' });
+      } catch (error) {
+        console.error("Failed to save tags:", error);
+        addNotification({ message: 'Failed to update tags.', type: 'error' });
+      } finally {
+        setLoadingStates(prev => ({ ...prev, tags: false }));
+      }
     } else {
-      // Not recurring: update definition's reward (no instance override for non-recurring)
-      await updateChoreDefinition(definition.id, { rewardAmount: newAmount });
+      setIsEditingTags(false);
+    }
+  };
+
+  const handleTagsInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      handleSaveTags();
+    } else if (event.key === 'Escape') {
+      setIsEditingTags(false);
+      // Optionally reset editingTagsValue
+      // setEditingTagsValue(definition.tags ? definition.tags.join(', ') : '');
     }
   };
 
@@ -168,30 +289,43 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   };
 
   const handleEditDate = () => {
+    if (loadingStates.date) return;
     setEditingDateValue(instance.instanceDate);
     setIsEditingDate(true);
   };
 
   const handleSaveDate = async () => {
-    setIsEditingDate(false); // Close input immediately
-    // Basic validation for date format can be added if necessary,
-    // but type="date" input usually handles format.
     if (!editingDateValue || instance.instanceDate === editingDateValue) {
-      return; // No change or empty value
+      setIsEditingDate(false); // Close input if no change
+      return;
     }
 
-    if (definition.recurrenceType && definition.recurrenceType !== null) {
-      setPendingEdit({
-        fieldName: 'instanceDate',
-        value: editingDateValue,
-        definitionId: definition.id,
-        instanceId: instance.id,
-        fromDateForSeries: instance.instanceDate
-      });
-      setIsEditScopeModalVisible(true);
-    } else {
-      // Not recurring, update instance directly
-      await updateChoreInstanceField(instance.id, 'instanceDate', editingDateValue);
+    setLoadingStates(prev => ({ ...prev, date: true }));
+    setIsEditingDate(false);
+
+    try {
+      if (definition.recurrenceType && definition.recurrenceType !== null) {
+        setPendingEdit({
+          fieldName: 'instanceDate',
+          value: editingDateValue,
+          definitionId: definition.id,
+          instanceId: instance.id,
+          fromDateForSeries: instance.instanceDate
+        });
+        setIsEditScopeModalVisible(true);
+        // Notification for series edit will be handled upon modal confirmation
+      } else {
+        await updateChoreInstanceField(instance.id, 'instanceDate', editingDateValue);
+        addNotification({ message: 'Date updated!', type: 'success' });
+      }
+    } catch (error) {
+      console.error("Failed to save date:", error);
+      addNotification({ message: 'Failed to update date.', type: 'error' });
+    } finally {
+      // Only reset loading state if not opening modal
+      if (!(definition.recurrenceType && definition.recurrenceType !== null)) {
+        setLoadingStates(prev => ({ ...prev, date: false }));
+      }
     }
   };
 
@@ -200,6 +334,42 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
       handleSaveDate();
     } else if (event.key === 'Escape') {
       setIsEditingDate(false);
+    }
+  };
+
+  // Handlers for Title Editing
+  const handleEditTitle = () => {
+    if (loadingStates.title) return;
+    setEditingTitleValue(definition.title);
+    setIsEditingTitle(true);
+  };
+
+  const handleSaveTitle = async () => {
+    const newTitle = editingTitleValue.trim();
+    if (newTitle && newTitle !== definition.title) {
+      setLoadingStates(prev => ({ ...prev, title: true }));
+      setIsEditingTitle(false);
+      try {
+        await updateChoreDefinition(definition.id, { title: newTitle });
+        addNotification({ message: 'Title updated!', type: 'success' });
+      } catch (error) {
+        console.error("Failed to save title:", error);
+        addNotification({ message: 'Failed to update title.', type: 'error' });
+      } finally {
+        setLoadingStates(prev => ({ ...prev, title: false }));
+      }
+    } else {
+      setIsEditingTitle(false);
+    }
+  };
+
+  const handleTitleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      handleSaveTitle();
+    } else if (event.key === 'Escape') {
+      setIsEditingTitle(false);
+      // Optionally reset editingTitleValue to definition.title if desired
+      // setEditingTitleValue(definition.title);
     }
   };
 
@@ -257,6 +427,21 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   // Fix: Quick action menu state and handler
   const [showMenu, setShowMenu] = useState(false);
 
+  // Determine "Early Start" status
+  let isEarlyStartActive = false;
+  if (definition.earlyStartDate && instance.instanceDate && definition.dueDate && !instance.isComplete) {
+    try {
+      const instanceDateObj = new Date(instance.instanceDate + 'T00:00:00'); // Ensure local or consistent timezone interpretation
+      const earlyStartDateObj = new Date(definition.earlyStartDate + 'T00:00:00');
+      const dueDateObj = new Date(definition.dueDate + 'T00:00:00');
+
+      isEarlyStartActive = instanceDateObj >= earlyStartDateObj && instanceDateObj < dueDateObj;
+    } catch (e) {
+      console.warn("Error parsing dates for early start calculation:", e);
+      // isEarlyStartActive remains false
+    }
+  }
+
   // Close menu when clicking outside
   React.useEffect(() => {
     if (!showMenu) return;
@@ -289,8 +474,47 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
       className={`kanban-card ${instance.isComplete ? 'complete' : ''} ${isDragging && !isOverlay ? 'dragging' : ''} ${isOverlay ? 'is-overlay' : ''} ${isSelected ? 'selected' : ''}`}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <h4 style={{ margin: 0, flexGrow: 1 }}>{definition.title}</h4>
-        {!isOverlay && onToggleSelection && ( // Do not show checkbox on overlay card
+        {isEditingTitle ? (
+          <input
+            ref={titleInputRef}
+            type="text"
+            value={editingTitleValue}
+            onChange={(e) => setEditingTitleValue(e.target.value)}
+            onBlur={handleSaveTitle} // Save on blur
+            onKeyDown={handleTitleInputKeyDown}
+            style={{ flexGrow: 1, marginRight: '8px', fontSize: '1em', padding: '2px', border: '1px solid #ccc' }}
+            aria-label="Edit chore title"
+            disabled={loadingStates.title}
+          />
+        ) : (
+          <>
+            <h4 style={{ margin: 0, flexGrow: 1, cursor: loadingStates.title ? 'default' : 'text' }} onClick={!loadingStates.title ? handleEditTitle : undefined}>
+              {definition.title}
+              {isEarlyStartActive && !isEditingTitle && (
+                <span
+                  className="early-start-indicator"
+                  title={`Available from ${definition.earlyStartDate}, due ${definition.dueDate}`}
+                  style={{ marginLeft: '8px' }}
+                >
+                  <span role="img" aria-label="Clock icon">⏰</span> Early
+                </span>
+              )}
+            </h4>
+            {loadingStates.title && <span role="status" aria-live="polite" style={{ fontSize: '0.8em', marginLeft: '8px', color: 'var(--text-color-secondary)' }}>Saving...</span>}
+            {!loadingStates.title && (
+              <button
+                onClick={handleEditTitle}
+                className="edit-icon-button"
+                aria-label="Edit title"
+                style={{ marginLeft: '4px', alignSelf: 'center' }}
+                disabled={loadingStates.title}
+              >
+                ✏️
+              </button>
+            )}
+          </>
+        )}
+        {!isOverlay && onToggleSelection && !isEditingTitle && ( // Do not show checkbox on overlay card or when editing title
           <input
             type="checkbox"
             checked={isSelected}
@@ -365,11 +589,15 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
             onBlur={handleSaveDate}
             onKeyDown={handleDateInputKeyDown}
             style={{ fontSize: 'inherit', padding: '2px', width: '130px' }}
+            disabled={loadingStates.date}
           />
         ) : (
           <>
             <span>{instance.instanceDate}</span>
-            <button onClick={handleEditDate} className="edit-icon-button" aria-label="Edit due date">✏️</button>
+            {loadingStates.date && <span role="status" aria-live="polite" style={{ fontSize: '0.8em', marginLeft: '4px', color: 'var(--text-color-secondary)' }}>Saving...</span>}
+            {!loadingStates.date && (
+              <button onClick={handleEditDate} className="edit-icon-button" aria-label="Edit due date" disabled={loadingStates.date}>✏️</button>
+            )}
           </>
         )}
       </div>
@@ -388,19 +616,23 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
               min="0"
               step="0.01"
               style={{ fontSize: 'inherit', padding: '2px', width: '60px' }}
+            disabled={loadingStates.reward}
             />
           ) : (
             <>
               <span>
-                ${(instance.overriddenRewardAmount != null // Check for both undefined and null
+              ${(instance.overriddenRewardAmount != null
                     ? instance.overriddenRewardAmount
                     : definition.rewardAmount
                   )?.toFixed(2) || '0.00'}
               </span>
-              {instance.overriddenRewardAmount != null && ( // Check for both undefined and null
+            {instance.overriddenRewardAmount != null && (
                 <span title={`Base: $${definition.rewardAmount?.toFixed(2) || '0.00'}`} style={{color: 'var(--text-color-secondary)', fontSize: '0.8em', marginLeft: '4px'}}>(edited)</span>
               )}
-              <button onClick={handleEditReward} className="edit-icon-button" aria-label="Edit reward amount">✏️</button>
+            {loadingStates.reward && <span role="status" aria-live="polite" style={{ fontSize: '0.8em', marginLeft: '4px', color: 'var(--text-color-secondary)' }}>Saving...</span>}
+            {!loadingStates.reward && (
+              <button onClick={handleEditReward} className="edit-icon-button" aria-label="Edit reward amount" disabled={loadingStates.reward}>✏️</button>
+            )}
             </>
           )}
         </div>
@@ -415,6 +647,58 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
           ))}
         </div>
       )}
+
+      {/* Tags Section - Inline Editable */}
+      <div className="chore-tags-section" style={{ marginTop: '8px' }}>
+        {isEditingTags ? (
+          <input
+            ref={tagsInputRef}
+            type="text"
+            value={editingTagsValue}
+            onChange={(e) => setEditingTagsValue(e.target.value)}
+            onBlur={handleSaveTags}
+            onKeyDown={handleTagsInputKeyDown}
+            placeholder="Enter tags, comma-separated"
+            style={{ width: '100%', fontSize: '0.9em', padding: '4px', border: '1px solid #ccc', borderRadius: '3px', boxSizing: 'border-box' }}
+            aria-label="Edit chore tags"
+            disabled={loadingStates.tags}
+          />
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+            {loadingStates.tags && <span role="status" aria-live="polite" style={{ fontSize: '0.8em', color: 'var(--text-color-secondary)' }}>Saving...</span>}
+            {!loadingStates.tags && (!definition.tags || definition.tags.length === 0) ? (
+              <span style={{ fontSize: '0.8em', color: 'var(--text-color-secondary)' }}>No tags.</span>
+            ) : !loadingStates.tags && (
+              definition.tags.map(tag => (
+                <span
+                  key={tag}
+                  className="chore-tag"
+                  style={{
+                    backgroundColor: 'var(--primary-color-light, #e0e0e0)',
+                    color: 'var(--text-color-primary, #333)',
+                    padding: '2px 6px',
+                    borderRadius: '3px',
+                    fontSize: '0.8em',
+                  }}
+                >
+                  {tag}
+                </span>
+              ))
+            )}
+            {!loadingStates.tags && (
+              <button
+                onClick={handleEditTags}
+                className="edit-icon-button"
+                aria-label="Edit tags"
+                style={{ fontSize: '0.8em', padding: '2px' }}
+                disabled={loadingStates.tags}
+              >
+                ✏️
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
       {definition.subTasks && definition.subTasks.length > 0 && (
         <div
@@ -525,8 +809,8 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
       {isEditScopeModalVisible && pendingEdit && (
         <EditScopeModal
           isVisible={isEditScopeModalVisible}
-          onClose={closeEditScopeModal}
-          onConfirmScope={handleConfirmEditScope}
+          onClose={closeEditScopeModal} // Wrapped version
+          onConfirmScope={handleConfirmEditScope} // Wrapped version
           fieldName={pendingEdit.fieldName}
           newValue={pendingEdit.value}
         />
@@ -547,7 +831,7 @@ export default React.memo(KanbanCard);
 
 // Basic styling for edit icon buttons (ensure this doesn't cause issues with React.memo)
 // If globalStyles were dynamic or complex, it might affect memoization, but as a static string, it's fine.
-// import EditScopeModal from './EditScopeModal'; // Removed from here
+// import EditScopeModal from './EditScopeModal'; // Already at the top
 const globalStyles = `
 .edit-icon-button {
   background: none;
@@ -559,6 +843,16 @@ const globalStyles = `
 }
 .edit-icon-button:hover {
   color: var(--text-color-primary, #000);
+}
+.early-start-indicator {
+  font-size: 0.8em;
+  color: var(--accent-color-info, #17a2b8);
+  padding: 1px 5px; /* Adjusted padding */
+  border-radius: 3px;
+  background-color: var(--accent-color-info-muted, #e2f5fa);
+  /* margin-left: 8px; /* Removed to be applied via inline style if needed */
+  font-weight: normal; /* Ensure it's not bold if h4 is bold */
+  display: inline-block; /* Ensures padding and background are applied correctly */
 }
 `;
 

@@ -1,32 +1,33 @@
 // src/ui/kanban_components/DateColumnView.tsx
 import React, { useMemo } from 'react';
 import KanbanCard from './KanbanCard';
-import { useChoresContext } from '../../contexts/ChoresContext';
-import { useUserContext } from '../../contexts/UserContext';
+// import { useChoresContext } from '../../contexts/ChoresContext'; // No longer needed for instance/definition data
+// import { useUserContext } from '../../contexts/UserContext'; // Not used directly here
 import type { MatrixKanbanCategory, ChoreInstance, ChoreDefinition, KanbanColumnConfig } from '../../types';
-
-// Duplicate import removed by consolidation above
 
 interface DateColumnViewProps {
   date: Date;
   onEditChore?: (chore: ChoreDefinition) => void;
-  getSwimlaneId?: (dateString: string, category: MatrixKanbanCategory) => string; // May not be needed if dndContext defines droppable areas based on swimlaneConfig.id + date
-  kidId?: string;
+  // getSwimlaneId?: (dateString: string, category: MatrixKanbanCategory) => string;
+  // kidId?: string; // Filtered by parent (KidKanbanBoard)
   swimlaneConfig: KanbanColumnConfig;
   selectedInstanceIds: string[];
   onToggleSelection: (instanceId: string, isSelected: boolean) => void;
+  // New props for data
+  instancesForDateColumn: ChoreInstance[];
+  allDefinitionsForDateColumn: ChoreDefinition[];
 }
 
 const DateColumnView: React.FC<DateColumnViewProps> = ({
   date,
   onEditChore,
-  // getSwimlaneId, // Keep if needed for drag-n-drop ID generation
-  kidId,
   swimlaneConfig,
   selectedInstanceIds,
   onToggleSelection,
+  instancesForDateColumn, // Use this prop
+  allDefinitionsForDateColumn, // Use this prop
 }) => {
-  const { choreInstances, choreDefinitions } = useChoresContext();
+  // const { choreInstances, choreDefinitions } = useChoresContext(); // Removed
 
   const dateString = date.toISOString().split('T')[0];
 
@@ -46,17 +47,16 @@ const DateColumnView: React.FC<DateColumnViewProps> = ({
   // Show all chores (including recurring) for this kid, date, and mapped swimlane category (choreFilterKey)
   const choresForThisDate = useMemo(
     () =>
-      choreInstances.filter((instance) => {
-        const def = choreDefinitions.find(d => d.id === instance.choreDefinitionId);
+      instancesForDateColumn.filter((instance) => { // Use prop
+        // const def = allDefinitionsForDateColumn.find(d => d.id === instance.choreDefinitionId); // Definition lookup still needed for card
+        // KidId and isComplete (definition archival) filters are now handled upstream by KanbanView/KidKanbanBoard.
+        // This component now only filters by its specific date and the category derived from swimlaneConfig.
         return (
-          def &&
-          (!def.isComplete) && // Definition is not archived
-          (!kidId || def.assignedKidId === kidId) &&
           instance.instanceDate === dateString &&
-          instance.categoryStatus === choreFilterKey // Filter by the mapped MatrixKanbanCategory
+          instance.categoryStatus === choreFilterKey
         );
       }),
-    [choreInstances, dateString, kidId, choreDefinitions, choreFilterKey]
+    [instancesForDateColumn, dateString, choreFilterKey] // Removed allDefinitionsForDateColumn from deps if not directly used in filter logic itself
   );
 
   // Determine text color based on background luminance (simple version)
@@ -102,7 +102,7 @@ const DateColumnView: React.FC<DateColumnViewProps> = ({
         </p>
       ) : (
         choresForThisDate.map((instance) => {
-          const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
+          const definition = allDefinitionsForDateColumn.find(def => def.id === instance.choreDefinitionId); // Use prop
           if (!definition) return null;
           return (
             <KanbanCard
