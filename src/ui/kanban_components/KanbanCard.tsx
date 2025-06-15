@@ -437,7 +437,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   );
 };
 
-export default KanbanCard;
+export default React.memo(KanbanCard);
 
 // If you have a progress bar SVG or similar, make sure viewBox uses only numbers, not percentages.
 // Example fix for a progress bar SVG:
@@ -447,7 +447,8 @@ export default KanbanCard;
 //  {/* ...existing SVG content... */}
 // </svg>
 
-// Basic styling for edit icon buttons
+// Basic styling for edit icon buttons (ensure this doesn't cause issues with React.memo)
+// If globalStyles were dynamic or complex, it might affect memoization, but as a static string, it's fine.
 const globalStyles = `
 .edit-icon-button {
   background: none;

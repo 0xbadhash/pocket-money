@@ -120,4 +120,4 @@ const DateColumnView: React.FC<DateColumnViewProps> = ({
   );
 };
 
-export default DateColumnView;
+export default React.memo(DateColumnView);
