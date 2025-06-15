@@ -1,12 +1,15 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { UserContext, UserContextType } from '../../contexts/UserContext';
+import { UserContext, UserContextType } from '../contexts/UserContext'; // Corrected path
 import KanbanView from './KanbanView';
-import type { Kid } from '../../types';
+import type { Kid } from '../types'; // Corrected path if types is at src/types.ts
+import { vi } from 'vitest'; // Import vi for mocking
 
 // Mock KidKanbanBoard to avoid complex setup
-jest.mock('./kanban_components/KidKanbanBoard', () => () => <div data-testid="kid-kanban-board">KidKanbanBoard Mock</div>);
+vi.mock('./kanban_components/KidKanbanBoard', () => ({
+  default: vi.fn(() => <div data-testid="kid-kanban-board">KidKanbanBoard Mock</div>)
+}));
 
 const mockKids: Kid[] = [
   { id: 'kid1', name: 'Alice', kanbanColumnConfigs: [] },

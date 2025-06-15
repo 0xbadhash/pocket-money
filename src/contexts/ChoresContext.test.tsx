@@ -1,9 +1,10 @@
 // src/contexts/ChoresContext.test.tsx
 import { renderHook, act } from '@testing-library/react';
-import { ChoresProvider, useChoresContext, KanbanChoreOrders } from './ChoresContext';
+import { ChoresProvider, useChoresContext } from './ChoresContext';
 import React, { ReactNode } from 'react';
 import { vi } from 'vitest';
-import { FinancialContext, FinancialContextType } from './FinancialContext'; // ChoresContext depends on FinancialContext
+import { FinancialContext, FinancialContextType } from './FinancialContext';
+import type { ChoreInstance, ChoreDefinition, MatrixKanbanCategory } from '../types';
 
 // Mock localStorage
 const localStorageMockFactory = () => {
@@ -13,7 +14,6 @@ const localStorageMockFactory = () => {
     setItem: vi.fn((key: string, value: string) => { store[key] = value.toString(); }),
     clear: vi.fn(() => { store = {}; }),
     removeItem: vi.fn((key: string) => { delete store[key]; }),
-    getStore: () => store, // Helper for direct inspection if needed
   };
 };
 let localStorageMock = localStorageMockFactory();
@@ -36,104 +36,73 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </FinancialContext.Provider>
 );
 
-// Commenting out tests for removed features: KanbanChoreOrders and updateChoreInstanceColumn
-/*
-describe('ChoresContext - Kanban Chore Orders', () => {
-  // ... tests for kanbanChoreOrders ...
-});
-
-describe('ChoresContext - updateChoreInstanceColumn', () => {
-  // ... tests for updateChoreInstanceColumn (now legacy) ...
-});
-*/
+const initialTestDefinitions: ChoreDefinition[] = [
+    {
+      id: 'cd1', title: 'Clean Room (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
+      rewardAmount: 1, isComplete: false, recurrenceType: 'daily' as const, recurrenceEndDate: '2023-12-05',
+      tags: ['cleaning', 'indoor'],
+      subTasks: [ { id: 'st1_1', title: 'Make bed', isComplete: false }, { id: 'st1_2', title: 'Tidy desk', isComplete: false }, { id: 'st1_3', title: 'Vacuum floor', isComplete: false } ],
+      earlyStartDate: undefined,
+      updatedAt: new Date('2023-01-01T00:00:00.000Z').toISOString(), // Ensure this field exists for tests that need it
+      // Add other fields like createdAt if they are non-optional in your type
+      createdAt: new Date('2023-01-01T00:00:00.000Z').toISOString(),
+    }
+];
 
 describe('ChoresContext - Persistence and Basic Operations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorageMock = localStorageMockFactory();
-    Object.defineProperty(window, 'localStorage', {
-      value: localStorageMock,
-      writable: true,
-      configurable: true,
-    });
+    Object.defineProperty(window, 'localStorage', { value: localStorageMock, writable: true, configurable: true });
     localStorageMock.getItem.mockImplementation((key: string) => {
-        if (key === 'choreDefinitions') return JSON.stringify(useChoresContextInitialStateForTest.choreDefinitions);
+        if (key === 'choreDefinitions') return JSON.stringify(initialTestDefinitions);
         if (key === 'choreInstances') return JSON.stringify([]);
         return null;
     });
   });
 
-  test('addChoreDefinition persists updated choreDefinitions to localStorage', () => {
+  test('addChoreDefinition persists updated choreDefinitions to localStorage including earlyStartDate', () => {
     const { result } = renderHook(() => useChoresContext(), { wrapper });
-    const newDefData = { title: 'New Test Def', assignedKidId: 'kid_a', rewardAmount: 10, earlyStartDate: '2024-01-01', dueDate: '2024-01-05' };
-
-    act(() => {
-      result.current.addChoreDefinition(newDefData);
-    });
-
+    const newDefData = {
+      title: 'New Test Def', assignedKidId: 'kid_a', rewardAmount: 10,
+      earlyStartDate: '2024-01-01', dueDate: '2024-01-05'
+    };
+    act(() => { result.current.addChoreDefinition(newDefData); });
     const addedDef = result.current.choreDefinitions.find(def => def.title === 'New Test Def');
     expect(addedDef).toBeDefined();
     expect(addedDef?.earlyStartDate).toBe('2024-01-01');
     expect(localStorageMock.setItem).toHaveBeenCalledWith('choreDefinitions', JSON.stringify(result.current.choreDefinitions));
   });
 
-  // toggleSubtaskCompletionOnInstance is on instances now, not definitions directly.
-  // This test needs to be adapted or moved if subtask toggling persistence is tested.
-  // For now, focusing on direct context function tests.
-
-  test('toggleChoreInstanceComplete persists updated choreInstances to localStorage', () => {
+  test('toggleChoreInstanceComplete persists updated choreInstances to localStorage and processes reward', () => {
     const { result } = renderHook(() => useChoresContext(), { wrapper });
-    act(() => {
-      result.current.generateInstancesForPeriod("2023-12-01", "2023-12-01", "default_col");
-    });
+    act(() => { result.current.generateInstancesForPeriod("2023-12-01", "2023-12-01"); });
     const instanceToToggle = result.current.choreInstances.find(inst => inst.choreDefinitionId === 'cd1');
     expect(instanceToToggle).toBeDefined();
     if (!instanceToToggle) return;
-
-    act(() => {
-      result.current.toggleChoreInstanceComplete(instanceToToggle.id);
-    });
+    expect(instanceToToggle.isComplete).toBe(false);
+    act(() => { result.current.toggleChoreInstanceComplete(instanceToToggle.id); });
+    const updatedInstance = result.current.choreInstances.find(inst => inst.id === instanceToToggle.id);
+    expect(updatedInstance?.isComplete).toBe(true);
+    expect(mockAddKidReward).toHaveBeenCalledWith('kid_a', 1, expect.stringContaining(initialTestDefinitions[0].title));
     expect(localStorageMock.setItem).toHaveBeenCalledWith('choreInstances', JSON.stringify(result.current.choreInstances));
   });
 
   test('generateInstancesForPeriod persists updated choreInstances to localStorage', () => {
     const { result } = renderHook(() => useChoresContext(), { wrapper });
-    act(() => {
-      result.current.generateInstancesForPeriod("2023-12-01", "2023-12-02", "default_col");
-    });
+    act(() => { result.current.generateInstancesForPeriod("2023-12-01", "2023-12-02"); });
     expect(result.current.choreInstances.length).toBeGreaterThan(0);
     expect(localStorageMock.setItem).toHaveBeenCalledWith('choreInstances', JSON.stringify(result.current.choreInstances));
   });
 });
 
-// Minimal initial state from ChoresProvider for definition mocking in tests
-const useChoresContextInitialStateForTest = {
-    choreDefinitions: [
-        {
-          id: 'cd1', title: 'Clean Room (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
-          rewardAmount: 1, isComplete: false, recurrenceType: 'daily' as const, recurrenceEndDate: '2023-12-05',
-          tags: ['cleaning', 'indoor'],
-          subTasks: [
-            { id: 'st1_1', title: 'Make bed', isComplete: false },
-            { id: 'st1_2', title: 'Tidy desk', isComplete: false },
-            { id: 'st1_3', title: 'Vacuum floor', isComplete: false }
-          ]
-        }
-    ]
-};
-
 describe('ChoresContext - Matrix Kanban Instance Generation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorageMock = localStorageMockFactory();
-    Object.defineProperty(window, 'localStorage', {
-      value: localStorageMock,
-      writable: true,
-      configurable: true,
-    });
-    // Provide default empty arrays for definitions and instances in localStorage for a clean slate
+    Object.defineProperty(window, 'localStorage', { value: localStorageMock, writable: true, configurable: true });
     localStorageMock.getItem.mockImplementation((key: string) => {
-        if (key === 'choreDefinitions') return JSON.stringify(useChoresContextInitialStateForTest.choreDefinitions);
+        if (key === 'choreDefinitions') return JSON.stringify(initialTestDefinitions);
         if (key === 'choreInstances') return JSON.stringify([]);
         return null;
     });
@@ -141,56 +110,54 @@ describe('ChoresContext - Matrix Kanban Instance Generation', () => {
 
   test('generateInstancesForPeriod assigns "TO_DO" categoryStatus by default if no defaultCategory is passed', () => {
     const { result } = renderHook(() => useChoresContext(), { wrapper });
-    act(() => {
-      result.current.generateInstancesForPeriod("2023-12-01", "2023-12-01");
-    });
-    const generatedInstances = result.current.choreInstances;
-    expect(generatedInstances.length).toBeGreaterThan(0);
-    generatedInstances.forEach(instance => {
-      if (instance.choreDefinitionId === 'cd1') {
-        expect(instance.categoryStatus).toBe('TO_DO');
-      }
-    });
+    act(() => { result.current.generateInstancesForPeriod("2023-12-01", "2023-12-01"); });
+    const instanceForCd1 = result.current.choreInstances.find(inst => inst.choreDefinitionId === 'cd1');
+    expect(instanceForCd1).toBeDefined();
+    expect(instanceForCd1?.categoryStatus).toBe('TO_DO');
   });
 
   test('generateInstancesForPeriod assigns a specific MatrixKanbanCategory if defaultCategory is passed', () => {
     const { result } = renderHook(() => useChoresContext(), { wrapper });
-    act(() => {
-      result.current.generateInstancesForPeriod("2023-12-01", "2023-12-01", 'IN_PROGRESS');
-    });
-    const generatedInstances = result.current.choreInstances;
-    expect(generatedInstances.length).toBeGreaterThan(0);
-    generatedInstances.forEach(instance => {
-      if (instance.choreDefinitionId === 'cd1') {
-        expect(instance.categoryStatus).toBe('IN_PROGRESS');
-      }
-    });
+    act(() => { result.current.generateInstancesForPeriod("2023-12-01", "2023-12-01", 'IN_PROGRESS'); });
+    const instanceForCd1 = result.current.choreInstances.find(inst => inst.choreDefinitionId === 'cd1');
+    expect(instanceForCd1).toBeDefined();
+    expect(instanceForCd1?.categoryStatus).toBe('IN_PROGRESS');
   });
 
-  test('generateInstancesForPeriod preserves existing categoryStatus if an instance already exists', () => {
-    const existingInstances: Partial<ChoreInstance>[] = [
-        { id: 'cd1_2023-12-01', choreDefinitionId: 'cd1', instanceDate: '2023-12-01', categoryStatus: 'COMPLETED', isComplete: true, subtaskCompletions: {} }
+  test('generateInstancesForPeriod preserves existing instance data (like categoryStatus and isComplete)', () => {
+    const existingInstanceId = initialTestDefinitions[0].id + "_2023-12-01";
+    const existingInstances: ChoreInstance[] = [
+        { id: existingInstanceId, choreDefinitionId: initialTestDefinitions[0].id, instanceDate: '2023-12-01', categoryStatus: 'COMPLETED', isComplete: true, subtaskCompletions: {} }
     ];
-    localStorageMock.getItem.mockImplementation((key: string) => {
-        if (key === 'choreDefinitions') return JSON.stringify(useChoresContextInitialStateForTest.choreDefinitions);
-        if (key === 'choreInstances') return JSON.stringify(existingInstances);
-        return null;
-    });
+    // This mockImplementation specific to the test might have issues if ChoresProvider initializes too early.
+    // localStorageMock.getItem.mockImplementation((key: string) => {
+    //     if (key === 'choreDefinitions') return JSON.stringify(initialTestDefinitions);
+    //     if (key === 'choreInstances') return JSON.stringify(existingInstances);
+    //     return null;
+    // });
+
+    // Use mockReturnValueOnce to ensure these values are returned for the provider's initialization
+    localStorageMock.getItem
+      .mockReturnValueOnce(JSON.stringify(initialTestDefinitions)) // For choreDefinitions
+      .mockReturnValueOnce(JSON.stringify(existingInstances));  // For choreInstances
+
     const { result } = renderHook(() => useChoresContext(), { wrapper });
-    act(() => {
-      result.current.generateInstancesForPeriod("2023-12-01", "2023-12-01", 'TO_DO');
-    });
-    const finalInstances = result.current.choreInstances;
-    const targetInstance = finalInstances.find(inst => inst.id === 'cd1_2023-12-01');
+
+    // Optional: Verify loaded state immediately after render
+    // console.log('[TEST_DEBUG] Instances loaded in context:', JSON.stringify(result.current.choreInstances));
+
+    act(() => { result.current.generateInstancesForPeriod("2023-12-01", "2023-12-01", 'TO_DO'); });
+    const targetInstance = result.current.choreInstances.find(inst => inst.id === existingInstanceId);
     expect(targetInstance).toBeDefined();
     expect(targetInstance?.categoryStatus).toBe('COMPLETED');
+    expect(targetInstance?.isComplete).toBe(true);
   });
 
-  test('generateInstancesForPeriod considers earlyStartDate if before dueDate', () => {
-    const definitionsWithEarlyStart = [
-      { ...useChoresContextInitialStateForTest.choreDefinitions[0], id: 'cd_early', dueDate: '2023-12-05', earlyStartDate: '2023-12-01', recurrenceType: null },
-      { ...useChoresContextInitialStateForTest.choreDefinitions[0], id: 'cd_normal', dueDate: '2023-12-03', recurrenceType: null },
-      { ...useChoresContextInitialStateForTest.choreDefinitions[0], id: 'cd_early_after_due', dueDate: '2023-12-01', earlyStartDate: '2023-12-05', recurrenceType: null }, // early start is ignored
+  test('generateInstancesForPeriod considers earlyStartDate if before dueDate for non-recurring chore', () => {
+    const definitionsWithEarlyStart: ChoreDefinition[] = [
+      { ...initialTestDefinitions[0], id: 'cd_early', dueDate: '2023-12-05', earlyStartDate: '2023-12-01', recurrenceType: null, isComplete: false, createdAt:'', updatedAt:'' },
+      { ...initialTestDefinitions[0], id: 'cd_normal', dueDate: '2023-12-03', earlyStartDate: undefined, recurrenceType: null, isComplete: false, createdAt:'', updatedAt:'' },
+      { ...initialTestDefinitions[0], id: 'cd_early_after_due', dueDate: '2023-12-01', earlyStartDate: '2023-12-05', recurrenceType: null, isComplete: false, createdAt:'', updatedAt:'' },
     ];
      localStorageMock.getItem.mockImplementation((key: string) => {
         if (key === 'choreDefinitions') return JSON.stringify(definitionsWithEarlyStart);
@@ -198,81 +165,84 @@ describe('ChoresContext - Matrix Kanban Instance Generation', () => {
         return null;
     });
     const { result } = renderHook(() => useChoresContext(), { wrapper });
-    act(() => {
-      result.current.generateInstancesForPeriod("2023-12-01", "2023-12-05");
-    });
+    act(() => { result.current.generateInstancesForPeriod("2023-12-01", "2023-12-05"); });
     const instances = result.current.choreInstances;
-    // cd_early should have an instance on 2023-12-01 because of earlyStartDate
-    expect(instances.find(inst => inst.choreDefinitionId === 'cd_early' && inst.instanceDate === '2023-12-01')).toBeDefined();
-    // cd_normal should have an instance on 2023-12-03
-    expect(instances.find(inst => inst.choreDefinitionId === 'cd_normal' && inst.instanceDate === '2023-12-03')).toBeDefined();
-    // cd_early_after_due should generate based on its dueDate '2023-12-01'
-    expect(instances.find(inst => inst.choreDefinitionId === 'cd_early_after_due' && inst.instanceDate === '2023-12-01')).toBeDefined();
-    expect(instances.find(inst => inst.choreDefinitionId === 'cd_early_after_due' && inst.instanceDate === '2023-12-05')).toBeUndefined(); // Should not use earlyStartDate if it's after dueDate for generation start
+    const earlyInstance = instances.find(inst => inst.choreDefinitionId === 'cd_early');
+    expect(earlyInstance).toBeDefined();
+    expect(earlyInstance?.instanceDate).toBe('2023-12-01');
+    const normalInstance = instances.find(inst => inst.choreDefinitionId === 'cd_normal');
+    expect(normalInstance).toBeDefined();
+    expect(normalInstance?.instanceDate).toBe('2023-12-03');
+    const earlyAfterDueInstance = instances.find(inst => inst.choreDefinitionId === 'cd_early_after_due');
+    expect(earlyAfterDueInstance).toBeDefined();
+    expect(earlyAfterDueInstance?.instanceDate).toBe('2023-12-01');
   });
 });
 
 describe('ChoresContext - Individual Item Updates', () => {
+    let currentInitialDefinitions: ChoreDefinition[];
+    let currentInitialInstances: ChoreInstance[];
+    const defToUpdateId = 'defToUpdate';
+    const instToUpdateId = 'instToUpdate';
+
     beforeEach(() => {
         vi.clearAllMocks();
         localStorageMock = localStorageMockFactory();
         Object.defineProperty(window, 'localStorage', { value: localStorageMock });
-        const initialDefinitions = [
-            { ...useChoresContextInitialStateForTest.choreDefinitions[0], id: 'defToUpdate', rewardAmount: 5 }
-        ];
-        const initialInstances = [
-            { id: 'instToUpdate', choreDefinitionId: 'defToUpdate', instanceDate: '2024-01-15', categoryStatus: 'TO_DO', isComplete: false, subtaskCompletions: {} }
-        ];
+        currentInitialDefinitions = [ { ...initialTestDefinitions[0], id: defToUpdateId, rewardAmount: 5, updatedAt: new Date('2024-01-01T10:00:00.000Z').toISOString() }];
+        currentInitialInstances = [ { id: instToUpdateId, choreDefinitionId: defToUpdateId, instanceDate: '2024-01-15', categoryStatus: 'TO_DO', isComplete: false, subtaskCompletions: {} }];
         localStorageMock.getItem.mockImplementation((key: string) => {
-            if (key === 'choreDefinitions') return JSON.stringify(initialDefinitions);
-            if (key === 'choreInstances') return JSON.stringify(initialInstances);
+            if (key === 'choreDefinitions') return JSON.stringify(currentInitialDefinitions);
+            if (key === 'choreInstances') return JSON.stringify(currentInitialInstances);
             return null;
         });
     });
 
-    test('updateChoreDefinition updates rewardAmount', async () => {
+    test('updateChoreDefinition updates rewardAmount and updatedAt timestamp', async () => {
         const { result } = renderHook(() => useChoresContext(), { wrapper });
-        act(() => {
-            result.current.updateChoreDefinition('defToUpdate', { rewardAmount: 100 });
-        });
-        const updatedDef = result.current.choreDefinitions.find(d => d.id === 'defToUpdate');
+        const originalDef = result.current.choreDefinitions.find(d => d.id === defToUpdateId);
+        const originalUpdatedAt = originalDef?.updatedAt;
+        expect(originalUpdatedAt).toBeDefined(); // Ensure definition and its updatedAt are loaded
+        await act(async () => { await result.current.updateChoreDefinition(defToUpdateId, { rewardAmount: 100 }); });
+        const updatedDef = result.current.choreDefinitions.find(d => d.id === defToUpdateId);
         expect(updatedDef?.rewardAmount).toBe(100);
+        expect(updatedDef?.updatedAt).not.toBe(originalUpdatedAt);
+        if (updatedDef?.updatedAt && originalUpdatedAt) {
+            expect(new Date(updatedDef.updatedAt).getTime()).toBeGreaterThan(new Date(originalUpdatedAt).getTime());
+        }
     });
 
     test('updateChoreInstanceField updates instanceDate', async () => {
         const { result } = renderHook(() => useChoresContext(), { wrapper });
         const newDate = '2024-01-20';
-        act(() => {
-            result.current.updateChoreInstanceField('instToUpdate', 'instanceDate', newDate);
-        });
-        const updatedInst = result.current.choreInstances.find(i => i.id === 'instToUpdate');
+        await act(async () => { await result.current.updateChoreInstanceField(instToUpdateId, 'instanceDate', newDate); });
+        const updatedInst = result.current.choreInstances.find(i => i.id === instToUpdateId);
         expect(updatedInst?.instanceDate).toBe(newDate);
     });
 });
 
 describe('ChoresContext - Batch Operations', () => {
-    let initialDefinitionsForBatch: typeof useChoresContextInitialStateForTest.choreDefinitions;
-    let initialInstancesForBatch: ChoreInstance[];
+    let batchInitialDefinitions: ChoreDefinition[];
+    let batchInitialInstances: ChoreInstance[];
 
     beforeEach(() => {
         vi.clearAllMocks();
         localStorageMock = localStorageMockFactory();
         Object.defineProperty(window, 'localStorage', { value: localStorageMock });
-
-        initialDefinitionsForBatch = [
-            { ...useChoresContextInitialStateForTest.choreDefinitions[0], id: 'def_batch1', assignedKidId: 'kid_A', rewardAmount: 10 },
-            { ...useChoresContextInitialStateForTest.choreDefinitions[0], id: 'def_batch2', assignedKidId: 'kid_A', rewardAmount: 5 },
-            { ...useChoresContextInitialStateForTest.choreDefinitions[0], id: 'def_batch3', assignedKidId: 'kid_B' },
+        batchInitialDefinitions = [
+            { ...initialTestDefinitions[0], id: 'def_batch1', title: "Batch Chore 1", assignedKidId: 'kid_A', rewardAmount: 10, updatedAt: new Date().toISOString() },
+            { ...initialTestDefinitions[0], id: 'def_batch2', title: "Batch Chore 2", assignedKidId: 'kid_A', rewardAmount: 5, updatedAt: new Date().toISOString() },
+            { ...initialTestDefinitions[0], id: 'def_batch3', title: "Batch Chore 3", assignedKidId: 'kid_B', updatedAt: new Date().toISOString() },
         ];
-        initialInstancesForBatch = [
+        batchInitialInstances = [
             { id: 'inst_batch1', choreDefinitionId: 'def_batch1', instanceDate: '2024-02-01', categoryStatus: 'TO_DO', isComplete: false, subtaskCompletions: {} },
             { id: 'inst_batch2', choreDefinitionId: 'def_batch2', instanceDate: '2024-02-01', categoryStatus: 'IN_PROGRESS', isComplete: false, subtaskCompletions: {} },
             { id: 'inst_batch3', choreDefinitionId: 'def_batch3', instanceDate: '2024-02-01', categoryStatus: 'TO_DO', isComplete: false, subtaskCompletions: {} },
             { id: 'inst_batch4_completed', choreDefinitionId: 'def_batch1', instanceDate: '2024-02-02', categoryStatus: 'COMPLETED', isComplete: true, subtaskCompletions: {} },
         ];
         localStorageMock.getItem.mockImplementation((key: string) => {
-            if (key === 'choreDefinitions') return JSON.stringify(initialDefinitionsForBatch);
-            if (key === 'choreInstances') return JSON.stringify(initialInstancesForBatch);
+            if (key === 'choreDefinitions') return JSON.stringify(batchInitialDefinitions);
+            if (key === 'choreInstances') return JSON.stringify(batchInitialInstances);
             return null;
         });
     });
@@ -280,60 +250,56 @@ describe('ChoresContext - Batch Operations', () => {
     test('batchToggleCompleteChoreInstances marks multiple instances as complete with rewards and category change', async () => {
         const { result } = renderHook(() => useChoresContext(), { wrapper });
         const idsToComplete = ['inst_batch1', 'inst_batch2'];
-        act(() => {
-            result.current.batchToggleCompleteChoreInstances(idsToComplete, true);
-        });
-        const instances = result.current.choreInstances;
-        expect(instances.find(i=>i.id === 'inst_batch1')?.isComplete).toBe(true);
-        expect(instances.find(i=>i.id === 'inst_batch1')?.categoryStatus).toBe('COMPLETED');
-        expect(instances.find(i=>i.id === 'inst_batch2')?.isComplete).toBe(true);
-        expect(instances.find(i=>i.id === 'inst_batch2')?.categoryStatus).toBe('COMPLETED');
-        expect(mockAddKidReward).toHaveBeenCalledTimes(2); // For inst_batch1 (reward 10) and inst_batch2 (reward 5)
-        expect(mockAddKidReward).toHaveBeenCalledWith('kid_A', 10, expect.any(String));
-        expect(mockAddKidReward).toHaveBeenCalledWith('kid_A', 5, expect.any(String));
+        await act(async () => { await result.current.batchToggleCompleteChoreInstances(idsToComplete, true); });
+        const finalInstances = result.current.choreInstances;
+        const inst1 = finalInstances.find(i => i.id === 'inst_batch1');
+        const inst2 = finalInstances.find(i => i.id === 'inst_batch2');
+        expect(inst1?.isComplete).toBe(true);
+        expect(inst1?.categoryStatus).toBe('COMPLETED');
+        expect(inst2?.isComplete).toBe(true);
+        expect(inst2?.categoryStatus).toBe('COMPLETED');
+        expect(mockAddKidReward).toHaveBeenCalledTimes(2);
+        expect(mockAddKidReward).toHaveBeenCalledWith('kid_A', 10, expect.stringContaining(batchInitialDefinitions.find(d=>d.id==='def_batch1')!.title));
+        expect(mockAddKidReward).toHaveBeenCalledWith('kid_A', 5, expect.stringContaining(batchInitialDefinitions.find(d=>d.id==='def_batch2')!.title));
     });
 
     test('batchToggleCompleteChoreInstances marks multiple instances as incomplete and updates category', async () => {
         const { result } = renderHook(() => useChoresContext(), { wrapper });
-        const idsToIncomplete = ['inst_batch4_completed']; // This one is initially complete
-         act(() => {
-            result.current.batchToggleCompleteChoreInstances(idsToIncomplete, false);
-        });
+        const idsToIncomplete = ['inst_batch4_completed'];
+         await act(async () => { await result.current.batchToggleCompleteChoreInstances(idsToIncomplete, false); });
         const instance = result.current.choreInstances.find(i=>i.id === 'inst_batch4_completed');
         expect(instance?.isComplete).toBe(false);
-        expect(instance?.categoryStatus).toBe('IN_PROGRESS'); // Should move from COMPLETED
+        expect(instance?.categoryStatus).toBe('IN_PROGRESS');
         expect(mockAddKidReward).not.toHaveBeenCalled();
     });
 
     test('batchUpdateChoreInstancesCategory updates category for multiple instances', async () => {
         const { result } = renderHook(() => useChoresContext(), { wrapper });
-        const idsToUpdate = ['inst_batch1', 'inst_batch3']; // Both TO_DO initially
-        act(() => {
-            result.current.batchUpdateChoreInstancesCategory(idsToUpdate, 'IN_PROGRESS');
-        });
+        const idsToUpdate = ['inst_batch1', 'inst_batch3'];
+        await act(async () => { await result.current.batchUpdateChoreInstancesCategory(idsToUpdate, 'IN_PROGRESS'); });
         const instances = result.current.choreInstances;
         expect(instances.find(i=>i.id === 'inst_batch1')?.categoryStatus).toBe('IN_PROGRESS');
         expect(instances.find(i=>i.id === 'inst_batch3')?.categoryStatus).toBe('IN_PROGRESS');
+        expect(instances.find(i=>i.id === 'inst_batch2')?.categoryStatus).toBe('IN_PROGRESS');
+        expect(instances.find(i=>i.id === 'inst_batch4_completed')?.categoryStatus).toBe('COMPLETED');
     });
 
     test('batchAssignChoreDefinitionsToKid reassigns multiple definitions', async () => {
         const { result } = renderHook(() => useChoresContext(), { wrapper });
-        const defIdsToAssign = ['def_batch1', 'def_batch2']; // Both assigned to kid_A
+        const defIdsToAssign = ['def_batch1', 'def_batch2'];
         const newKid = 'kid_C';
-        act(() => {
-            result.current.batchAssignChoreDefinitionsToKid(defIdsToAssign, newKid);
-        });
+        const originalDef3Kid = result.current.choreDefinitions.find(d=>d.id === 'def_batch3')?.assignedKidId;
+        await act(async () => { await result.current.batchAssignChoreDefinitionsToKid(defIdsToAssign, newKid); });
         const definitions = result.current.choreDefinitions;
         expect(definitions.find(d=>d.id === 'def_batch1')?.assignedKidId).toBe(newKid);
         expect(definitions.find(d=>d.id === 'def_batch2')?.assignedKidId).toBe(newKid);
-        expect(definitions.find(d=>d.id === 'def_batch3')?.assignedKidId).toBe('kid_B'); // Unchanged
+        expect(definitions.find(d=>d.id === 'def_batch3')?.assignedKidId).toBe(originalDef3Kid);
     });
+
      test('batchAssignChoreDefinitionsToKid unassigns if newKidId is null', async () => {
         const { result } = renderHook(() => useChoresContext(), { wrapper });
         const defIdsToUnassign = ['def_batch1'];
-        act(() => {
-            result.current.batchAssignChoreDefinitionsToKid(defIdsToUnassign, null);
-        });
+        await act(async () => { await result.current.batchAssignChoreDefinitionsToKid(defIdsToUnassign, null); });
         const definition = result.current.choreDefinitions.find(d=>d.id === 'def_batch1');
         expect(definition?.assignedKidId).toBeUndefined();
     });
