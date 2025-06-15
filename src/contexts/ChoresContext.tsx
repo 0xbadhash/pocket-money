@@ -64,6 +64,13 @@ interface ChoresContextType {
   batchUpdateChoreInstancesCategory: (instanceIds: string[], newCategory: MatrixKanbanCategory) => Promise<void>;
   /** Batch assigns chore definitions to a new kid. */
   batchAssignChoreDefinitionsToKid: (definitionIds: string[], newKidId: string | null) => Promise<void>;
+  /** Updates a chore definition and its future instances from a given date. */
+  updateChoreSeries: (
+    definitionId: string,
+    updates: Partial<Pick<ChoreDefinition, 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'hour' | 'minute' | 'timeOfDay'>>, // Added more editable fields
+    fromDate: string, // YYYY-MM-DD, instanceDate of the item that was edited
+    fieldName: 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'timeOfDay' // Field that triggered the series edit
+  ) => Promise<void>;
 }
 
 // Create the context
@@ -645,6 +652,87 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     );
   }, [setChoreDefinitions]);
 
+  const updateChoreSeries = useCallback(async (
+    definitionId: string,
+    updates: Partial<Pick<ChoreDefinition, 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'hour' | 'minute' | 'timeOfDay'>>,
+    fromDate: string, // YYYY-MM-DD format
+    fieldName: 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'timeOfDay'
+  ) => {
+    setChoreDefinitions(prevDefs => {
+      const definitionIndex = prevDefs.findIndex(d => d.id === definitionId);
+      if (definitionIndex === -1) {
+        console.error(`[updateChoreSeries] Definition with ID ${definitionId} not found.`);
+        return prevDefs;
+      }
+      const originalDefinition = prevDefs[definitionIndex];
+
+      let updatedDefinitionFields = { ...updates };
+
+      // If dueDate is being updated, it's the primary field in 'updates'.
+      // Other fields are applied directly.
+      // Ensure subTasks have IDs if they are new, or preserve existing IDs.
+      if (updates.subTasks) {
+        updatedDefinitionFields.subTasks = updates.subTasks.map((st, index) => ({
+          id: st.id || `st_${Date.now()}_${index}`, // Assign ID if new
+          ...st,
+        }));
+      }
+
+      const newDefinition: ChoreDefinition = {
+        ...originalDefinition,
+        ...updatedDefinitionFields,
+        updatedAt: new Date().toISOString(),
+      };
+
+      const newDefinitions = [...prevDefs];
+      newDefinitions[definitionIndex] = newDefinition;
+
+      // Now handle instances
+      setChoreInstances(prevInstances => {
+        const instancesToKeep = prevInstances.filter(inst =>
+          inst.choreDefinitionId !== definitionId || inst.instanceDate < fromDate
+        );
+
+        // Determine regeneration period
+        // Default to 1 year from 'fromDate' if no recurrenceEndDate
+        let regenerationEndDate = newDefinition.recurrenceEndDate;
+        if (!regenerationEndDate) {
+          const fromDateObj = new Date(fromDate);
+          fromDateObj.setFullYear(fromDateObj.getFullYear() + 1);
+          regenerationEndDate = fromDateObj.toISOString().split('T')[0];
+        }
+
+        let newFutureInstances: ChoreInstance[] = [];
+        if (newDefinition.recurrenceType && !newDefinition.isComplete) { // Only generate if recurring and active
+            const rawNewFutureInstances = generateChoreInstances(
+                [newDefinition], // Generate only for the updated definition
+                fromDate,        // Start from the specified fromDate
+                regenerationEndDate
+            );
+
+            newFutureInstances = rawNewFutureInstances.map(rawInstance => {
+                let initialSubtaskCompletions: Record<string, boolean> = {};
+                if (newDefinition.subTasks) {
+                    newDefinition.subTasks.forEach(st => {
+                    initialSubtaskCompletions[st.id] = st.isComplete || false;
+                    });
+                }
+                return {
+                    ...rawInstance,
+                    isComplete: false,
+                    categoryStatus: "TO_DO" as MatrixKanbanCategory, // Default for new series instances
+                    subtaskCompletions: initialSubtaskCompletions,
+                    previousSubtaskCompletions: undefined,
+                };
+            });
+        }
+        return [...instancesToKeep, ...newFutureInstances];
+      });
+
+      return newDefinitions;
+    });
+  }, [setChoreDefinitions, setChoreInstances]);
+
 
   const contextValue = useMemo(() => ({
     choreDefinitions,
@@ -665,6 +753,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     batchToggleCompleteChoreInstances, // Added
     batchUpdateChoreInstancesCategory, // Added
     batchAssignChoreDefinitionsToKid, // Added
+    updateChoreSeries, // Added new function
   }), [
     choreDefinitions,
     choreInstances,
@@ -684,6 +773,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     batchToggleCompleteChoreInstances, // Added
     batchUpdateChoreInstancesCategory, // Added
     batchAssignChoreDefinitionsToKid, // Added
+    updateChoreSeries, // Added new function
   ]);
   // Note on useCallback/useMemo: All functions (like addChoreDefinition, toggleChoreInstanceComplete)
   // are wrapped in useCallback to stabilize their references. The entire contextValue object

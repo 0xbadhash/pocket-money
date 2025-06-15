@@ -89,7 +89,7 @@ export interface ChoreInstance {
   previousSubtaskCompletions?: Record<string, boolean>;
 
   // Optional: if reward is snapshotted per instance or can vary
-  // rewardAmount?: number;
+  overriddenRewardAmount?: number; // For instance-specific reward override
   // kanbanColumnId?: string; // Removed in favor of categoryStatus for Matrix Kanban
 }
 
