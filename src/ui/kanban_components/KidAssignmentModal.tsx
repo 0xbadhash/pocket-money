@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import type { Kid } from '../../types';
+import React, { useState, useEffect, useRef } from 'react';
+import type { Kid, BatchActionResult } from '../../types'; // Added BatchActionResult
 import { useUserContext } from '../../contexts/UserContext';
 import { useChoresContext } from '../../contexts/ChoresContext';
+import { useNotification } from '../../contexts/NotificationContext'; // Import useNotification
 
 interface KidAssignmentModalProps {
   isVisible: boolean;
@@ -11,29 +12,80 @@ interface KidAssignmentModalProps {
   // kids prop removed, will be fetched from UserContext
 }
 
-// Basic styling
+// Consistent styling based on ConfirmationModal
 const modalOverlayStyle: React.CSSProperties = {
-  position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-  backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex',
-  alignItems: 'center', justifyContent: 'center', zIndex: 1050,
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 1050,
+  padding: '1rem',
 };
+
 const modalContentStyle: React.CSSProperties = {
-  background: 'white', padding: '20px', borderRadius: '5px',
-  minWidth: '300px', boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+  backgroundColor: 'var(--background-color, #fff)',
+  padding: '2rem',
+  borderRadius: 'var(--border-radius-lg, 8px)',
+  boxShadow: '0 5px 15px rgba(0, 0, 0, 0.3)',
+  minWidth: '300px',
+  maxWidth: '400px', // Slightly smaller max-width for this simpler modal
+  width: 'auto',
+  textAlign: 'left', // Content (select) is better left-aligned
 };
-const buttonStyle: React.CSSProperties = {
-  padding: '8px 12px',
-  border: '1px solid #bbb',
-  borderRadius: '4px',
-  cursor: 'pointer',
-  marginTop: '10px',
+
+const titleStyle: React.CSSProperties = {
+  marginTop: 0,
+  marginBottom: '1.5rem',
+  fontSize: '1.5rem',
+  color: 'var(--text-color-primary, #333)',
+  fontWeight: 'bold',
+  textAlign: 'center', // Center the title
 };
+
 const selectStyle: React.CSSProperties = {
-  padding: '8px',
-  marginBottom: '10px',
   width: '100%',
-  border: '1px solid #ccc',
-  borderRadius: '4px',
+  padding: '0.75rem', // Consistent padding
+  marginBottom: '1.5rem', // Space after select
+  border: '1px solid var(--border-color, #ccc)',
+  borderRadius: 'var(--border-radius-md, 6px)',
+  backgroundColor: 'var(--surface-color, #fff)', // Theme background
+  color: 'var(--text-color-primary, #333)', // Theme text color
+  fontSize: '1rem',
+  boxSizing: 'border-box', // Ensure padding doesn't expand it beyond 100%
+};
+
+const actionsContainerStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'flex-end',
+  gap: '1rem',
+  marginTop: '1.5rem', // Ensure space if there were elements above
+};
+
+const buttonBaseStyle: React.CSSProperties = {
+  padding: '0.75rem 1.5rem',
+  border: 'none',
+  borderRadius: 'var(--border-radius-md, 6px)',
+  cursor: 'pointer',
+  fontSize: '1rem',
+  fontWeight: 'bold',
+  transition: 'background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+};
+
+const cancelButtonStyle: React.CSSProperties = {
+  ...buttonBaseStyle,
+  backgroundColor: 'var(--surface-color-hover, #e9ecef)',
+  color: 'var(--text-color-primary, #333)',
+};
+
+const confirmButtonStyle: React.CSSProperties = {
+  ...buttonBaseStyle,
+  backgroundColor: 'var(--primary-color, #007bff)',
+  color: 'var(--button-text-color, #fff)',
 };
 
 
@@ -45,16 +97,59 @@ const KidAssignmentModal: React.FC<KidAssignmentModalProps> = ({
 }) => {
   const { user } = useUserContext();
   const { batchAssignChoreDefinitionsToKid } = useChoresContext();
-  const [selectedKidIdInternal, setSelectedKidIdInternal] = useState<string>(""); // Store ID or "UNASSIGNED"
+  const { addNotification } = useNotification(); // Get addNotification
+  const [selectedKidIdInternal, setSelectedKidIdInternal] = useState<string>("");
+  const modalRef = useRef<HTMLDivElement>(null);
+  const selectRef = useRef<HTMLSelectElement>(null); // Ref for the select element
 
   const kidsList = user?.kids || [];
 
-  // Reset internal state when modal visibility changes (e.g., when it's opened)
   useEffect(() => {
-    if (isVisible) {
+    if (isVisible && selectRef.current) {
+      selectRef.current.focus();
       setSelectedKidIdInternal(""); // Reset selection when modal becomes visible
     }
-  }, [isVisible]);
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+        return;
+      }
+
+      if (event.key === 'Tab' && modalRef.current && isVisible) {
+        const focusableElements = Array.from(
+          modalRef.current.querySelectorAll<HTMLElement>(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter(el => el.offsetParent !== null);
+
+        if (focusableElements.length === 0) return;
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (event.shiftKey) {
+          if (document.activeElement === firstElement) {
+            lastElement.focus();
+            event.preventDefault();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            firstElement.focus();
+            event.preventDefault();
+          }
+        }
+      }
+    };
+
+    if (isVisible) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isVisible, onClose]);
 
   if (!isVisible) {
     return null;
@@ -62,49 +157,68 @@ const KidAssignmentModal: React.FC<KidAssignmentModalProps> = ({
 
   const handleConfirmClick = async () => {
     if (selectedKidIdInternal === "") {
-      alert('Please select an option.'); // Or disable confirm button
+      addNotification({ message: 'Please select an option.', type: 'warning' });
       return;
     }
     if (selectedDefinitionIds.length === 0) {
-      alert('No chores selected to assign.'); // Should ideally not happen
+      addNotification({ message: 'No chores selected to assign.', type: 'info' });
       onClose();
       return;
     }
-
     const targetKidId = selectedKidIdInternal === "UNASSIGNED" ? null : selectedKidIdInternal;
+    const kidName = kidsList.find(k => k.id === targetKidId)?.name || (targetKidId === null ? "Unassigned" : "Selected Kid");
 
     try {
-      await batchAssignChoreDefinitionsToKid(selectedDefinitionIds, targetKidId);
-      onActionSuccess(); // Signal success to parent
+      const result: BatchActionResult = await batchAssignChoreDefinitionsToKid(selectedDefinitionIds, targetKidId);
+      if (result.failedCount > 0) {
+        addNotification({
+          message: `Successfully assigned ${result.succeededCount} chore(s) to ${kidName}. Failed for ${result.failedCount}.`,
+          type: 'warning',
+        });
+      } else {
+        addNotification({ message: `Successfully assigned ${result.succeededCount} chore(s) to ${kidName}.`, type: 'success' });
+      }
+      onActionSuccess();
     } catch (error) {
       console.error("Failed to batch assign chore definitions:", error);
-      alert("Failed to assign chores. Please try again.");
+      addNotification({ message: 'Failed to assign chores. Please try again.', type: 'error' });
     }
-    onClose(); // Close the modal
+    onClose();
   };
 
   return (
     <div style={modalOverlayStyle} onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="kid-assignment-modal-title">
-      <div style={modalContentStyle} onClick={(e) => e.stopPropagation()}>
-        <h4 id="kid-assignment-modal-title">Assign to Kid</h4>
+      <div ref={modalRef} style={modalContentStyle} onClick={(e) => e.stopPropagation()}>
+        <h2 id="kid-assignment-modal-title" style={titleStyle}>Assign Chores to Kid</h2>
         <select
+          ref={selectRef} // Assign ref
           value={selectedKidIdInternal}
           onChange={(e) => setSelectedKidIdInternal(e.target.value)}
           style={selectStyle}
+          aria-label="Select Kid to assign chores to"
         >
           <option value="" disabled>Select a Kid or Unassign</option>
           {kidsList.map(kid => (
             <option key={kid.id} value={kid.id}>{kid.name}</option>
           ))}
-          <option value="UNASSIGNED">Unassign</option>
+          <option value="UNASSIGNED">Unassign Chores</option>
         </select>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-            <button onClick={handleConfirmClick} style={{...buttonStyle, backgroundColor: '#007bff', color: 'white'}} disabled={selectedKidIdInternal === "" || selectedDefinitionIds.length === 0}>
-            Confirm
-            </button>
-            <button onClick={onClose} style={{...buttonStyle, backgroundColor: '#eee'}}>
+        <div style={actionsContainerStyle}>
+          <button
+            onClick={onClose}
+            style={cancelButtonStyle}
+            className="button-secondary"
+          >
             Cancel
-            </button>
+          </button>
+          <button
+            onClick={handleConfirmClick}
+            style={confirmButtonStyle}
+            disabled={selectedKidIdInternal === "" || selectedDefinitionIds.length === 0}
+            className="button-primary"
+          >
+            Confirm Assignment
+          </button>
         </div>
       </div>
     </div>

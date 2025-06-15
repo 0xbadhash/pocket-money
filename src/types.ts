@@ -136,3 +136,29 @@ export interface KidKanbanConfig {
 }
 
 export type ColumnThemeOption = 'default' | 'pastel' | 'ocean';
+
+export interface BatchActionResult {
+  succeededCount: number;
+  failedCount: number;
+  succeededIds: string[];
+  failedIds: string[];
+  // Optional: Add a messages array if specific error messages per item are needed in the future
+  // messages?: Array<{ id: string; message: string; status: 'success' | 'failure' }>;
+}
+
+export interface NotificationMessage {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info' | 'warning';
+  duration?: number; // Optional duration in ms, auto-dismisses if set
+}
+
+export interface AppNotification {
+  id: string; // Unique ID for the notification
+  message: string; // e.g., "Chore 'X' is due today!" or "Chore 'Y' was due yesterday."
+  choreInstanceId: string; // To link back to the chore if needed
+  choreDefinitionId: string;
+  type: 'due_today' | 'overdue' | 'recently_completed'; // Add more as needed
+  date: string; // Date the notification was generated or relates to
+  isRead?: boolean;
+}
