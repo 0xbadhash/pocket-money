@@ -240,27 +240,32 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     handleClearSelection();
   }, [selectedInstanceIds, batchToggleCompleteChoreInstances, handleClearSelection]);
 
-  const handleConfirmCategoryChangeCb = useCallback(async (newCategory: MatrixKanbanCategory) => {
-    if (selectedInstanceIds.length === 0 || !newCategory) return;
-    await batchUpdateChoreInstancesCategory(selectedInstanceIds, newCategory);
-    alert(`${selectedInstanceIds.length} chore(s) moved to ${newCategory}.`);
+  // Simplified handler for CategoryChangeModal's onActionSuccess
+  const handleCategoryActionSuccess = useCallback(() => {
+    // The modal now handles the alert/feedback internally based on its own success/failure.
+    // KidKanbanBoard just needs to close the modal and clear selection.
+    alert("Category change action attempted."); // Generic feedback, or remove if modal handles all feedback
     categoryModal.closeModal();
     handleClearSelection();
-  }, [selectedInstanceIds, batchUpdateChoreInstancesCategory, categoryModal, handleClearSelection]);
+  }, [categoryModal, handleClearSelection]);
 
-  const handleConfirmKidReassignCb = useCallback(async (newKidIdForAssignment: string | null) => {
-    if (selectedInstanceIds.length === 0) return;
-    const uniqueDefinitionIds = Array.from(new Set(selectedInstanceIds.map(id => choreInstances.find(inst => inst.id === id)?.choreDefinitionId).filter((id): id is string => !!id)));
-    if (uniqueDefinitionIds.length > 0) {
-      await batchAssignChoreDefinitionsToKid(uniqueDefinitionIds, newKidIdForAssignment);
-      const kidName = newKidIdForAssignment ? allKids.find(k => k.id === newKidIdForAssignment)?.name : 'Unassigned';
-      alert(`${uniqueDefinitionIds.length} chore definition(s) (for ${selectedInstanceIds.length} selected instances) assigned to ${kidName || 'Unassigned'}.`);
-    } else {
-      alert("Could not find definitions for selected chores.");
-    }
+  // Simplified handler for KidAssignmentModal's onActionSuccess
+  const handleKidAssignmentActionSuccess = useCallback(() => {
+    // Similar to category change, modal handles specific feedback.
+    alert("Kid assignment action attempted."); // Generic feedback, or remove
     kidAssignmentModal.closeModal();
     handleClearSelection();
-  }, [selectedInstanceIds, choreInstances, batchAssignChoreDefinitionsToKid, allKids, kidAssignmentModal, handleClearSelection]);
+  }, [kidAssignmentModal, handleClearSelection]);
+
+  // Derive selectedDefinitionIds for KidAssignmentModal - this needs to be available when opening modal
+  const selectedDefinitionIdsForModal = useMemo(() => {
+    if (selectedInstanceIds.length === 0) return [];
+    return Array.from(new Set(
+      selectedInstanceIds
+        .map(id => choreInstances.find(inst => inst.id === id)?.choreDefinitionId)
+        .filter((id): id is string => !!id)
+    ));
+  }, [selectedInstanceIds, choreInstances]);
 
   const currentPeriodDisplayString = useMemo(() => {
     if (!currentPeriodDateRange.start) return "";
@@ -287,8 +292,19 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
           onMarkComplete={handleBatchMarkCompleteCb}
           onMarkIncomplete={handleBatchMarkIncompleteCb}
         />
-        <CategoryChangeModal isVisible={categoryModal.isModalVisible} onClose={categoryModal.closeModal} onConfirm={handleConfirmCategoryChangeCb} />
-        <KidAssignmentModal isVisible={kidAssignmentModal.isModalVisible} onClose={kidAssignmentModal.closeModal} onConfirm={handleConfirmKidReassignCb} kids={allKids} />
+        <CategoryChangeModal
+          isVisible={categoryModal.isModalVisible}
+          onClose={categoryModal.closeModal}
+          selectedInstanceIds={selectedInstanceIds}
+          onActionSuccess={handleCategoryActionSuccess}
+        />
+        <KidAssignmentModal
+          isVisible={kidAssignmentModal.isModalVisible}
+          onClose={kidAssignmentModal.closeModal}
+          selectedDefinitionIds={selectedDefinitionIdsForModal} // Pass derived definition IDs
+          onActionSuccess={handleKidAssignmentActionSuccess}
+          // kids prop removed
+        />
 
         {/* Kid selection buttons */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
