@@ -47,7 +47,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     batchAssignChoreDefinitionsToKid,
   } = useChoresContext();
   const { getKanbanColumnConfigs, user } = useUserContext();
-  const allKids = user?.kids || [];
+  // const allKids = user?.kids || []; // Removed as it's no longer used after modal refactor
 
   // Custom Hooks for selection and modal states
   const {
@@ -222,7 +222,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     });
   }, [selectedKidId, choreInstances, choreDefinitions, currentPeriodDateRange, updateChoreInstanceCategory]);
 
-  const kidsForSwitcher = user?.kids || [];
+  // const kidsForSwitcher = user?.kids || []; // Removed as kid selection buttons are removed
   const swimlaneConfigs = useMemo(() => getKanbanColumnConfigs(selectedKidId).sort((a, b) => a.order - b.order), [getKanbanColumnConfigs, selectedKidId]);
 
   // Batch Action Handlers wrapped in useCallback
@@ -266,6 +266,9 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
         .filter((id): id is string => !!id)
     ));
   }, [selectedInstanceIds, choreInstances]);
+  // Note: `allKids` was used in the old `handleConfirmKidReassignCb` for an alert.
+  // The new `handleKidAssignmentActionSuccess` uses a generic alert, and KidAssignmentModal fetches kids itself.
+  // Thus, `allKids` variable can be removed if not used elsewhere. (Confirmed not used elsewhere)
 
   const currentPeriodDisplayString = useMemo(() => {
     if (!currentPeriodDateRange.start) return "";
@@ -306,7 +309,8 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
           // kids prop removed
         />
 
-        {/* Kid selection buttons */}
+        {/* Kid selection buttons UI removed */}
+        {/*
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
           {kidsForSwitcher.map(kid => (
             <button key={kid.id} onClick={() => setSelectedKidId(kid.id)}
@@ -315,6 +319,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
             </button>
           ))}
         </div>
+        */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
           <button onClick={() => handleOpenAddChore()} style={{ fontWeight: 'bold', padding: '6px 16px' }}>+ Assign New Chore</button>
         </div>
