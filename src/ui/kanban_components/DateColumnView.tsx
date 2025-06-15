@@ -13,6 +13,8 @@ interface DateColumnViewProps {
   getSwimlaneId?: (dateString: string, category: MatrixKanbanCategory) => string; // May not be needed if dndContext defines droppable areas based on swimlaneConfig.id + date
   kidId?: string;
   swimlaneConfig: KanbanColumnConfig;
+  selectedInstanceIds: string[];
+  onToggleSelection: (instanceId: string, isSelected: boolean) => void;
 }
 
 const DateColumnView: React.FC<DateColumnViewProps> = ({
@@ -21,6 +23,8 @@ const DateColumnView: React.FC<DateColumnViewProps> = ({
   // getSwimlaneId, // Keep if needed for drag-n-drop ID generation
   kidId,
   swimlaneConfig,
+  selectedInstanceIds,
+  onToggleSelection,
 }) => {
   const { choreInstances, choreDefinitions } = useChoresContext();
 
@@ -106,6 +110,8 @@ const DateColumnView: React.FC<DateColumnViewProps> = ({
               instance={instance}
               definition={definition}
               onEditChore={onEditChore}
+              isSelected={selectedInstanceIds.includes(instance.id)}
+              onToggleSelection={onToggleSelection}
             />
           );
         })

@@ -39,6 +39,8 @@ export interface ChoreDefinition {
   // For non-recurring, this is the due date.
   // For recurring, this is the START date of recurrence.
   dueDate?: string;
+  /** Optional date before dueDate when instances should start appearing. */
+  earlyStartDate?: string;
   rewardAmount?: number;
   // isComplete for a definition might mean "archived" or "template no longer active"
   isComplete: boolean;

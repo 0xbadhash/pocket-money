@@ -1,7 +1,7 @@
 // src/contexts/ChoresContext.tsx
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
-import type { ChoreDefinition, ChoreInstance, MatrixKanbanCategory } from '../types'; // Added MatrixKanbanCategory
+import type { ChoreDefinition, ChoreInstance, MatrixKanbanCategory } from '../types';
 import { useFinancialContext } from '../contexts/FinancialContext';
 import { generateChoreInstances } from '../utils/choreUtils';
 
@@ -54,6 +54,16 @@ interface ChoresContextType {
     newCategory: MatrixKanbanCategory,
     // currentSubtaskCompletions is not strictly needed if we fetch from instance state prior to update
   ) => void;
+  /** Updates specified fields of a chore definition. */
+  updateChoreDefinition: (definitionId: string, updates: Partial<ChoreDefinition>) => Promise<void>;
+  /** Updates a specific field of a chore instance. */
+  updateChoreInstanceField: (instanceId: string, fieldName: keyof ChoreInstance, value: any) => Promise<void>;
+  /** Batch marks chore instances as complete or incomplete. */
+  batchToggleCompleteChoreInstances: (instanceIds: string[], markAsComplete: boolean) => Promise<void>;
+  /** Batch updates the category for multiple chore instances. */
+  batchUpdateChoreInstancesCategory: (instanceIds: string[], newCategory: MatrixKanbanCategory) => Promise<void>;
+  /** Batch assigns chore definitions to a new kid. */
+  batchAssignChoreDefinitionsToKid: (definitionIds: string[], newKidId: string | null) => Promise<void>;
 }
 
 // Create the context
@@ -207,8 +217,24 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
 
     // Generate raw instances based on definitions and date range
     // Only generate instances for active (not archived) definitions
+    const activeDefinitions = choreDefinitions.filter(def => !def.isComplete);
+
+    const definitionsForGeneration = activeDefinitions.map(def => {
+      if (def.earlyStartDate && def.dueDate) {
+        const earlyStartDateObj = new Date(def.earlyStartDate);
+        const dueDateObj = new Date(def.dueDate);
+        if (earlyStartDateObj < dueDateObj) {
+          // Use earlyStartDate as the effective start for generation logic
+          // by temporarily overriding dueDate for generateChoreInstances.
+          // The original ChoreDefinition in state remains unchanged.
+          return { ...def, dueDate: def.earlyStartDate };
+        }
+      }
+      return def;
+    });
+
     const rawNewInstances = generateChoreInstances(
-      choreDefinitions.filter(def => !def.isComplete), // Only active definitions
+      definitionsForGeneration,
       periodStartDate,
       periodEndDate
     );
@@ -408,6 +434,10 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       prevInstances.map(instance => {
         if (instance.id === instanceId) {
           const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
+          if (!definition) {
+            console.warn(`Definition not found for instance ${instanceId} during category update.`);
+            return instance;
+          }
           let updatedSubtaskCompletions = { ...instance.subtaskCompletions };
           let updatedPreviousSubtaskCompletions = instance.previousSubtaskCompletions;
           let overallInstanceComplete = instance.isComplete;
@@ -467,7 +497,154 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
         return instance;
       })
     );
-  }, [choreDefinitions, setChoreInstances]); // Added setChoreInstances, choreDefinitions is correct
+  }, [choreDefinitions, setChoreInstances]);
+
+  // Helper function for single instance category update logic (extracted and adapted from existing updateChoreInstanceCategory)
+  const applyCategoryUpdateToInstance = (
+    instance: ChoreInstance,
+    newCategory: MatrixKanbanCategory,
+    definition?: ChoreDefinition
+  ): ChoreInstance => {
+    if (!definition) return instance; // Should not happen if called correctly
+
+    let updatedSubtaskCompletions = { ...instance.subtaskCompletions };
+    let updatedPreviousSubtaskCompletions = instance.previousSubtaskCompletions;
+    let overallInstanceComplete = instance.isComplete;
+    const oldCategory = instance.categoryStatus;
+
+    if (newCategory === "COMPLETED") {
+      updatedPreviousSubtaskCompletions = { ...instance.subtaskCompletions };
+      if (definition.subTasks && definition.subTasks.length > 0) {
+        definition.subTasks.forEach(st => updatedSubtaskCompletions[st.id] = true);
+      } else {
+        updatedSubtaskCompletions = {};
+      }
+      overallInstanceComplete = true;
+    } else if (oldCategory === "COMPLETED" && newCategory === "IN_PROGRESS") {
+      if (instance.previousSubtaskCompletions) {
+        updatedSubtaskCompletions = { ...instance.previousSubtaskCompletions };
+      }
+      updatedPreviousSubtaskCompletions = undefined;
+      if (definition.subTasks && definition.subTasks.length > 0) {
+        overallInstanceComplete = definition.subTasks.every(st => !!updatedSubtaskCompletions[st.id]);
+      } else {
+        overallInstanceComplete = false;
+      }
+    } else if (newCategory === "TO_DO") {
+      if (definition.subTasks && definition.subTasks.length > 0) {
+        definition.subTasks.forEach(st => updatedSubtaskCompletions[st.id] = false);
+      } else {
+        updatedSubtaskCompletions = {};
+      }
+      updatedPreviousSubtaskCompletions = undefined;
+      overallInstanceComplete = false;
+    } else if (newCategory === "IN_PROGRESS") {
+      if (definition.subTasks && definition.subTasks.length > 0) {
+        overallInstanceComplete = definition.subTasks.every(st => !!updatedSubtaskCompletions[st.id]);
+      } else {
+        overallInstanceComplete = false;
+      }
+    }
+    return {
+      ...instance,
+      categoryStatus: newCategory,
+      subtaskCompletions: updatedSubtaskCompletions,
+      previousSubtaskCompletions: updatedPreviousSubtaskCompletions,
+      isComplete: overallInstanceComplete,
+    };
+  };
+
+
+  const updateChoreDefinition = useCallback(async (definitionId: string, updates: Partial<ChoreDefinition>) => {
+    setChoreDefinitions(prevDefs =>
+      prevDefs.map(def =>
+        def.id === definitionId
+          ? { ...def, ...updates, updatedAt: new Date().toISOString() } // Assuming ChoreDefinition has updatedAt
+          : def
+      )
+    );
+  }, [setChoreDefinitions]);
+
+  const updateChoreInstanceField = useCallback(async (instanceId: string, fieldName: keyof ChoreInstance, value: any) => {
+    setChoreInstances(prevInstances =>
+      prevInstances.map(inst => {
+        if (inst.id === instanceId) {
+          // Consider adding 'updatedAt' to ChoreInstance type if it's desired for tracking instance updates
+          const updatedInst = { ...inst, [fieldName]: value };
+          return updatedInst;
+        }
+        return inst;
+      })
+    );
+  }, [setChoreInstances]);
+
+  const batchToggleCompleteChoreInstances = useCallback(async (instanceIds: string[], markAsComplete: boolean) => {
+    setChoreInstances(prevInstances => {
+      return prevInstances.map(instance => {
+        if (instanceIds.includes(instance.id)) {
+          if (instance.isComplete === markAsComplete) return instance; // No change needed
+
+          const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
+          if (!definition) {
+            console.warn(`Definition not found for instance ${instance.id} during batch toggle complete.`);
+            return instance;
+          }
+
+          // Handle reward only when marking as complete and not already complete
+          if (markAsComplete && !instance.isComplete && definition.assignedKidId && definition.rewardAmount && definition.rewardAmount > 0) {
+            addKidReward(definition.assignedKidId, definition.rewardAmount, `${definition.title} (${instance.instanceDate})`);
+          }
+          // This should ideally also update categoryStatus and subtasks like updateChoreInstanceCategory
+          // For simplicity now, just toggling 'isComplete'.
+          // A more robust solution would use applyCategoryUpdateToInstance if marking complete moves to 'COMPLETED' category.
+          if (markAsComplete) {
+             // If marking complete, and category is not 'COMPLETED', move to 'COMPLETED'
+            if (instance.categoryStatus !== 'COMPLETED') {
+                return applyCategoryUpdateToInstance(instance, 'COMPLETED', definition);
+            } else { // Already in COMPLETED, ensure isComplete is true
+                return { ...instance, isComplete: true };
+            }
+          } else { // Marking incomplete
+            // If marking incomplete, and category is 'COMPLETED', move to 'IN_PROGRESS' (or 'TO_DO')
+            if (instance.categoryStatus === 'COMPLETED') {
+                return applyCategoryUpdateToInstance(instance, 'IN_PROGRESS', definition); // Default to IN_PROGRESS
+            } else { // Already in TO_DO or IN_PROGRESS, ensure isComplete is false
+                 return { ...instance, isComplete: false };
+            }
+          }
+        }
+        return instance;
+      });
+    });
+  }, [choreDefinitions, addKidReward, setChoreInstances]);
+
+  const batchUpdateChoreInstancesCategory = useCallback(async (instanceIds: string[], newCategory: MatrixKanbanCategory) => {
+    setChoreInstances(prevInstances =>
+      prevInstances.map(instance => {
+        if (instanceIds.includes(instance.id)) {
+          const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
+          if (!definition) {
+            console.warn(`Definition not found for instance ${instance.id} during batch category update.`);
+            return instance;
+          }
+          return applyCategoryUpdateToInstance(instance, newCategory, definition);
+        }
+        return instance;
+      })
+    );
+  }, [choreDefinitions, setChoreInstances]);
+
+  const batchAssignChoreDefinitionsToKid = useCallback(async (definitionIds: string[], newKidId: string | null) => {
+    setChoreDefinitions(prevDefs =>
+      prevDefs.map(def => {
+        if (definitionIds.includes(def.id)) {
+          return { ...def, assignedKidId: newKidId || undefined, updatedAt: new Date().toISOString() };
+        }
+        return def;
+      })
+    );
+  }, [setChoreDefinitions]);
+
 
   const contextValue = useMemo(() => ({
     choreDefinitions,
@@ -483,6 +660,11 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     toggleChoreDefinitionActiveState,
     toggleSubtaskCompletionOnInstance,
     updateChoreInstanceCategory, // Added new function
+    updateChoreDefinition, // Added
+    updateChoreInstanceField, // Added
+    batchToggleCompleteChoreInstances, // Added
+    batchUpdateChoreInstancesCategory, // Added
+    batchAssignChoreDefinitionsToKid, // Added
   }), [
     choreDefinitions,
     choreInstances,
@@ -497,6 +679,11 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     toggleChoreDefinitionActiveState,
     toggleSubtaskCompletionOnInstance,
     updateChoreInstanceCategory, // Added new function
+    updateChoreDefinition, // Added
+    updateChoreInstanceField, // Added
+    batchToggleCompleteChoreInstances, // Added
+    batchUpdateChoreInstancesCategory, // Added
+    batchAssignChoreDefinitionsToKid, // Added
   ]);
   // Note on useCallback/useMemo: All functions (like addChoreDefinition, toggleChoreInstanceComplete)
   // are wrapped in useCallback to stabilize their references. The entire contextValue object

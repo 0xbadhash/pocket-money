@@ -4,7 +4,7 @@
  * Displays chore details, sub-tasks, recurrence info, and provides interaction
  * for marking chores/sub-tasks as complete. It's also a draggable item via dnd-kit.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { ChoreInstance, ChoreDefinition } from '../../types';
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { useSortable } from '@dnd-kit/sortable';
@@ -23,8 +23,9 @@ interface KanbanCardProps {
   isOverlay?: boolean;
   /** Optional callback for editing the chore. */
   onEditChore?: (chore: ChoreDefinition) => void;
-  /** Optional callback for subtask click events. */
-  onSubtaskClick?: (subtaskId: string) => void;
+  // onSubtaskClick?: (subtaskId: string) => void; // This prop was not used in the provided code. Removing if not needed.
+  isSelected?: boolean;
+  onToggleSelection?: (instanceId: string, isSelected: boolean) => void;
 }
 
 /**
@@ -41,9 +42,86 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   definition,
   isOverlay = false,
   onEditChore,
-  onSubtaskClick,
+  isSelected = false,
+  onToggleSelection,
 }) => {
-  const { toggleChoreInstanceComplete, toggleSubtaskCompletionOnInstance } = useChoresContext();
+  const {
+    toggleChoreInstanceComplete,
+    toggleSubtaskCompletionOnInstance,
+    updateChoreDefinition,
+    updateChoreInstanceField,
+  } = useChoresContext();
+
+  const [isEditingReward, setIsEditingReward] = useState(false);
+  const [editingRewardValue, setEditingRewardValue] = useState<string | number>('');
+  const rewardInputRef = useRef<HTMLInputElement>(null);
+
+  const [isEditingDate, setIsEditingDate] = useState(false);
+  const [editingDateValue, setEditingDateValue] = useState<string>('');
+  const dateInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (isEditingReward && rewardInputRef.current) {
+      rewardInputRef.current.focus();
+      rewardInputRef.current.select();
+    }
+  }, [isEditingReward]);
+
+  useEffect(() => {
+    if (isEditingDate && dateInputRef.current) {
+      dateInputRef.current.focus();
+    }
+  }, [isEditingDate]);
+
+  const handleEditReward = () => {
+    setEditingRewardValue(definition.rewardAmount?.toString() || '0');
+    setIsEditingReward(true);
+  };
+
+  const handleSaveReward = async () => {
+    const newAmount = parseFloat(editingRewardValue as string);
+    if (!isNaN(newAmount) && newAmount >= 0) {
+      if (definition.rewardAmount !== newAmount) {
+        await updateChoreDefinition(definition.id, { rewardAmount: newAmount });
+      }
+    } else {
+      // Optionally, show an error or revert to original value
+      console.warn("Invalid reward amount entered.");
+    }
+    setIsEditingReward(false);
+  };
+
+  const handleRewardInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      handleSaveReward();
+    } else if (event.key === 'Escape') {
+      setIsEditingReward(false);
+      // Optionally reset editingRewardValue to original if desired
+    }
+  };
+
+  const handleEditDate = () => {
+    setEditingDateValue(instance.instanceDate);
+    setIsEditingDate(true);
+  };
+
+  const handleSaveDate = async () => {
+    // Basic validation for date format can be added if necessary,
+    // but type="date" input usually handles format.
+    if (editingDateValue && instance.instanceDate !== editingDateValue) {
+      await updateChoreInstanceField(instance.id, 'instanceDate', editingDateValue);
+    }
+    setIsEditingDate(false);
+  };
+
+  const handleDateInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      handleSaveDate();
+    } else if (event.key === 'Escape') {
+      setIsEditingDate(false);
+    }
+  };
 
   /**
    * Props from `useSortable` hook (dnd-kit) to make the card draggable.
@@ -116,12 +194,37 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{
+        ...style,
+        border: isSelected ? '2px solid var(--primary-color, #007bff)' : '1px solid #ccc', // Example selected style
+        boxShadow: isSelected ? '0 0 5px var(--primary-color-light, #7bceff)' : style.boxShadow,
+      }}
       {...attributes}
+      // Remove {...listeners} from here if the checkbox should be interactive without starting a drag
+      // Or, ensure the checkbox click stops propagation if it's part of the draggable area.
+      // For now, assuming the whole card is draggable, so checkbox interaction might be tricky.
+      // A common pattern is to have a drag handle and make other parts non-draggable.
+      // Let's keep listeners for now and address if checkbox interaction is an issue.
       {...listeners}
-      className={`kanban-card ${instance.isComplete ? 'complete' : ''} ${isDragging && !isOverlay ? 'dragging' : ''} ${isOverlay ? 'is-overlay' : ''}`}
+      className={`kanban-card ${instance.isComplete ? 'complete' : ''} ${isDragging && !isOverlay ? 'dragging' : ''} ${isOverlay ? 'is-overlay' : ''} ${isSelected ? 'selected' : ''}`}
     >
-      <h4>{definition.title}</h4>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <h4 style={{ margin: 0, flexGrow: 1 }}>{definition.title}</h4>
+        {!isOverlay && onToggleSelection && ( // Do not show checkbox on overlay card
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={(e) => {
+              e.stopPropagation(); // Prevent drag from starting on checkbox click
+              onToggleSelection(instance.id, e.target.checked);
+            }}
+            onClick={(e) => e.stopPropagation()} // Also stop propagation here for good measure
+            aria-label={`Select chore ${definition.title}`}
+            style={{ marginLeft: '8px', cursor: 'pointer' }}
+          />
+        )}
+      </div>
+
 
       {definition.subTasks && definition.subTasks.length > 0 && (() => {
         // Calculate progress based on instance.subtaskCompletions
@@ -170,8 +273,50 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
       })()}
 
       {definition.description && <p style={{ fontSize: '0.9em', color: 'var(--text-color-secondary)' }}>{definition.description}</p>}
-      <p style={{ fontSize: '0.9em' }}>Due: {instance.instanceDate}</p>
-      {definition.rewardAmount && definition.rewardAmount > 0 && <p style={{ fontSize: '0.9em' }}>Reward: ${definition.rewardAmount.toFixed(2)}</p>}
+
+      <div style={{ fontSize: '0.9em', display: 'flex', alignItems: 'center', gap: '5px' }}>
+        <span>Due:</span>
+        {isEditingDate ? (
+          <input
+            ref={dateInputRef}
+            type="date"
+            value={editingDateValue}
+            onChange={(e) => setEditingDateValue(e.target.value)}
+            onBlur={handleSaveDate}
+            onKeyDown={handleDateInputKeyDown}
+            style={{ fontSize: 'inherit', padding: '2px', width: '130px' }}
+          />
+        ) : (
+          <>
+            <span>{instance.instanceDate}</span>
+            <button onClick={handleEditDate} className="edit-icon-button" aria-label="Edit due date">✏️</button>
+          </>
+        )}
+      </div>
+
+      {definition.rewardAmount !== undefined && ( // Show reward even if 0, to allow editing to a non-zero value
+        <div style={{ fontSize: '0.9em', display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <span>Reward:</span>
+          {isEditingReward ? (
+            <input
+              ref={rewardInputRef}
+              type="number"
+              value={editingRewardValue}
+              onChange={(e) => setEditingRewardValue(e.target.value)}
+              onBlur={handleSaveReward}
+              onKeyDown={handleRewardInputKeyDown}
+              min="0"
+              step="0.01"
+              style={{ fontSize: 'inherit', padding: '2px', width: '60px' }}
+            />
+          ) : (
+            <>
+              <span>${definition.rewardAmount?.toFixed(2) || '0.00'}</span>
+              <button onClick={handleEditReward} className="edit-icon-button" aria-label="Edit reward amount">✏️</button>
+            </>
+          )}
+        </div>
+      )}
 
       {definition.tags && definition.tags.length > 0 && (
         <div className="chore-tags-container" style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
@@ -298,6 +443,29 @@ export default KanbanCard;
 // Example fix for a progress bar SVG:
 // <svg width="100%" height="4" viewBox="0 0 100% 4"> ... </svg>
 // With:
-<svg width="100%" height="4" viewBox="0 0 100 4">
-  {/* ...existing SVG content... */}
-</svg>
+// <svg width="100%" height="4" viewBox="0 0 100 4">
+//  {/* ...existing SVG content... */}
+// </svg>
+
+// Basic styling for edit icon buttons
+const globalStyles = `
+.edit-icon-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 0.9em;
+  color: var(--text-color-secondary, #555);
+}
+.edit-icon-button:hover {
+  color: var(--text-color-primary, #000);
+}
+`;
+
+// Inject styles once
+if (typeof window !== 'undefined' && !document.getElementById('kanban-card-dynamic-styles')) {
+  const styleSheet = document.createElement("style");
+  styleSheet.id = "kanban-card-dynamic-styles";
+  styleSheet.innerText = globalStyles;
+  document.head.appendChild(styleSheet);
+}
