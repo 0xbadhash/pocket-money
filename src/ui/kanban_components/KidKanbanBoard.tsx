@@ -13,6 +13,7 @@ import { useModalState } from '../../hooks/useModalState';
 import BatchActionsToolbar from './BatchActionsToolbar';
 import CategoryChangeModal from './CategoryChangeModal';
 import KidAssignmentModal from './KidAssignmentModal';
+import ConfirmationModal from '../../components/ConfirmationModal'; // Added import
 import {
   DndContext,
   PointerSensor,
@@ -45,6 +46,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     batchToggleCompleteChoreInstances,
     batchUpdateChoreInstancesCategory,
     batchAssignChoreDefinitionsToKid,
+    batchDeleteChoreInstances, // Uncommented and now used
   } = useChoresContext();
   const { getKanbanColumnConfigs, user } = useUserContext();
   const allKids = user?.kids || [];
@@ -59,6 +61,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
 
   const categoryModal = useModalState();
   const kidAssignmentModal = useModalState();
+  const deleteConfirmModal = useModalState(); // Added state for delete confirmation modal
 
   const [selectedPeriod, setSelectedPeriod] = useState<KanbanPeriod>('daily');
   const [activeDragItem, setActiveDragItem] = useState<ActiveDragItem | null>(null);
@@ -240,6 +243,60 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     handleClearSelection();
   }, [selectedInstanceIds, batchToggleCompleteChoreInstances, handleClearSelection]);
 
+  // Batch Delete Handlers
+  const handleRequestBatchDelete = useCallback(() => {
+    if (selectedInstanceIds.length > 0) {
+      deleteConfirmModal.openModal();
+    } else {
+      setActionFeedbackMessage("No chores selected for deletion.");
+      // Alternatively, do nothing or log a warning
+    }
+  }, [selectedInstanceIds, deleteConfirmModal, setActionFeedbackMessage]);
+
+  const handleConfirmBatchDelete = useCallback(async () => {
+    deleteConfirmModal.closeModal();
+    if (selectedInstanceIds.length > 0) {
+      try {
+        await batchDeleteChoreInstances(selectedInstanceIds);
+        setActionFeedbackMessage(`${selectedInstanceIds.length} chore(s) deleted successfully.`);
+      } catch (error) {
+        console.error("Failed to batch delete chores:", error);
+        setActionFeedbackMessage("Error deleting chores. Please try again.");
+        // Depending on UX, might not clear selection on error, or might re-open modal with error.
+        // For now, selection is cleared outside/after this block.
+      }
+      handleClearSelection(); // Clears selection regardless of success/failure of delete, adjust if needed.
+    }
+  }, [deleteConfirmModal, selectedInstanceIds, batchDeleteChoreInstances, handleClearSelection, setActionFeedbackMessage]);
+
+  const handleSelectAllInSwimlane = useCallback((idsToSelect: string[]) => {
+    setSelectedInstanceIds(prevSelectedIds => {
+      const newSelectedIds = new Set([...prevSelectedIds, ...idsToSelect]);
+      return Array.from(newSelectedIds);
+    });
+    // Optionally, set a feedback message or log
+    // setActionFeedbackMessage(`${idsToSelect.length} chores selected in swimlane.`);
+  }, [setSelectedInstanceIds]);
+
+  const handleSelectAllOnDate = useCallback((dateString: string) => {
+    const idsToSelect = choreInstances
+      .filter(instance => {
+        if (instance.instanceDate !== dateString) return false;
+        const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
+        return definition && definition.assignedKidId === selectedKidId && !definition.isComplete; // Not archived
+      })
+      .map(instance => instance.id);
+
+    if (idsToSelect.length > 0) {
+      setSelectedInstanceIds(prevSelectedIds => {
+        const newSelectedIds = new Set([...prevSelectedIds, ...idsToSelect]);
+        return Array.from(newSelectedIds);
+      });
+      // setActionFeedbackMessage(`${idsToSelect.length} chores on ${dateString} selected.`);
+    }
+  }, [choreInstances, choreDefinitions, selectedKidId, setSelectedInstanceIds]);
+
+
   // Simplified handler for CategoryChangeModal's onActionSuccess
   const handleCategoryActionSuccess = useCallback(() => {
     // The modal now handles the alert/feedback internally based on its own success/failure.
@@ -291,6 +348,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
           onOpenKidAssignmentModal={kidAssignmentModal.openModal}
           onMarkComplete={handleBatchMarkCompleteCb}
           onMarkIncomplete={handleBatchMarkIncompleteCb}
+          onBatchDelete={handleRequestBatchDelete} // Passed handler to toolbar
         />
         <CategoryChangeModal
           isVisible={categoryModal.isModalVisible}
@@ -304,6 +362,15 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
           selectedDefinitionIds={selectedDefinitionIdsForModal} // Pass derived definition IDs
           onActionSuccess={handleKidAssignmentActionSuccess}
           // kids prop removed
+        />
+        <ConfirmationModal
+          isOpen={deleteConfirmModal.isModalVisible}
+          onClose={deleteConfirmModal.closeModal}
+          onConfirm={handleConfirmBatchDelete}
+          title="Confirm Batch Delete"
+          message={`Are you sure you want to delete ${selectedInstanceIds.length} selected chore(s)? This action cannot be undone.`}
+          confirmText="Delete"
+          cancelText="Cancel"
         />
 
         {/* Kid selection buttons */}
@@ -336,7 +403,34 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
 
         {/* Matrix Kanban Grid */}
         <div className="matrix-kanban-header" style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '5px', borderBottom: '1px solid #ccc', paddingBottom: '5px' }}>
-          {visibleDates.map(date => (<div key={date.toISOString()} className="date-header" style={{ flex: 1, textAlign: 'center', fontWeight: 'bold' }}>{formatDateHeader(date)}</div>))}
+          {visibleDates.map(date => {
+            const dateStr = date.toISOString().split('T')[0];
+            // Check if there are any selectable chores for this date and kid to conditionally show the button
+            const hasChoresOnDate = choreInstances.some(instance => {
+                if (instance.instanceDate !== dateStr) return false;
+                const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
+                return definition && definition.assignedKidId === selectedKidId && !definition.isComplete;
+            });
+
+            return (
+              <div key={dateStr} className="date-header" style={{ flex: 1, textAlign: 'center', padding: '5px' }}>
+                <span style={{ fontWeight: 'bold' }}>{formatDateHeader(date)}</span>
+                {hasChoresOnDate && (
+                  <button
+                    onClick={() => handleSelectAllOnDate(dateStr)}
+                    style={{
+                      background: 'none', border: 'none', color: 'var(--text-link-color, #007bff)',
+                      cursor: 'pointer', padding: '0px 4px', fontSize: '0.75em', textDecoration: 'underline',
+                      marginLeft: '5px', display: 'block', margin: '2px auto 0' // Center button under date
+                    }}
+                    title={`Select all chores for ${formatDateHeader(date)}`}
+                  >
+                    Select All
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
         <div className="matrix-kanban-body" style={{ display: 'flex', justifyContent: 'space-around', gap: '5px' }}>
           {visibleDates.map(date => (
@@ -351,6 +445,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
                   swimlaneConfig={swimlane}
                   selectedInstanceIds={selectedInstanceIds}
                   onToggleSelection={handleToggleSelection}
+                  onSelectAllInSwimlane={handleSelectAllInSwimlane} // Pass the handler
                 />
               ))}
             </div>

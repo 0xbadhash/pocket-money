@@ -7,6 +7,7 @@ interface BatchActionsToolbarProps {
   onOpenKidAssignmentModal: () => void;
   onMarkComplete: () => void;
   onMarkIncomplete: () => void;
+  onBatchDelete?: () => void; // Added new prop for batch delete
 }
 
 // Basic styling for the batch actions toolbar (can be moved to a CSS file)
@@ -30,6 +31,14 @@ const buttonStyle: React.CSSProperties = {
   backgroundColor: '#fff', // Default background for buttons
 };
 
+// Style for destructive action buttons
+const destructiveButtonStyle: React.CSSProperties = {
+  ...buttonStyle,
+  backgroundColor: 'var(--color-danger, #dc3545)',
+  color: 'var(--color-danger-contrast, white)',
+  borderColor: 'var(--color-danger-dark, #bd2130)',
+};
+
 
 const BatchActionsToolbar: React.FC<BatchActionsToolbarProps> = ({
   selectedCount,
@@ -38,6 +47,7 @@ const BatchActionsToolbar: React.FC<BatchActionsToolbarProps> = ({
   onOpenKidAssignmentModal,
   onMarkComplete,
   onMarkIncomplete,
+  onBatchDelete, // Destructure the new prop
 }) => {
   if (selectedCount === 0) {
     return null;
@@ -60,6 +70,11 @@ const BatchActionsToolbar: React.FC<BatchActionsToolbarProps> = ({
       <button style={buttonStyle} onClick={onOpenCategoryModal}>
         Change Swimlane
       </button>
+      {onBatchDelete && ( // Conditionally render the delete button
+        <button style={destructiveButtonStyle} onClick={onBatchDelete}>
+          Delete Selected
+        </button>
+      )}
       <button style={{...buttonStyle, marginLeft: 'auto' }} onClick={onClearSelection}>
         Clear Selection
       </button>

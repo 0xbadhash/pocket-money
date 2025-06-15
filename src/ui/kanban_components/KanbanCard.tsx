@@ -60,6 +60,16 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   const [editingDateValue, setEditingDateValue] = useState<string>('');
   const dateInputRef = useRef<HTMLInputElement>(null);
 
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editingTitleValue, setEditingTitleValue] = useState<string>('');
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  const [isEditingTags, setIsEditingTags] = useState(false);
+  const [editingTagsValue, setEditingTagsValue] = useState<string>('');
+  const tagsInputRef = useRef<HTMLInputElement>(null);
+
+  const [savingField, setSavingField] = useState<string | null>(null);
+
   // Focus input when editing starts
   useEffect(() => {
     if (isEditingReward && rewardInputRef.current) {
@@ -74,6 +84,20 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
     }
   }, [isEditingDate]);
 
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select(); // Select text for easier editing
+    }
+  }, [isEditingTitle]);
+
+  useEffect(() => {
+    if (isEditingTags && tagsInputRef.current) {
+      tagsInputRef.current.focus();
+      tagsInputRef.current.select();
+    }
+  }, [isEditingTags]);
+
   const handleEditReward = () => {
     setEditingRewardValue(definition.rewardAmount?.toString() || '0');
     setIsEditingReward(true);
@@ -81,13 +105,22 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
 
   const handleSaveReward = async () => {
     const newAmount = parseFloat(editingRewardValue as string);
-    if (!isNaN(newAmount) && newAmount >= 0) {
-      if (definition.rewardAmount !== newAmount) {
-        await updateChoreDefinition(definition.id, { rewardAmount: newAmount });
-      }
-    } else {
-      // Optionally, show an error or revert to original value
+    if (isNaN(newAmount) || newAmount < 0) {
       console.warn("Invalid reward amount entered.");
+      setIsEditingReward(false);
+      return;
+    }
+
+    if (definition.rewardAmount !== newAmount) {
+      setSavingField('reward');
+      try {
+        await updateChoreDefinition(definition.id, { rewardAmount: newAmount });
+      } catch (error) {
+        console.error("Failed to save reward:", error);
+        // Optionally, handle error state here
+      } finally {
+        setSavingField(null);
+      }
     }
     setIsEditingReward(false);
   };
@@ -101,16 +134,55 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
     }
   };
 
+  const handleEditTags = () => {
+    setEditingTagsValue((definition.tags || []).join(', '));
+    setIsEditingTags(true);
+  };
+
+  const handleSaveTags = async () => {
+    const newTagsRaw = editingTagsValue.trim();
+    const newTagsArray = newTagsRaw === '' ? [] : newTagsRaw.split(',').map(tag => tag.trim()).filter(tag => tag !== '');
+    const oldTagsString = (definition.tags || []).join(', ');
+    const newTagsString = newTagsArray.join(', ');
+
+    if (oldTagsString !== newTagsString) {
+      setSavingField('tags');
+      try {
+        await updateChoreDefinition(definition.id, { tags: newTagsArray });
+      } catch (error) {
+        console.error("Failed to save tags:", error);
+        // Optionally, handle error state here
+      } finally {
+        setSavingField(null);
+      }
+    }
+    setIsEditingTags(false);
+  };
+
+  const handleTagsInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      handleSaveTags();
+    } else if (event.key === 'Escape') {
+      setIsEditingTags(false);
+    }
+  };
+
   const handleEditDate = () => {
     setEditingDateValue(instance.instanceDate);
     setIsEditingDate(true);
   };
 
   const handleSaveDate = async () => {
-    // Basic validation for date format can be added if necessary,
-    // but type="date" input usually handles format.
     if (editingDateValue && instance.instanceDate !== editingDateValue) {
-      await updateChoreInstanceField(instance.id, 'instanceDate', editingDateValue);
+      setSavingField('date');
+      try {
+        await updateChoreInstanceField(instance.id, 'instanceDate', editingDateValue);
+      } catch (error) {
+        console.error("Failed to save date:", error);
+        // Optionally, handle error state here
+      } finally {
+        setSavingField(null);
+      }
     }
     setIsEditingDate(false);
   };
@@ -120,6 +192,41 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
       handleSaveDate();
     } else if (event.key === 'Escape') {
       setIsEditingDate(false);
+    }
+  };
+
+  const handleEditTitle = () => {
+    setEditingTitleValue(definition.title);
+    setIsEditingTitle(true);
+  };
+
+  const handleSaveTitle = async () => {
+    const newTitle = editingTitleValue.trim();
+    if (newTitle && newTitle !== definition.title) {
+      setSavingField('title');
+      try {
+        await updateChoreDefinition(definition.id, { title: newTitle });
+      } catch (error) {
+        console.error("Failed to save title:", error);
+        // Optionally, handle error state here
+      } finally {
+        setSavingField(null);
+      }
+    } else if (!newTitle) {
+      // If title is cleared, don't save, just exit edit mode.
+      // Or, if desired, save an empty title if the backend supports it.
+      // For now, we revert to original if newTitle is empty by not saving.
+      console.warn("Title cannot be empty. Reverting.");
+    }
+    setIsEditingTitle(false);
+  };
+
+  const handleTitleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      handleSaveTitle();
+    } else if (event.key === 'Escape') {
+      setIsEditingTitle(false);
+      // No need to reset editingTitleValue, it will be reset if editing starts again
     }
   };
 
@@ -191,6 +298,42 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showMenu, instance.id]);
 
+  // Calculate isEarlyStartActive
+  let isEarlyStartActive = false;
+  if (definition.earlyStartDate && instance.instanceDate && !instance.isComplete) {
+    const normalizeDate = (dateStr: string): Date => {
+      const d = new Date(dateStr);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    };
+
+    try {
+      const earlyStartDateObj = normalizeDate(definition.earlyStartDate);
+      const instanceDateObj = normalizeDate(instance.instanceDate);
+      const currentDate = normalizeDate(new Date().toISOString());
+
+      if (
+        earlyStartDateObj < instanceDateObj &&
+        currentDate >= earlyStartDateObj &&
+        currentDate < instanceDateObj
+      ) {
+        isEarlyStartActive = true;
+      }
+    } catch (e) {
+      console.warn("Error parsing dates for early start calculation:", e);
+      // isEarlyStartActive remains false
+    }
+  }
+
+  const cardClassNames = [
+    'kanban-card',
+    instance.isComplete ? 'complete' : '',
+    isDragging && !isOverlay ? 'dragging' : '',
+    isOverlay ? 'is-overlay' : '',
+    isSelected ? 'selected' : '',
+    isEarlyStartActive ? 'early-start-active' : '',
+  ].filter(Boolean).join(' ');
+
   return (
     <div
       ref={setNodeRef}
@@ -206,11 +349,32 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
       // A common pattern is to have a drag handle and make other parts non-draggable.
       // Let's keep listeners for now and address if checkbox interaction is an issue.
       {...listeners}
-      className={`kanban-card ${instance.isComplete ? 'complete' : ''} ${isDragging && !isOverlay ? 'dragging' : ''} ${isOverlay ? 'is-overlay' : ''} ${isSelected ? 'selected' : ''}`}
+      className={cardClassNames}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <h4 style={{ margin: 0, flexGrow: 1 }}>{definition.title}</h4>
-        {!isOverlay && onToggleSelection && ( // Do not show checkbox on overlay card
+        {isEditingTitle ? (
+          <input
+            ref={titleInputRef}
+            type="text"
+            value={editingTitleValue}
+            onChange={(e) => setEditingTitleValue(e.target.value)}
+            onBlur={handleSaveTitle}
+            onKeyDown={handleTitleInputKeyDown}
+            style={{ fontSize: '1.17em', fontWeight: 'bold', margin: 0, flexGrow: 1, border: '1px solid #ccc', padding: '2px 4px' }}
+            aria-label="Edit chore title"
+            disabled={savingField === 'title'}
+          />
+        ) : (
+          <>
+            <h4 style={{ margin: 0, flexGrow: 1 }}>{definition.title}</h4>
+            {!isOverlay && savingField !== 'title' && (
+              <button onClick={handleEditTitle} className="edit-icon-button" aria-label="Edit title" style={{ marginLeft: '4px' }} disabled={savingField !== null}>✏️</button>
+            )}
+            {savingField === 'title' && <span style={{ marginLeft: '4px', fontSize: '0.9em' }}>Saving...</span>}
+          </>
+        )}
+        {!isOverlay && !isEditingTitle && savingField !== 'title' && ( // Hide checkbox during title edit or save
+          onToggleSelection && (
           <input
             type="checkbox"
             checked={isSelected}
@@ -222,6 +386,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
             aria-label={`Select chore ${definition.title}`}
             style={{ marginLeft: '8px', cursor: 'pointer' }}
           />
+          )
         )}
       </div>
 
@@ -285,11 +450,13 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
             onBlur={handleSaveDate}
             onKeyDown={handleDateInputKeyDown}
             style={{ fontSize: 'inherit', padding: '2px', width: '130px' }}
+            disabled={savingField === 'date'}
           />
         ) : (
           <>
             <span>{instance.instanceDate}</span>
-            <button onClick={handleEditDate} className="edit-icon-button" aria-label="Edit due date">✏️</button>
+            {savingField !== 'date' && <button onClick={handleEditDate} className="edit-icon-button" aria-label="Edit due date" disabled={savingField !== null}>✏️</button>}
+            {savingField === 'date' && <span style={{ marginLeft: '4px', fontSize: '0.8em' }}>Saving...</span>}
           </>
         )}
       </div>
@@ -308,25 +475,53 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
               min="0"
               step="0.01"
               style={{ fontSize: 'inherit', padding: '2px', width: '60px' }}
+              disabled={savingField === 'reward'}
             />
           ) : (
             <>
               <span>${definition.rewardAmount?.toFixed(2) || '0.00'}</span>
-              <button onClick={handleEditReward} className="edit-icon-button" aria-label="Edit reward amount">✏️</button>
+              {savingField !== 'reward' && <button onClick={handleEditReward} className="edit-icon-button" aria-label="Edit reward amount" disabled={savingField !== null}>✏️</button>}
+              {savingField === 'reward' && <span style={{ marginLeft: '4px', fontSize: '0.8em' }}>Saving...</span>}
             </>
           )}
         </div>
       )}
 
-      {definition.tags && definition.tags.length > 0 && (
-        <div className="chore-tags-container" style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-          {definition.tags.map(tag => (
-            <span key={tag} className="chore-tag" style={{ backgroundColor: 'var(--primary-color-light, #e0e0e0)', color: 'var(--text-color-primary, #333)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.8em' }}>
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
+      {/* Tags Section */}
+      <div style={{ marginTop: '8px' }}>
+        {isEditingTags ? (
+          <input
+            ref={tagsInputRef}
+            type="text"
+            value={editingTagsValue}
+            onChange={(e) => setEditingTagsValue(e.target.value)}
+            onBlur={handleSaveTags}
+            onKeyDown={handleTagsInputKeyDown}
+            style={{ fontSize: '0.9em', padding: '2px 4px', width: '100%', boxSizing: 'border-box' }}
+            placeholder="Enter tags, comma-separated"
+            disabled={savingField === 'tags'}
+          />
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+            {(definition.tags && definition.tags.length > 0) ? (
+              <>
+                {definition.tags.map(tag => (
+                  <span key={tag} className="chore-tag" style={{ backgroundColor: 'var(--primary-color-light, #e0e0e0)', color: 'var(--text-color-primary, #333)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.8em' }}>
+                    {tag}
+                  </span>
+                ))}
+              </>
+            ) : (
+              <span style={{ fontSize: '0.8em', color: 'var(--text-color-secondary)' }}>No tags</span>
+            )}
+            {!isOverlay && savingField !== 'tags' && (
+              <button onClick={handleEditTags} className="edit-icon-button" aria-label={definition.tags && definition.tags.length > 0 ? "Edit tags" : "Add tags"} disabled={savingField !== null}>✏️</button>
+            )}
+            {savingField === 'tags' && <span style={{ marginLeft: '4px', fontSize: '0.8em' }}>Saving...</span>}
+          </div>
+        )}
+      </div>
+
 
       {definition.subTasks && definition.subTasks.length > 0 && (
         <div
@@ -460,6 +655,10 @@ const globalStyles = `
 }
 .edit-icon-button:hover {
   color: var(--text-color-primary, #000);
+}
+.early-start-active {
+  border-left: 3px solid var(--early-start-indicator-color, #17a2b8); /* Teal color as an example */
+  padding-left: calc(var(--spacing-sm, 8px) - 3px); /* Adjust padding if border pushes content */
 }
 `;
 

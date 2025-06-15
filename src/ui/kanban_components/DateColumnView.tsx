@@ -15,6 +15,7 @@ interface DateColumnViewProps {
   swimlaneConfig: KanbanColumnConfig;
   selectedInstanceIds: string[];
   onToggleSelection: (instanceId: string, isSelected: boolean) => void;
+  onSelectAllInSwimlane?: (instanceIds: string[]) => void; // New prop
 }
 
 const DateColumnView: React.FC<DateColumnViewProps> = ({
@@ -25,6 +26,7 @@ const DateColumnView: React.FC<DateColumnViewProps> = ({
   swimlaneConfig,
   selectedInstanceIds,
   onToggleSelection,
+  onSelectAllInSwimlane, // Destructure new prop
 }) => {
   const { choreInstances, choreDefinitions } = useChoresContext();
 
@@ -93,8 +95,31 @@ const DateColumnView: React.FC<DateColumnViewProps> = ({
         transition: 'background-color 0.2s, color 0.2s', // Smooth transition for color changes
       }}
     >
-      <div style={{ fontWeight: 'bold', marginBottom: 6, fontSize: '1em' }}>
-        {swimlaneConfig.title}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <span style={{ fontWeight: 'bold', fontSize: '1em' }}>
+          {swimlaneConfig.title}
+        </span>
+        {onSelectAllInSwimlane && choresForThisDate.length > 0 && (
+          <button
+            onClick={() => {
+              const idsToSelect = choresForThisDate.map(instance => instance.id);
+              onSelectAllInSwimlane(idsToSelect);
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: textColor, // Use determined text color for visibility
+              cursor: 'pointer',
+              padding: '2px 4px',
+              fontSize: '0.75em',
+              textDecoration: 'underline',
+              opacity: 0.8,
+            }}
+            title="Select all chores in this swimlane"
+          >
+            Select All
+          </button>
+        )}
       </div>
       {choresForThisDate.length === 0 ? (
         <p style={{fontSize: '0.8em', color: textColor === '#FFFFFF' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)', textAlign: 'center', marginTop: '20px' }}>

@@ -64,6 +64,8 @@ interface ChoresContextType {
   batchUpdateChoreInstancesCategory: (instanceIds: string[], newCategory: MatrixKanbanCategory) => Promise<void>;
   /** Batch assigns chore definitions to a new kid. */
   batchAssignChoreDefinitionsToKid: (definitionIds: string[], newKidId: string | null) => Promise<void>;
+  /** Batch deletes chore instances. */
+  batchDeleteChoreInstances: (instanceIds: string[]) => Promise<void>;
 }
 
 // Create the context
@@ -645,6 +647,15 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     );
   }, [setChoreDefinitions]);
 
+  const batchDeleteChoreInstances = useCallback(async (instanceIds: string[]): Promise<void> => {
+    setChoreInstances(prevInstances =>
+      prevInstances.filter(instance => !instanceIds.includes(instance.id))
+    );
+    // This is currently synchronous as it only affects state and localStorage (via useEffect).
+    // The Promise<void> signature is for future-proofing if backend calls are added.
+    // No explicit Promise.resolve() is needed if the function is marked async and doesn't await anything.
+  }, [setChoreInstances]);
+
 
   const contextValue = useMemo(() => ({
     choreDefinitions,
@@ -665,6 +676,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     batchToggleCompleteChoreInstances, // Added
     batchUpdateChoreInstancesCategory, // Added
     batchAssignChoreDefinitionsToKid, // Added
+    batchDeleteChoreInstances, // Added
   }), [
     choreDefinitions,
     choreInstances,
@@ -684,6 +696,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     batchToggleCompleteChoreInstances, // Added
     batchUpdateChoreInstancesCategory, // Added
     batchAssignChoreDefinitionsToKid, // Added
+    batchDeleteChoreInstances, // Added
   ]);
   // Note on useCallback/useMemo: All functions (like addChoreDefinition, toggleChoreInstanceComplete)
   // are wrapped in useCallback to stabilize their references. The entire contextValue object
