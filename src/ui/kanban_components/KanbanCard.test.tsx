@@ -1,5 +1,5 @@
 // src/ui/kanban_components/KanbanCard.test.tsx
-import { render, screen, cleanup } from '@testing-library/react'; // Import cleanup
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'; // Import cleanup & fireEvent
 import userEvent from '@testing-library/user-event';
 import KanbanCard from './KanbanCard';
 import { ChoresContext, ChoresContextType } from '../../contexts/ChoresContext';
@@ -26,32 +26,31 @@ vi.mock('@dnd-kit/sortable', async (importOriginal) => {
 // Now useSortable is a mock function, and vi.mocked(useSortable) can be used.
 
 const mockToggleChoreInstanceComplete = vi.fn();
-const mockToggleSubTaskComplete = vi.fn();
-
-// Updated mockContextValue to include all properties from ChoresContextType
+const mockToggleSubtaskCompletionOnInstance = vi.fn(); // Renamed mock
 const mockUpdateChoreDefinition = vi.fn();
 const mockUpdateChoreInstanceField = vi.fn();
 
 const mockContextValue: ChoresContextType = {
   choreDefinitions: [],
   choreInstances: [],
-  // kanbanChoreOrders: {}, // Removed as per ChoresContext update
   addChoreDefinition: vi.fn(),
-  updateChoreDefinition: mockUpdateChoreDefinition, // Use spy
-  // deleteChoreDefinition: vi.fn(), // Assuming this exists or add mock
+  updateChoreDefinition: mockUpdateChoreDefinition,
   toggleChoreInstanceComplete: mockToggleChoreInstanceComplete,
   getChoreDefinitionsForKid: vi.fn(() => []),
   generateInstancesForPeriod: vi.fn(),
-  toggleSubtaskCompletionOnInstance: mockToggleSubTaskComplete, // Assuming toggleSubTaskComplete maps to this
-  // updateKanbanChoreOrder: vi.fn(), // Removed
-  // updateChoreInstanceColumn: vi.fn(), // Removed
+  toggleSubtaskCompletionOnInstance: mockToggleSubtaskCompletionOnInstance, // Use renamed mock
   toggleChoreDefinitionActiveState: vi.fn(),
   updateChoreInstanceCategory: vi.fn(),
-  updateChoreInstanceField: mockUpdateChoreInstanceField, // Use spy
-  // Batch functions - mock if needed, or if they are not directly called by KanbanCard, can be basic vi.fn()
+  updateChoreInstanceField: mockUpdateChoreInstanceField,
   batchToggleCompleteChoreInstances: vi.fn(),
   batchUpdateChoreInstancesCategory: vi.fn(),
   batchAssignChoreDefinitionsToKid: vi.fn(),
+};
+
+// Initial subtask completions based on mockDefinition
+const initialSubtaskCompletions = {
+  'sub1': false,
+  'sub2': true, // This subtask is complete by default in mockDefinition
 };
 
 const mockInstance: ChoreInstance = {
@@ -59,8 +58,8 @@ const mockInstance: ChoreInstance = {
   choreDefinitionId: 'def1',
   instanceDate: '2024-07-28',
   isComplete: false,
-  categoryStatus: 'TO_DO', // Added missing field
-  subtaskCompletions: {}, // Added missing field
+  categoryStatus: 'TO_DO',
+  subtaskCompletions: initialSubtaskCompletions, // Initialize based on definition
 };
 
 const mockDefinition: ChoreDefinition = {
@@ -92,12 +91,12 @@ const mockDefinition: ChoreDefinition = {
 const renderCardWithSpecificDndState = ({
   instance = mockInstance,
   definition = mockDefinition,
-  instance = mockInstance,
-  definition = mockDefinition,
+  // instance = mockInstance, // Duplicate removed
+  // definition = mockDefinition, // Duplicate removed
   isOverlay = false,
   isDraggingValue = false,
-  isSelected = false, // New prop for selection
-  onToggleSelection = vi.fn(), // New prop for selection
+  isSelected = false,
+  onToggleSelection, // Removed default vi.fn() here
 } = {}) => {
   vi.mocked(useSortable).mockReturnValueOnce({
     attributes: { 'data-testid': 'sortable-attributes' },
@@ -127,6 +126,7 @@ describe('KanbanCard', () => {
     vi.clearAllMocks();
     mockUpdateChoreDefinition.mockClear();
     mockUpdateChoreInstanceField.mockClear();
+    mockToggleSubtaskCompletionOnInstance.mockClear(); // Clear this new mock too
     vi.mocked(useSortable).mockReturnValue({
         attributes: { 'data-testid': 'sortable-attributes' },
         listeners: { 'data-testid': 'sortable-listeners' },
@@ -138,11 +138,14 @@ describe('KanbanCard', () => {
   });
 
   test('renders chore title, description, due date, and reward', () => {
-    renderCardWithSpecificDndState(); // Uses defaults: isOverlay=false, isDragging=false
+    renderCardWithSpecificDndState();
     expect(screen.getByText('Test Chore Title')).toBeInTheDocument();
     expect(screen.getByText('Test chore description.')).toBeInTheDocument();
-    expect(screen.getByText('Due: 2024-07-28')).toBeInTheDocument();
-    expect(screen.getByText('Reward: $5.00')).toBeInTheDocument();
+    // Text is now split, query by parent or more specific means
+    const dueDateContainer = screen.getByText('Due:').parentElement;
+    expect(dueDateContainer).toHaveTextContent('Due:2024-07-28');
+    const rewardContainer = screen.getByText('Reward:').parentElement;
+    expect(rewardContainer).toHaveTextContent('Reward:$5.00');
   });
 
   test('renders tags', () => {
@@ -157,20 +160,21 @@ describe('KanbanCard', () => {
   });
 
   test('renders sub-tasks and their completion status', () => {
-    renderCardWithSpecificDndState();
+    renderCardWithSpecificDndState(); // mockInstance now has subtaskCompletions reflecting mockDefinition
     const subtask1 = screen.getByLabelText('Sub-task 1');
     const subtask2 = screen.getByLabelText('Sub-task 2');
     expect(subtask1).not.toBeChecked();
-    expect(subtask2).toBeChecked();
+    expect(subtask2).toBeChecked(); // sub2 is complete in initialSubtaskCompletions
   });
 
   test('progress bar reflects sub-task completion and has correct ARIA attributes (1 of 2 complete = 50%)', () => {
-    renderCardWithSpecificDndState(); // Uses mockDefinition with 1 of 2 subTasks complete
-    const progressBarContainer = screen.getByTitle('Progress: 50% (1/2)'); // The outline div has the title
+    renderCardWithSpecificDndState(); // mockInstance now has subtaskCompletions reflecting mockDefinition
+    // Subtask 'sub2' is complete, 'sub1' is not. So 1 out of 2 = 50%.
+    const progressBarContainer = screen.getByTitle('Progress: 50% (1/2)');
     const progressBarFill = progressBarContainer.querySelector('.progress-bar-fill');
 
     expect(progressBarFill).toBeInTheDocument();
-    expect(progressBarFill).toHaveStyle('width: 50%');
+    expect(progressBarFill).toHaveStyle('width: 50%'); // Corrected expectation
     expect(progressBarFill).toHaveAttribute('role', 'progressbar');
     expect(progressBarFill).toHaveAttribute('aria-valuenow', '50');
     expect(progressBarFill).toHaveAttribute('aria-valuemin', '0');
@@ -197,7 +201,7 @@ describe('KanbanCard', () => {
     renderCardWithSpecificDndState();
     const subtask1Checkbox = screen.getByLabelText('Sub-task 1');
     await user.click(subtask1Checkbox);
-    expect(mockToggleSubTaskComplete).toHaveBeenCalledWith('def1', 'sub1');
+    expect(mockToggleSubtaskCompletionOnInstance).toHaveBeenCalledWith(mockInstance.id, 'sub1'); // Changed mock and first arg
   });
 
   // Updated and New Tests for isDragging and isOverlay
@@ -308,7 +312,9 @@ describe('KanbanCard', () => {
 
       expect(mockUpdateChoreDefinition).not.toHaveBeenCalled();
       expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument();
-      expect(screen.getByText(`Reward: $${mockDefinition.rewardAmount?.toFixed(2)}`)).toBeInTheDocument(); // Original value shown
+      // Original value shown - adjust query to find the span within the parent div
+      const rewardContainer = screen.getByText('Reward:').parentElement;
+      expect(rewardContainer).toHaveTextContent(`Reward:$${mockDefinition.rewardAmount?.toFixed(2)}`);
     });
 
     test('instance date: clicking edit icon shows input, blur saves', async () => {
@@ -317,15 +323,15 @@ describe('KanbanCard', () => {
 
       await user.click(screen.getByLabelText('Edit due date'));
 
-      const dateInput = screen.getByDisplayValue(mockInstance.instanceDate); // type="date"
+      const dateInput = screen.getByDisplayValue(mockInstance.instanceDate);
       expect(dateInput).toBeInTheDocument();
 
       const newDate = '2024-08-15';
       fireEvent.change(dateInput, { target: { value: newDate } });
-      await user.tab(); // Blur
+      await user.tab();
 
       expect(mockUpdateChoreInstanceField).toHaveBeenCalledWith(mockInstance.id, 'instanceDate', newDate);
-      expect(screen.queryByDisplayValue(newDate)).not.toBeInTheDocument(); // Input disappears
+      expect(screen.queryByDisplayValue(newDate)).not.toBeInTheDocument();
     });
 
     test('instance date: pressing Enter in input saves', async () => {
@@ -348,12 +354,13 @@ describe('KanbanCard', () => {
       await user.click(screen.getByLabelText('Edit due date'));
 
       const dateInput = screen.getByDisplayValue(mockInstance.instanceDate);
-      fireEvent.change(dateInput, { target: { value: '2000-01-01' } }); // Change value
+      fireEvent.change(dateInput, { target: { value: '2000-01-01' } });
       await user.keyboard('{Escape}');
 
       expect(mockUpdateChoreInstanceField).not.toHaveBeenCalled();
       expect(screen.queryByDisplayValue('2000-01-01')).not.toBeInTheDocument();
-      expect(screen.getByText(mockInstance.instanceDate)).toBeInTheDocument(); // Original date shown
+      const dueDateContainer = screen.getByText('Due:').parentElement;
+      expect(dueDateContainer).toHaveTextContent(`Due:${mockInstance.instanceDate}`);
     });
   });
 
@@ -372,7 +379,7 @@ describe('KanbanCard', () => {
     });
 
     test('does not render checkbox if onToggleSelection is not provided', () => {
-      renderCardWithSpecificDndState({ onToggleSelection: undefined });
+      renderCardWithSpecificDndState({ isOverlay: false, onToggleSelection: undefined }); // Explicitly pass undefined and isOverlay
       expect(screen.queryByLabelText(`Select chore ${mockDefinition.title}`)).not.toBeInTheDocument();
     });
 

@@ -1,7 +1,7 @@
 // src/ui/settings_components/KanbanSettingsView.test.tsx
-import { render, screen, act, waitFor } from '@testing-library/react';
+import { render, screen, act, waitFor, fireEvent } from '@testing-library/react'; // Added fireEvent
 import userEvent from '@testing-library/user-event';
-// import KanbanSettingsView from './KanbanSettingsView'; // Removed import as the file does not exist
+import KanbanSettingsView from './KanbanSettingsView'; // Uncommented import
 import { UserContext, UserContextType, User } from '../../contexts/UserContext';
 // ChoresContext is not directly used by KanbanSettingsView, so a minimal or no mock is needed unless UserProvider depends on it.
 // For now, assuming UserProvider is self-contained for these tests.

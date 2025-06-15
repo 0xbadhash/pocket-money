@@ -83,54 +83,52 @@ interface ChoresProviderProps {
   children: ReactNode;
 }
 
-export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
-  // MODIFIED: State for chore definitions
-  const [choreDefinitions, setChoreDefinitions] = useState<ChoreDefinition[]>([
-    {
-      id: 'cd1', title: 'Clean Room (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
-      rewardAmount: 1, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: '2023-12-05',
-      tags: ['cleaning', 'indoor'],
-      subTasks: [
-        { id: 'st1_1', title: 'Make bed', isComplete: false },
-        { id: 'st1_2', title: 'Tidy desk', isComplete: false },
-        { id: 'st1_3', title: 'Vacuum floor', isComplete: false }
-      ]
-    },
-    {
-      id: 'cd2', title: 'Walk the Dog (Weekly Sat)', assignedKidId: 'kid_b', dueDate: '2023-12-02',
-      rewardAmount: 3, isComplete: false, recurrenceType: 'weekly', recurrenceDay: 6, // Saturday
-      recurrenceEndDate: '2023-12-31',
-      tags: ['outdoor', 'pet care', 'morning'],
-      subTasks: [
-        { id: 'st2_1', title: 'Leash and harness', isComplete: false },
-        { id: 'st2_2', title: 'Walk for 30 mins', isComplete: false },
-      ]
-    },
-    {
-      id: 'cd3', title: 'Do Homework (One-off)', assignedKidId: 'kid_a', dueDate: '2023-12-15',
-      rewardAmount: 2, isComplete: false, recurrenceType: null
-      // No tags or subtasks for this one
-    },
-    {
-      id: 'cd4', title: 'Take out trash (Monthly 15th)', description: 'Before evening', rewardAmount: 1.5,
-      assignedKidId: 'kid_a', dueDate: '2023-12-01', isComplete: false, recurrenceType: 'monthly', recurrenceDay: 15,
-      recurrenceEndDate: '2024-02-01',
-      tags: ['household', 'evening']
-      // No subtasks
-    },
-    {
-      id: 'cd5', title: 'Feed Cat (Daily)', assignedKidId: 'kid_a', dueDate: '2023-12-01',
-      rewardAmount: 0.5, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: null,
-      subTasks: [
-        { id: 'st5_1', title: 'Clean bowl', isComplete: false },
-        { id: 'st5_2', title: 'Fill with food', isComplete: false },
-        { id: 'st5_3', title: 'Check water', isComplete: true }, // Example pre-completed
-      ]
-    }
-  ]);
+// Default initial state for development if localStorage is empty
+const defaultInitialDefinitions: ChoreDefinition[] = [
+  {
+    id: 'cd1_default', title: 'Clean Room (Daily) - Default', assignedKidId: 'kid_a_default', dueDate: '2023-12-01',
+    rewardAmount: 1, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: '2023-12-05',
+    tags: ['cleaning', 'indoor'], subTasks: [ { id: 'st1_1', title: 'Make bed', isComplete: false } ],
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+  }
+  // Add more default definitions if needed for a baseline usable state
+];
 
-  // NEW: State for chore instances
+export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
+  const [choreDefinitions, setChoreDefinitions] = useState<ChoreDefinition[]>([]);
   const [choreInstances, setChoreInstances] = useState<ChoreInstance[]>([]);
+  // Removed initial hardcoded state for choreDefinitions, will load from localStorage or use defaults
+
+  // Load data from localStorage on initial mount
+  useEffect(() => {
+    try {
+      const storedDefinitions = localStorage.getItem('choreDefinitions');
+      if (storedDefinitions) {
+        setChoreDefinitions(JSON.parse(storedDefinitions));
+      } else {
+        setChoreDefinitions(defaultInitialDefinitions); // Fallback to defaults if nothing in localStorage
+      }
+    } catch (error) {
+      console.error("Failed to load chore definitions from localStorage:", error);
+      setChoreDefinitions(defaultInitialDefinitions); // Fallback on error
+    }
+
+    try {
+      const storedInstances = localStorage.getItem('choreInstances');
+      if (storedInstances) {
+        setChoreInstances(JSON.parse(storedInstances));
+      } else {
+        setChoreInstances([]); // Start with empty instances if nothing in localStorage
+      }
+    } catch (error) {
+      console.error("Failed to load chore instances from localStorage:", error);
+      setChoreInstances([]); // Fallback on error
+    }
+  }, []); // Empty dependency array ensures this runs only on mount
+
+  // The choreDefinitions and choreInstances states are initialized above by useEffect,
+  // loading from localStorage or using defaults. The old hardcoded useState initialization
+  // has been completely removed to prevent syntax errors and ensure correct data loading.
 
   // const [kanbanChoreOrders, setKanbanChoreOrders] = useState<KanbanChoreOrders>(() => { // Removed
   //   try {
@@ -272,14 +270,16 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       const updatedGeneratedForPeriod = newInstancesWithMatrixFields.map(newInstance => {
         const oldMatchingInstance = prevInstances.find(oldInst => oldInst.id === newInstance.id);
         if (oldMatchingInstance) {
+          // Prioritize all fields from oldMatchingInstance, then fill in any gaps with newInstance
+          // This ensures that if an old instance existed, its state is fully preserved.
+          // newInstance here primarily serves to confirm the instance *should* exist in the period
+          // and provides the most basic structure if oldMatchingInstance was somehow incomplete.
           return {
-            ...newInstance,
-            isComplete: oldMatchingInstance.isComplete,
-            categoryStatus: oldMatchingInstance.categoryStatus,
-            subtaskCompletions: oldMatchingInstance.subtaskCompletions,
-            previousSubtaskCompletions: oldMatchingInstance.previousSubtaskCompletions,
+            ...newInstance, // Provides basic structure like ID, choreDefinitionId, instanceDate
+            ...oldMatchingInstance, // Overrides with all preserved fields from the actual old instance
           };
         }
+        // If it's a truly new instance (no matching old one), return it as is (already has defaults)
         return newInstance;
       });
 

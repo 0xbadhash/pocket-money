@@ -29,7 +29,7 @@ export interface UserContextType {
   updateUser: (updatedUserData: Partial<User>) => void; // For updating user profile details
 
   // Kid specific functions (placeholders, can be expanded)
-  addKid: (kidData: Omit<Kid, 'id' | 'kanbanColumnConfigs' | 'totalFunds'> & { totalFunds?: number }) => void;
+  addKid: (kidData: Omit<Kid, 'id' | 'kanbanColumnConfigs' | 'totalFunds'> & { totalFunds?: number }) => string | undefined; // Returns new Kid's ID
   updateKid: (updatedKidData: Kid) => void;
   deleteKid: (kidId: string) => void;
 
@@ -166,11 +166,13 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     setUser(prevUser => prevUser ? { ...prevUser, ...updatedUserData } : null);
   }, [setUser]);
 
-  const addKid = useCallback((kidData: Omit<Kid, 'id' | 'kanbanColumnConfigs' | 'totalFunds'> & { totalFunds?: number }) => {
+  const addKid = useCallback((kidData: Omit<Kid, 'id' | 'kanbanColumnConfigs' | 'totalFunds'> & { totalFunds?: number }): string | undefined => {
+    let newKidIdReturn: string | undefined = undefined;
     setUser(prevUser => {
       if (!prevUser) return null;
 
        const newKidId = `kid_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+       newKidIdReturn = newKidId; // Capture for return
        const defaultColumnHeaders: Array<Omit<KanbanColumnConfig, 'kidId' | 'id' | 'createdAt' | 'updatedAt' | 'color'> & { color: string }> = [
         { title: 'To Do', order: 0, color: "#FFFFFF" },
         { title: 'In Progress', order: 1, color: "#FFFFE0" },
@@ -195,6 +197,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
        };
        return { ...prevUser, kids: [...prevUser.kids, newKid] };
      });
+     return newKidIdReturn;
   }, [setUser]);
 
   const updateKid = useCallback((updatedKidData: Kid) => {
