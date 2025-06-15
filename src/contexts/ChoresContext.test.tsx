@@ -219,6 +219,34 @@ describe('ChoresContext - Individual Item Updates', () => {
         const updatedInst = result.current.choreInstances.find(i => i.id === instToUpdateId);
         expect(updatedInst?.instanceDate).toBe(newDate);
     });
+
+    test('updateChoreInstanceField sets overriddenRewardAmount on an instance', async () => {
+        const { result } = renderHook(() => useChoresContext(), { wrapper });
+        const newReward = 7.77;
+        // Ensure the field is not set initially or is different
+        const originalInstance = result.current.choreInstances.find(i => i.id === instToUpdateId);
+        expect(originalInstance?.overriddenRewardAmount).toBeUndefined();
+
+        await act(async () => { await result.current.updateChoreInstanceField(instToUpdateId, 'overriddenRewardAmount', newReward); });
+
+        const updatedInst = result.current.choreInstances.find(i => i.id === instToUpdateId);
+        expect(updatedInst?.overriddenRewardAmount).toBe(newReward);
+    });
+
+    test('updateChoreInstanceField clears overriddenRewardAmount when set to undefined', async () => {
+        const { result } = renderHook(() => useChoresContext(), { wrapper });
+        const initialReward = 8.88;
+
+        // First set an override
+        await act(async () => { await result.current.updateChoreInstanceField(instToUpdateId, 'overriddenRewardAmount', initialReward); });
+        let updatedInst = result.current.choreInstances.find(i => i.id === instToUpdateId);
+        expect(updatedInst?.overriddenRewardAmount).toBe(initialReward);
+
+        // Then clear it
+        await act(async () => { await result.current.updateChoreInstanceField(instToUpdateId, 'overriddenRewardAmount', undefined); });
+        updatedInst = result.current.choreInstances.find(i => i.id === instToUpdateId);
+        expect(updatedInst?.overriddenRewardAmount).toBeUndefined();
+    });
 });
 
 describe('ChoresContext - Batch Operations', () => {
@@ -303,4 +331,125 @@ describe('ChoresContext - Batch Operations', () => {
         const definition = result.current.choreDefinitions.find(d=>d.id === 'def_batch1');
         expect(definition?.assignedKidId).toBeUndefined();
     });
+});
+
+describe('ChoresContext - updateChoreSeries', () => {
+  let seriesTestDefinitions: ChoreDefinition[];
+  let seriesTestInstances: ChoreInstance[];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorageMock = localStorageMockFactory();
+    Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+
+    seriesTestDefinitions = [
+      {
+        id: 'seriesDef1', title: 'Morning Routine', assignedKidId: 'kid_series', dueDate: '2024-03-01',
+        rewardAmount: 2, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: '2024-03-05', // 5 days
+        subTasks: [{ id: 'st_s1', title: 'Brush Teeth', isComplete: false }],
+        createdAt: '2024-02-01T00:00:00.000Z', updatedAt: '2024-02-01T00:00:00.000Z',
+      },
+      { // Another definition to ensure other definitions/instances are not affected
+        id: 'otherDef', title: 'Evening Reading', assignedKidId: 'kid_series', dueDate: '2024-03-01',
+        rewardAmount: 1, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: '2024-03-02',
+        createdAt: '2024-02-01T00:00:00.000Z', updatedAt: '2024-02-01T00:00:00.000Z',
+      }
+    ];
+    // Initial instances for seriesDef1
+    seriesTestInstances = [
+      // Day before fromDate for seriesDef1
+      { id: 'seriesDef1_2024-02-29', choreDefinitionId: 'seriesDef1', instanceDate: '2024-02-29', categoryStatus: 'TO_DO', isComplete: false, subtaskCompletions: {'st_s1': false} },
+      { id: 'seriesDef1_2024-03-01', choreDefinitionId: 'seriesDef1', instanceDate: '2024-03-01', categoryStatus: 'TO_DO', isComplete: false, subtaskCompletions: {'st_s1': false} },
+      { id: 'seriesDef1_2024-03-02', choreDefinitionId: 'seriesDef1', instanceDate: '2024-03-02', categoryStatus: 'IN_PROGRESS', isComplete: false, subtaskCompletions: {'st_s1': true} }, // Different status
+      { id: 'seriesDef1_2024-03-03', choreDefinitionId: 'seriesDef1', instanceDate: '2024-03-03', categoryStatus: 'TO_DO', isComplete: false, subtaskCompletions: {'st_s1': false} },
+      // Instances for otherDef
+      { id: 'otherDef_2024-03-01', choreDefinitionId: 'otherDef', instanceDate: '2024-03-01', categoryStatus: 'TO_DO', isComplete: false, subtaskCompletions: {} },
+      { id: 'otherDef_2024-03-02', choreDefinitionId: 'otherDef', instanceDate: '2024-03-02', categoryStatus: 'TO_DO', isComplete: false, subtaskCompletions: {} },
+    ];
+
+    // This mock will apply to all tests in this describe block unless overridden by mockReturnValueOnce chain
+    localStorageMock.getItem.mockImplementation((key: string) => {
+        if (key === 'choreDefinitions') return JSON.stringify(seriesTestDefinitions);
+        if (key === 'choreInstances') return JSON.stringify(seriesTestInstances);
+        return null;
+    });
+  });
+
+  test('updates rewardAmount for a series and regenerates future instances', async () => {
+    const { result } = renderHook(() => useChoresContext(), { wrapper });
+    const fromDate = '2024-03-02'; // Edit occurs on this instance
+    const newReward = 5;
+
+    await act(async () => {
+      await result.current.updateChoreSeries('seriesDef1', { rewardAmount: newReward }, fromDate, 'rewardAmount');
+    });
+
+    const updatedDef = result.current.choreDefinitions.find(d => d.id === 'seriesDef1');
+    expect(updatedDef?.rewardAmount).toBe(newReward);
+
+    const finalInstances = result.current.choreInstances;
+    // Instance before fromDate should be untouched
+    const instanceBefore = finalInstances.find(i => i.id === 'seriesDef1_2024-03-01');
+    expect(instanceBefore).toBeDefined();
+    // Note: updateChoreSeries does not change past instances' reflection of definition props.
+    // The definition linked by choreDefinitionId is updated, but past instances are not re-evaluated.
+
+    // Instances on/after fromDate for seriesDef1 should be new/regenerated.
+    // Their reward is implicitly the new definition reward, as no override mechanism is tested here.
+    // Check if instances from fromDate reflect new generation (e.g. TO_DO status)
+    const instanceOnFromDate = finalInstances.find(i => i.choreDefinitionId === 'seriesDef1' && i.instanceDate === '2024-03-02');
+    expect(instanceOnFromDate).toBeDefined();
+    expect(instanceOnFromDate?.categoryStatus).toBe('TO_DO'); // Regenerated instances default to TO_DO
+
+    const instanceAfterFromDate = finalInstances.find(i => i.choreDefinitionId === 'seriesDef1' && i.instanceDate === '2024-03-03');
+    expect(instanceAfterFromDate).toBeDefined();
+    expect(instanceAfterFromDate?.categoryStatus).toBe('TO_DO');
+
+    // Check that other definition's instances are untouched
+    expect(finalInstances.filter(i => i.choreDefinitionId === 'otherDef').length).toBe(2);
+  });
+
+  test('updates dueDate for a series, shifts future instances, and preserves past ones', async () => {
+    const { result } = renderHook(() => useChoresContext(), { wrapper });
+
+    const fromDateWhenEdited = '2024-03-02'; // The instance of this date was "edited"
+    const newSeriesStartDate = '2024-03-04'; // Series now starts from this date
+
+    // Initial state check
+    expect(result.current.choreInstances.find(i => i.id === 'seriesDef1_2024-03-02')).toBeDefined();
+    expect(result.current.choreInstances.find(i => i.id === 'seriesDef1_2024-03-03')).toBeDefined();
+
+    await act(async () => {
+      await result.current.updateChoreSeries('seriesDef1', { dueDate: newSeriesStartDate }, fromDateWhenEdited, 'dueDate');
+    });
+
+    const updatedDef = result.current.choreDefinitions.find(d => d.id === 'seriesDef1');
+    expect(updatedDef?.dueDate).toBe(newSeriesStartDate);
+
+    const finalInstances = result.current.choreInstances;
+
+    // Instance before fromDateWhenEdited should be untouched
+    const instanceBefore = finalInstances.find(i => i.id === 'seriesDef1_2024-03-01');
+    expect(instanceBefore).toBeDefined();
+
+    // Instances from the original series that were on or after fromDateWhenEdited should be gone
+    expect(finalInstances.find(i => i.id === 'seriesDef1_2024-03-02')).toBeUndefined();
+    expect(finalInstances.find(i => i.id === 'seriesDef1_2024-03-03')).toBeUndefined();
+
+    // New instances should be generated from newSeriesStartDate
+    // seriesDef1 runs until 2024-03-05. New start is 2024-03-04. So, 03-04, 03-05.
+    const newInstance1 = finalInstances.find(i => i.choreDefinitionId === 'seriesDef1' && i.instanceDate === '2024-03-04');
+    expect(newInstance1).toBeDefined();
+    expect(newInstance1?.categoryStatus).toBe('TO_DO');
+
+    const newInstance2 = finalInstances.find(i => i.choreDefinitionId === 'seriesDef1' && i.instanceDate === '2024-03-05');
+    expect(newInstance2).toBeDefined();
+    expect(newInstance2?.categoryStatus).toBe('TO_DO');
+
+    // Ensure no instances for seriesDef1 exist for 2024-03-06 (beyond original recurrenceEndDate)
+    expect(finalInstances.find(i => i.choreDefinitionId === 'seriesDef1' && i.instanceDate === '2024-03-06')).toBeUndefined();
+
+    // Check that other definition's instances are untouched
+    expect(finalInstances.filter(i => i.choreDefinitionId === 'otherDef').length).toBe(2);
+  });
 });

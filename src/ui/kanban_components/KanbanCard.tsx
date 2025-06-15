@@ -7,6 +7,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { ChoreInstance, ChoreDefinition } from '../../types';
 import { useChoresContext } from '../../contexts/ChoresContext';
+import EditScopeModal from './EditScopeModal'; // Moved import to the top
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -50,6 +51,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
     toggleSubtaskCompletionOnInstance,
     updateChoreDefinition,
     updateChoreInstanceField,
+    updateChoreSeries, // Added for series edits
   } = useChoresContext();
 
   const [isEditingReward, setIsEditingReward] = useState(false);
@@ -59,6 +61,46 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   const [isEditingDate, setIsEditingDate] = useState(false);
   const [editingDateValue, setEditingDateValue] = useState<string>('');
   const dateInputRef = useRef<HTMLInputElement>(null);
+
+  // State for EditScopeModal
+  const [isEditScopeModalVisible, setIsEditScopeModalVisible] = useState(false);
+  const closeEditScopeModal = () => {
+    setIsEditScopeModalVisible(false);
+    setPendingEdit(undefined);
+  };
+  const [pendingEdit, setPendingEdit] = useState<{
+    fieldName: 'instanceDate' | 'rewardAmount',
+    value: any,
+    definitionId: string,
+    instanceId: string,
+    fromDateForSeries: string // This is the instanceDate of the edited instance
+  } | undefined>(undefined);
+
+  const handleConfirmEditScope = async (scope: 'instance' | 'series') => {
+    if (!pendingEdit) return;
+
+    const { fieldName, value, definitionId, instanceId, fromDateForSeries } = pendingEdit;
+
+    if (scope === 'instance') {
+      if (fieldName === 'instanceDate') {
+        await updateChoreInstanceField(instanceId, 'instanceDate', value);
+      } else if (fieldName === 'rewardAmount') {
+        await updateChoreInstanceField(instanceId, 'overriddenRewardAmount', value);
+      }
+    } else if (scope === 'series') {
+      if (fieldName === 'instanceDate') {
+        await updateChoreSeries(definitionId, { dueDate: value }, fromDateForSeries, 'dueDate');
+      } else if (fieldName === 'rewardAmount') {
+        // For series reward edit, we also clear any instance-specific override on the current instance
+        // to ensure it reflects the new series value.
+        await updateChoreInstanceField(instanceId, 'overriddenRewardAmount', undefined);
+        await updateChoreSeries(definitionId, { rewardAmount: value }, fromDateForSeries, 'rewardAmount');
+      }
+    }
+    // Add any user feedback (e.g., toast notification) here if desired
+    closeEditScopeModal();
+  };
+
 
   // Focus input when editing starts
   useEffect(() => {
@@ -75,21 +117,45 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   }, [isEditingDate]);
 
   const handleEditReward = () => {
-    setEditingRewardValue(definition.rewardAmount?.toString() || '0');
+    const currentReward = instance.overriddenRewardAmount !== undefined
+      ? instance.overriddenRewardAmount
+      : definition.rewardAmount;
+    setEditingRewardValue(currentReward?.toString() || '0');
     setIsEditingReward(true);
   };
 
   const handleSaveReward = async () => {
-    const newAmount = parseFloat(editingRewardValue as string);
-    if (!isNaN(newAmount) && newAmount >= 0) {
-      if (definition.rewardAmount !== newAmount) {
-        await updateChoreDefinition(definition.id, { rewardAmount: newAmount });
-      }
-    } else {
-      // Optionally, show an error or revert to original value
-      console.warn("Invalid reward amount entered.");
-    }
     setIsEditingReward(false);
+    const newAmount = parseFloat(editingRewardValue as string);
+
+    if (isNaN(newAmount) || newAmount < 0) {
+      console.warn("Invalid reward amount entered.");
+      return;
+    }
+
+    const currentBaseReward = definition.rewardAmount;
+    const currentInstanceOverride = instance.overriddenRewardAmount;
+
+    // If there's an override, compare to that. Otherwise, compare to definition.
+    const effectiveCurrentReward = currentInstanceOverride !== undefined ? currentInstanceOverride : currentBaseReward;
+
+    if (effectiveCurrentReward === newAmount) {
+        return; // No change from the currently displayed/effective reward
+    }
+
+    if (definition.recurrenceType && definition.recurrenceType !== null) {
+      setPendingEdit({
+        fieldName: 'rewardAmount',
+        value: newAmount,
+        definitionId: definition.id,
+        instanceId: instance.id,
+        fromDateForSeries: instance.instanceDate
+      });
+      setIsEditScopeModalVisible(true);
+    } else {
+      // Not recurring: update definition's reward (no instance override for non-recurring)
+      await updateChoreDefinition(definition.id, { rewardAmount: newAmount });
+    }
   };
 
   const handleRewardInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -107,12 +173,26 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   };
 
   const handleSaveDate = async () => {
+    setIsEditingDate(false); // Close input immediately
     // Basic validation for date format can be added if necessary,
     // but type="date" input usually handles format.
-    if (editingDateValue && instance.instanceDate !== editingDateValue) {
+    if (!editingDateValue || instance.instanceDate === editingDateValue) {
+      return; // No change or empty value
+    }
+
+    if (definition.recurrenceType && definition.recurrenceType !== null) {
+      setPendingEdit({
+        fieldName: 'instanceDate',
+        value: editingDateValue,
+        definitionId: definition.id,
+        instanceId: instance.id,
+        fromDateForSeries: instance.instanceDate
+      });
+      setIsEditScopeModalVisible(true);
+    } else {
+      // Not recurring, update instance directly
       await updateChoreInstanceField(instance.id, 'instanceDate', editingDateValue);
     }
-    setIsEditingDate(false);
   };
 
   const handleDateInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -311,7 +391,15 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
             />
           ) : (
             <>
-              <span>${definition.rewardAmount?.toFixed(2) || '0.00'}</span>
+              <span>
+                ${(instance.overriddenRewardAmount != null // Check for both undefined and null
+                    ? instance.overriddenRewardAmount
+                    : definition.rewardAmount
+                  )?.toFixed(2) || '0.00'}
+              </span>
+              {instance.overriddenRewardAmount != null && ( // Check for both undefined and null
+                <span title={`Base: $${definition.rewardAmount?.toFixed(2) || '0.00'}`} style={{color: 'var(--text-color-secondary)', fontSize: '0.8em', marginLeft: '4px'}}>(edited)</span>
+              )}
               <button onClick={handleEditReward} className="edit-icon-button" aria-label="Edit reward amount">✏️</button>
             </>
           )}
@@ -433,6 +521,16 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
           </div>
         )}
       </div>
+
+      {isEditScopeModalVisible && pendingEdit && (
+        <EditScopeModal
+          isVisible={isEditScopeModalVisible}
+          onClose={closeEditScopeModal}
+          onConfirmScope={handleConfirmEditScope}
+          fieldName={pendingEdit.fieldName}
+          newValue={pendingEdit.value}
+        />
+      )}
     </div>
   );
 };
@@ -449,6 +547,7 @@ export default React.memo(KanbanCard);
 
 // Basic styling for edit icon buttons (ensure this doesn't cause issues with React.memo)
 // If globalStyles were dynamic or complex, it might affect memoization, but as a static string, it's fine.
+// import EditScopeModal from './EditScopeModal'; // Removed from here
 const globalStyles = `
 .edit-icon-button {
   background: none;

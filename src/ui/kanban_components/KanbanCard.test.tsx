@@ -29,6 +29,7 @@ const mockToggleChoreInstanceComplete = vi.fn();
 const mockToggleSubtaskCompletionOnInstance = vi.fn(); // Renamed mock
 const mockUpdateChoreDefinition = vi.fn();
 const mockUpdateChoreInstanceField = vi.fn();
+const mockUpdateChoreSeries = vi.fn(); // Added for series edits
 
 const mockContextValue: ChoresContextType = {
   choreDefinitions: [],
@@ -42,6 +43,7 @@ const mockContextValue: ChoresContextType = {
   toggleChoreDefinitionActiveState: vi.fn(),
   updateChoreInstanceCategory: vi.fn(),
   updateChoreInstanceField: mockUpdateChoreInstanceField,
+  updateChoreSeries: mockUpdateChoreSeries, // Added to context
   batchToggleCompleteChoreInstances: vi.fn(),
   batchUpdateChoreInstancesCategory: vi.fn(),
   batchAssignChoreDefinitionsToKid: vi.fn(),
@@ -126,6 +128,7 @@ describe('KanbanCard', () => {
     vi.clearAllMocks();
     mockUpdateChoreDefinition.mockClear();
     mockUpdateChoreInstanceField.mockClear();
+    mockUpdateChoreSeries.mockClear(); // Clear the new mock
     mockToggleSubtaskCompletionOnInstance.mockClear(); // Clear this new mock too
     vi.mocked(useSortable).mockReturnValue({
         attributes: { 'data-testid': 'sortable-attributes' },
@@ -268,36 +271,63 @@ describe('KanbanCard', () => {
 
   // --- Tests for Inline Editing ---
   describe('Inline Editing', () => {
-    test('reward amount: clicking edit icon shows input, blur saves', async () => {
+    // Reward Amount Edit - Instance Only
+    test('reward amount (recurring, instance only): blur saves via modal', async () => {
       const user = userEvent.setup();
-      renderCardWithSpecificDndState();
-
-      const editButton = screen.getByLabelText('Edit reward amount');
-      await user.click(editButton);
-
-      const input = screen.getByRole('spinbutton'); // type="number"
-      expect(input).toHaveValue(mockDefinition.rewardAmount);
-
+      renderCardWithSpecificDndState({ definition: { ...mockDefinition, recurrenceType: 'daily' } });
+      await user.click(screen.getByLabelText('Edit reward amount'));
+      const input = screen.getByRole('spinbutton');
       await user.clear(input);
       await user.type(input, '7.50');
-      await user.tab(); // Blur
+      await user.tab(); // Blur - opens modal
 
-      expect(mockUpdateChoreDefinition).toHaveBeenCalledWith(mockDefinition.id, { rewardAmount: 7.50 });
-      expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument(); // Input disappears
+      expect(screen.getByText("Confirm Edit Scope")).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /This instance only/i }));
+
+      expect(mockUpdateChoreInstanceField).toHaveBeenCalledWith(mockInstance.id, 'overriddenRewardAmount', 7.50);
+      expect(mockUpdateChoreSeries).not.toHaveBeenCalled();
+      expect(screen.queryByText("Confirm Edit Scope")).not.toBeInTheDocument(); // Modal closes
     });
 
-    test('reward amount: pressing Enter in input saves', async () => {
+    // Reward Amount Edit - Series
+    test('reward amount (recurring, series): Enter saves via modal', async () => {
       const user = userEvent.setup();
-      renderCardWithSpecificDndState();
+      renderCardWithSpecificDndState({ definition: { ...mockDefinition, recurrenceType: 'daily' } });
       await user.click(screen.getByLabelText('Edit reward amount'));
-
       const input = screen.getByRole('spinbutton');
       await user.clear(input);
       await user.type(input, '10');
-      await user.keyboard('{Enter}');
+      await user.keyboard('{Enter}'); // Enter - opens modal
 
-      expect(mockUpdateChoreDefinition).toHaveBeenCalledWith(mockDefinition.id, { rewardAmount: 10 });
-      expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument();
+      expect(screen.getByText("Confirm Edit Scope")).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /This and all future instances/i }));
+
+      // First, clears override on current instance
+      expect(mockUpdateChoreInstanceField).toHaveBeenCalledWith(mockInstance.id, 'overriddenRewardAmount', undefined);
+      // Then, updates series
+      expect(mockUpdateChoreSeries).toHaveBeenCalledWith(
+        mockDefinition.id,
+        { rewardAmount: 10 },
+        mockInstance.instanceDate,
+        'rewardAmount'
+      );
+      expect(screen.queryByText("Confirm Edit Scope")).not.toBeInTheDocument(); // Modal closes
+    });
+
+    // Reward Amount Edit - Non-Recurring
+    test('reward amount (non-recurring): blur saves directly', async () => {
+      const user = userEvent.setup();
+      renderCardWithSpecificDndState({ definition: { ...mockDefinition, recurrenceType: null } }); // Non-recurring
+      await user.click(screen.getByLabelText('Edit reward amount'));
+      const input = screen.getByRole('spinbutton');
+      await user.clear(input);
+      await user.type(input, '8.00');
+      await user.tab(); // Blur
+
+      expect(mockUpdateChoreDefinition).toHaveBeenCalledWith(mockDefinition.id, { rewardAmount: 8.00 });
+      expect(mockUpdateChoreSeries).not.toHaveBeenCalled();
+      expect(mockUpdateChoreInstanceField).not.toHaveBeenCalled();
+      expect(screen.queryByText("Confirm Edit Scope")).not.toBeInTheDocument();
     });
 
     test('reward amount: pressing Escape in input cancels edit', async () => {
@@ -319,33 +349,58 @@ describe('KanbanCard', () => {
 
     test('instance date: clicking edit icon shows input, blur saves', async () => {
       const user = userEvent.setup();
-      renderCardWithSpecificDndState();
+      renderCardWithSpecificDndState(); // Assuming default mockDefinition is recurring
 
       await user.click(screen.getByLabelText('Edit due date'));
-
       const dateInput = screen.getByDisplayValue(mockInstance.instanceDate);
-      expect(dateInput).toBeInTheDocument();
-
       const newDate = '2024-08-15';
       fireEvent.change(dateInput, { target: { value: newDate } });
-      await user.tab();
+      await user.tab(); // Blur - opens modal
+
+      expect(screen.getByText("Confirm Edit Scope")).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /This instance only/i }));
 
       expect(mockUpdateChoreInstanceField).toHaveBeenCalledWith(mockInstance.id, 'instanceDate', newDate);
-      expect(screen.queryByDisplayValue(newDate)).not.toBeInTheDocument();
+      expect(mockUpdateChoreSeries).not.toHaveBeenCalled();
+      expect(screen.queryByText("Confirm Edit Scope")).not.toBeInTheDocument(); // Modal closes
     });
 
-    test('instance date: pressing Enter in input saves', async () => {
+    // Instance Date Edit - Series
+    test('instance date (recurring, series): Enter saves via modal', async () => {
       const user = userEvent.setup();
-      renderCardWithSpecificDndState();
+      renderCardWithSpecificDndState({ definition: { ...mockDefinition, recurrenceType: 'daily' } });
       await user.click(screen.getByLabelText('Edit due date'));
-
       const dateInput = screen.getByDisplayValue(mockInstance.instanceDate);
       const newDate = '2024-08-16';
       fireEvent.change(dateInput, { target: { value: newDate } });
-      await user.keyboard('{Enter}');
+      await user.keyboard('{Enter}'); // Enter - opens modal
+
+      expect(screen.getByText("Confirm Edit Scope")).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /This and all future instances/i }));
+
+      expect(mockUpdateChoreSeries).toHaveBeenCalledWith(
+        mockDefinition.id,
+        { dueDate: newDate },
+        mockInstance.instanceDate,
+        'dueDate'
+      );
+      expect(mockUpdateChoreInstanceField).not.toHaveBeenCalledWith(mockInstance.id, 'instanceDate', newDate); // Direct instance date change for series is not done this way
+      expect(screen.queryByText("Confirm Edit Scope")).not.toBeInTheDocument(); // Modal closes
+    });
+
+    // Instance Date Edit - Non-Recurring
+    test('instance date (non-recurring): blur saves directly', async () => {
+      const user = userEvent.setup();
+      renderCardWithSpecificDndState({ definition: { ...mockDefinition, recurrenceType: null } }); // Non-recurring
+      await user.click(screen.getByLabelText('Edit due date'));
+      const dateInput = screen.getByDisplayValue(mockInstance.instanceDate);
+      const newDate = '2024-08-17';
+      fireEvent.change(dateInput, { target: { value: newDate } });
+      await user.tab(); // Blur
 
       expect(mockUpdateChoreInstanceField).toHaveBeenCalledWith(mockInstance.id, 'instanceDate', newDate);
-      expect(screen.queryByDisplayValue(newDate)).not.toBeInTheDocument();
+      expect(mockUpdateChoreSeries).not.toHaveBeenCalled();
+      expect(screen.queryByText("Confirm Edit Scope")).not.toBeInTheDocument();
     });
 
     test('instance date: pressing Escape in input cancels edit', async () => {
@@ -361,6 +416,35 @@ describe('KanbanCard', () => {
       expect(screen.queryByDisplayValue('2000-01-01')).not.toBeInTheDocument();
       const dueDateContainer = screen.getByText('Due:').parentElement;
       expect(dueDateContainer).toHaveTextContent(`Due:${mockInstance.instanceDate}`);
+    });
+  });
+
+  describe('Displaying Overridden Reward', () => {
+    test('displays overridden reward amount and "(edited)" when instance.overriddenRewardAmount is set', () => {
+      const instanceWithOverride: ChoreInstance = { ...mockInstance, overriddenRewardAmount: 7.77 };
+      renderCardWithSpecificDndState({ instance: instanceWithOverride });
+
+      const rewardContainer = screen.getByText('Reward:').parentElement;
+      expect(rewardContainer).toHaveTextContent('Reward:$7.77');
+      expect(screen.getByText('(edited)')).toBeInTheDocument();
+    });
+
+    test('displays definition reward amount when instance.overriddenRewardAmount is undefined', () => {
+      const instanceWithoutOverride: ChoreInstance = { ...mockInstance, overriddenRewardAmount: undefined };
+      renderCardWithSpecificDndState({ instance: instanceWithoutOverride });
+
+      const rewardContainer = screen.getByText('Reward:').parentElement;
+      expect(rewardContainer).toHaveTextContent(`Reward:$${mockDefinition.rewardAmount?.toFixed(2)}`);
+      expect(screen.queryByText('(edited)')).not.toBeInTheDocument();
+    });
+
+     test('displays definition reward amount when instance.overriddenRewardAmount is null (though undefined is preferred for clearing)', () => {
+      const instanceWithNullOverride: ChoreInstance = { ...mockInstance, overriddenRewardAmount: null as any }; // Using null
+      renderCardWithSpecificDndState({ instance: instanceWithNullOverride });
+
+      const rewardContainer = screen.getByText('Reward:').parentElement;
+      expect(rewardContainer).toHaveTextContent(`Reward:$${mockDefinition.rewardAmount?.toFixed(2)}`);
+      expect(screen.queryByText('(edited)')).not.toBeInTheDocument();
     });
   });
 
