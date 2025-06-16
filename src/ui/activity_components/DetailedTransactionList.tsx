@@ -6,7 +6,6 @@ import { UserContext, UserContextType } from '../../contexts/UserContext';
 // ChoresContext is not directly used by KanbanSettingsView, so a minimal or no mock is needed unless UserProvider depends on it.
 // For now, assuming UserProvider is self-contained for these tests.
 import type { Kid, KanbanColumnConfig } from '../../types';
-import { vi } from 'vitest';
 import type { ReactNode } from 'react'; // Import ReactNode for wrapper type
 
 // Mock dnd-kit

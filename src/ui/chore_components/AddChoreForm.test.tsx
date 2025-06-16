@@ -1,7 +1,7 @@
+import { describe, it, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import '@testing-library/jest-dom';
 import AddChoreForm from './AddChoreForm'; // Assuming path is correct
 import { ChoresContext, ChoresContextType } from '../../contexts/ChoresContext';
 import { UserContext, UserContextType as AppUserContextType } from '../../contexts/UserContext'; // Renamed to avoid conflict

@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { describe, it, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 
 vi.mock('./DateColumnView', () => ({
   default: vi.fn(() => <div data-testid="date-column-view-mock">DateColumnView</div>),
@@ -11,7 +11,6 @@ import { UserContext, UserContextType as AppUserContextType } from '../../contex
 import KidKanbanBoard from './KidKanbanBoard';
 import DateColumnView from './DateColumnView'; // Import the mocked version
 import type { ChoreDefinition, ChoreInstance, KanbanColumnConfig, Kid, MatrixKanbanCategory } from '../../types';
-import '@testing-library/jest-dom';
 import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core';
 import userEvent from '@testing-library/user-event';
 import { getTodayDateString } from '../../utils/dateUtils';

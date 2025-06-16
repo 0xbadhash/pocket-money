@@ -7,9 +7,8 @@ let mockSortableContextFn: any;
 import { render, screen } from '@testing-library/react';
 import KanbanColumn from './KanbanColumn';
 import type { KanbanColumn as KanbanColumnType, ChoreInstance, ChoreDefinition } from '../../types';
-import { vi } from 'vitest';
+import { describe, it, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { verticalListSortingStrategy } from '@dnd-kit/sortable';
-import '@testing-library/jest-dom';
 
 const mockGetDefinitionForInstance = vi.fn((instance: ChoreInstance): ChoreDefinition | undefined => ({
   id: instance.choreDefinitionId,

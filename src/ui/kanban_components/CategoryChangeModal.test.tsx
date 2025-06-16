@@ -2,8 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import CategoryChangeModal from './CategoryChangeModal';
 import { ChoresContext, ChoresContextType } from '../../contexts/ChoresContext';
-import { vi } from 'vitest';
-import '@testing-library/jest-dom';
+import { describe, it, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import type { MatrixKanbanCategory } from '../../types';
 
 const mockBatchUpdateChoreInstancesCategory = vi.fn();

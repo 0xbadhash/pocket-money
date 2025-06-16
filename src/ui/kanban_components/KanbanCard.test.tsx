@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import KanbanCard from './KanbanCard';
 import { ChoresContext, ChoresContextType } from '../../contexts/ChoresContext';
 import type { ChoreInstance, ChoreDefinition } from '../../types';
-import { vi } from 'vitest';
+import { describe, it, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { useSortable } from '@dnd-kit/sortable'; // Import the actual hook
 
 // Mock the @dnd-kit/sortable module

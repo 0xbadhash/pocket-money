@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import KanbanView from './KanbanView'; // The component being tested
 import { UserContext, type UserContextType } from '../contexts/UserContext';
 import { ChoresContext, type ChoresContextType as AppChoresContextType } from '../contexts/ChoresContext'; // Import ChoresContext
-import { vi } from 'vitest';
+import { describe, it, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 
 // Mock child components of KidKanbanBoard to simplify this integration test
 // Note: KidKanbanBoard itself is NOT mocked, but its internal KanbanColumn (if it were still used) would be.
