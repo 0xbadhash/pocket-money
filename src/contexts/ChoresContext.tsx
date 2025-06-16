@@ -1,7 +1,7 @@
 // src/contexts/ChoresContext.tsx
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
-import type { ChoreDefinition, ChoreInstance, MatrixKanbanCategory, BatchActionResult } from '../types'; // Added BatchActionResult
+import type { ChoreDefinition, ChoreInstance, MatrixKanbanCategory } from '../types';
 import { useFinancialContext } from '../contexts/FinancialContext';
 import { generateChoreInstances } from '../utils/choreUtils';
 
@@ -59,11 +59,11 @@ interface ChoresContextType {
   /** Updates a specific field of a chore instance. */
   updateChoreInstanceField: (instanceId: string, fieldName: keyof ChoreInstance, value: any) => Promise<void>;
   /** Batch marks chore instances as complete or incomplete. */
-  batchToggleCompleteChoreInstances: (instanceIds: string[], markAsComplete: boolean) => Promise<BatchActionResult>;
+  batchToggleCompleteChoreInstances: (instanceIds: string[], markAsComplete: boolean) => Promise<void>;
   /** Batch updates the category for multiple chore instances. */
-  batchUpdateChoreInstancesCategory: (instanceIds: string[], newCategory: MatrixKanbanCategory) => Promise<BatchActionResult>;
+  batchUpdateChoreInstancesCategory: (instanceIds: string[], newCategory: MatrixKanbanCategory) => Promise<void>;
   /** Batch assigns chore definitions to a new kid. */
-  batchAssignChoreDefinitionsToKid: (definitionIds: string[], newKidId: string | null) => Promise<BatchActionResult>;
+  batchAssignChoreDefinitionsToKid: (definitionIds: string[], newKidId: string | null) => Promise<void>;
   /** Updates a chore definition and its future instances from a given date. */
   updateChoreSeries: (
     definitionId: string,
@@ -585,120 +585,71 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     );
   }, [setChoreInstances]);
 
-  const batchToggleCompleteChoreInstances = useCallback(async (instanceIds: string[], markAsComplete: boolean): Promise<BatchActionResult> => {
-    const result: BatchActionResult = { succeededCount: 0, failedCount: 0, succeededIds: [], failedIds: [] };
-
+  const batchToggleCompleteChoreInstances = useCallback(async (instanceIds: string[], markAsComplete: boolean) => {
     setChoreInstances(prevInstances => {
-      const updatedInstances = prevInstances.map(instance => {
+      return prevInstances.map(instance => {
         if (instanceIds.includes(instance.id)) {
-          if (instance.isComplete === markAsComplete) {
-            // Considered a success as it's already in the desired state or no action needed.
-            result.succeededCount++;
-            result.succeededIds.push(instance.id);
-            return instance;
-          }
+          if (instance.isComplete === markAsComplete) return instance; // No change needed
 
           const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
           if (!definition) {
             console.warn(`Definition not found for instance ${instance.id} during batch toggle complete.`);
-            result.failedCount++;
-            result.failedIds.push(instance.id);
-            return instance; // Return original instance on failure
+            return instance;
           }
 
           // Handle reward only when marking as complete and not already complete
           if (markAsComplete && !instance.isComplete && definition.assignedKidId && definition.rewardAmount && definition.rewardAmount > 0) {
             addKidReward(definition.assignedKidId, definition.rewardAmount, `${definition.title} (${instance.instanceDate})`);
           }
-
-          result.succeededCount++;
-          result.succeededIds.push(instance.id);
-
+          // This should ideally also update categoryStatus and subtasks like updateChoreInstanceCategory
+          // For simplicity now, just toggling 'isComplete'.
+          // A more robust solution would use applyCategoryUpdateToInstance if marking complete moves to 'COMPLETED' category.
           if (markAsComplete) {
+             // If marking complete, and category is not 'COMPLETED', move to 'COMPLETED'
             if (instance.categoryStatus !== 'COMPLETED') {
-              return applyCategoryUpdateToInstance(instance, 'COMPLETED', definition);
-            } else {
-              return { ...instance, isComplete: true };
+                return applyCategoryUpdateToInstance(instance, 'COMPLETED', definition);
+            } else { // Already in COMPLETED, ensure isComplete is true
+                return { ...instance, isComplete: true };
             }
           } else { // Marking incomplete
+            // If marking incomplete, and category is 'COMPLETED', move to 'IN_PROGRESS' (or 'TO_DO')
             if (instance.categoryStatus === 'COMPLETED') {
-              return applyCategoryUpdateToInstance(instance, 'IN_PROGRESS', definition);
-            } else {
-              return { ...instance, isComplete: false };
+                return applyCategoryUpdateToInstance(instance, 'IN_PROGRESS', definition); // Default to IN_PROGRESS
+            } else { // Already in TO_DO or IN_PROGRESS, ensure isComplete is false
+                 return { ...instance, isComplete: false };
             }
           }
         }
         return instance;
       });
-      // Update failedIds for any IDs not found in prevInstances
-      instanceIds.forEach(id => {
-        if (!prevInstances.find(inst => inst.id === id)) {
-          if (!result.failedIds.includes(id) && !result.succeededIds.includes(id)) { // ensure not already counted
-            result.failedCount++;
-            result.failedIds.push(id);
-          }
-        }
-      });
-      return updatedInstances;
     });
-    return result;
-  }, [choreDefinitions, addKidReward, setChoreInstances, applyCategoryUpdateToInstance]);
+  }, [choreDefinitions, addKidReward, setChoreInstances]);
 
-  const batchUpdateChoreInstancesCategory = useCallback(async (instanceIds: string[], newCategory: MatrixKanbanCategory): Promise<BatchActionResult> => {
-    const result: BatchActionResult = { succeededCount: 0, failedCount: 0, succeededIds: [], failedIds: [] };
-
-    setChoreInstances(prevInstances => {
-      const updatedInstances = prevInstances.map(instance => {
+  const batchUpdateChoreInstancesCategory = useCallback(async (instanceIds: string[], newCategory: MatrixKanbanCategory) => {
+    setChoreInstances(prevInstances =>
+      prevInstances.map(instance => {
         if (instanceIds.includes(instance.id)) {
           const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
           if (!definition) {
             console.warn(`Definition not found for instance ${instance.id} during batch category update.`);
-            result.failedCount++;
-            result.failedIds.push(instance.id);
             return instance;
           }
-          result.succeededCount++;
-          result.succeededIds.push(instance.id);
           return applyCategoryUpdateToInstance(instance, newCategory, definition);
         }
         return instance;
-      });
-      instanceIds.forEach(id => {
-        if (!prevInstances.find(inst => inst.id === id)) {
-           if (!result.failedIds.includes(id) && !result.succeededIds.includes(id)) {
-            result.failedCount++;
-            result.failedIds.push(id);
-          }
-        }
-      });
-      return updatedInstances;
-    });
-    return result;
-  }, [choreDefinitions, setChoreInstances, applyCategoryUpdateToInstance]);
+      })
+    );
+  }, [choreDefinitions, setChoreInstances]);
 
-  const batchAssignChoreDefinitionsToKid = useCallback(async (definitionIds: string[], newKidId: string | null): Promise<BatchActionResult> => {
-    const result: BatchActionResult = { succeededCount: 0, failedCount: 0, succeededIds: [], failedIds: [] };
-
-    setChoreDefinitions(prevDefs => {
-      const updatedDefs = prevDefs.map(def => {
+  const batchAssignChoreDefinitionsToKid = useCallback(async (definitionIds: string[], newKidId: string | null) => {
+    setChoreDefinitions(prevDefs =>
+      prevDefs.map(def => {
         if (definitionIds.includes(def.id)) {
-          result.succeededCount++;
-          result.succeededIds.push(def.id);
           return { ...def, assignedKidId: newKidId || undefined, updatedAt: new Date().toISOString() };
         }
         return def;
-      });
-      definitionIds.forEach(id => {
-        if (!prevDefs.find(def => def.id === id)) {
-          if (!result.failedIds.includes(id) && !result.succeededIds.includes(id)) {
-            result.failedCount++;
-            result.failedIds.push(id);
-          }
-        }
-      });
-      return updatedDefs;
-    });
-    return result;
+      })
+    );
   }, [setChoreDefinitions]);
 
   const updateChoreSeries = useCallback(async (

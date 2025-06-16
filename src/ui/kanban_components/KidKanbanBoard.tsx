@@ -5,14 +5,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { useUserContext } from '../../contexts/UserContext';
-import { useNotification } from '../../contexts/NotificationContext'; // Import useNotification
-import type { ChoreDefinition, ChoreInstance, KanbanPeriod, Kid, ColumnThemeOption, MatrixKanbanCategory, BatchActionResult } from '../../types';
+import type { ChoreDefinition, ChoreInstance, KanbanPeriod, Kid, ColumnThemeOption, MatrixKanbanCategory } from '../../types';
 import KanbanCard from './KanbanCard';
 import DateColumnView from './DateColumnView';
 import { useChoreSelection } from '../../hooks/useChoreSelection';
 import { useModalState } from '../../hooks/useModalState';
 import BatchActionsToolbar from './BatchActionsToolbar';
-import ConfirmationModal from '../components/ConfirmationModal'; // Added import
 import CategoryChangeModal from './CategoryChangeModal';
 import KidAssignmentModal from './KidAssignmentModal';
 import {
@@ -36,39 +34,28 @@ interface ActiveDragItem {
 
 interface KidKanbanBoardProps {
   kidId: string;
-  // New props for receiving filtered/sorted data
-  allChoreDefinitions: ChoreDefinition[];
-  filteredSortedInstances: ChoreInstance[];
 }
 
-const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({
-  kidId,
-  allChoreDefinitions, // Use this prop
-  filteredSortedInstances, // Use this prop
-}) => {
+const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   const {
-    // choreDefinitions, // Now from props
-    // choreInstances, // Now from props
-    generateInstancesForPeriod, // Still needed from context for actions
-    updateChoreInstanceCategory, // Action from context
+    choreDefinitions,
+    choreInstances,
+    generateInstancesForPeriod,
+    updateChoreInstanceCategory,
     batchToggleCompleteChoreInstances,
     batchUpdateChoreInstancesCategory,
     batchAssignChoreDefinitionsToKid,
   } = useChoresContext();
   const { getKanbanColumnConfigs, user } = useUserContext();
-  const { addNotification } = useNotification(); // Get addNotification
   const allKids = user?.kids || [];
 
   // Custom Hooks for selection and modal states
   const {
     selectedInstanceIds,
     toggleSelection: handleToggleSelection,
-    clearSelection: actualClearSelectionLogic, // Renamed for clarity
+    clearSelection: handleClearSelection,
     setSelectedInstanceIds,
   } = useChoreSelection();
-
-  // State for ConfirmationModal for clearing selection
-  const [isClearSelectionConfirmOpen, setIsClearSelectionConfirmOpen] = useState(false);
 
   const categoryModal = useModalState();
   const kidAssignmentModal = useModalState();
@@ -90,27 +77,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({
   const [showAddChoreModal, setShowAddChoreModal] = useState(false);
   const [addChoreDefaultDate, setAddChoreDefaultDate] = useState<Date | null>(null);
   const [editingChore, setEditingChore] = useState<ChoreDefinition | null>(null);
-  const [selectedKidId, setSelectedKidId] = useState<string>(kidId); // Already exists
-
-  // This derived list is now the primary source for rendering within this component
-  const instancesForThisKidAndPeriod = useMemo(() => {
-    return filteredSortedInstances.filter(instance => {
-      const definition = allChoreDefinitions.find(def => def.id === instance.choreDefinitionId);
-      // Filter by selected kid AND ensure instance falls within the current board's date range
-      return definition?.assignedKidId === selectedKidId &&
-             instance.instanceDate >= currentPeriodDateRange.start &&
-             instance.instanceDate <= currentPeriodDateRange.end;
-    });
-  }, [filteredSortedInstances, allChoreDefinitions, selectedKidId, currentPeriodDateRange]);
-
-  // The choreInstancesForSelectedKid for "Select All By Category" should also use the prop data
-  const choreInstancesForSelectedKid = useMemo(() => {
-    return filteredSortedInstances.filter(instance => {
-      const definition = allChoreDefinitions.find(def => def.id === instance.choreDefinitionId);
-      return definition?.assignedKidId === selectedKidId;
-    });
-  }, [filteredSortedInstances, allChoreDefinitions, selectedKidId]);
-
+  const [selectedKidId, setSelectedKidId] = useState<string>(kidId);
 
   useEffect(() => {
     localStorage.setItem('kanban_columnTheme', selectedColumnTheme);
@@ -153,10 +120,9 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({
   }, [selectedKidId, currentPeriodDateRange, generateInstancesForPeriod]);
 
 
-  // getDefinitionForInstance now uses allChoreDefinitions from props (already updated in previous step)
   const getDefinitionForInstance = useCallback((instance: ChoreInstance): ChoreDefinition | undefined => {
-    return allChoreDefinitions.find(def => def.id === instance.choreDefinitionId);
-  }, [allChoreDefinitions]);
+    return choreDefinitions.find(def => def.id === instance.choreDefinitionId);
+  }, [choreDefinitions]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -164,22 +130,22 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({
   );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
-    const instance = filteredSortedParentInstances.find(inst => inst.id === event.active.id.toString()); // Use prop
+    const instance = choreInstances.find(inst => inst.id === event.active.id.toString());
     if (instance) {
-      const definition = getDefinitionForInstance(instance); // Uses updated getDefinitionForInstance
+      const definition = getDefinitionForInstance(instance);
       if (definition) setActiveDragItem({ instance, definition });
       else setActiveDragItem(null);
     } else {
       setActiveDragItem(null);
     }
-  }, [filteredSortedParentInstances, getDefinitionForInstance]);
+  }, [choreInstances, getDefinitionForInstance]);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     setActiveDragItem(null);
     const { active, over } = event;
     if (!over || !active) return;
 
-    const activeInstance = filteredSortedParentInstances.find(inst => inst.id === active.id.toString()); // Use prop
+    const activeInstance = choreInstances.find(inst => inst.id === active.id.toString());
     if (!activeInstance) return;
 
     const parsedOverId = parseSwimlaneId(over.id.toString());
@@ -248,111 +214,58 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({
 
   useEffect(() => {
     if (!selectedKidId) return;
-    // Ensure instances within the current view (already filtered by parent, then by kid and period here)
-    // have a default category if missing.
-    instancesForThisKidAndPeriod.forEach(instance => {
-      if (!instance.categoryStatus) {
-        // The getDefinitionForInstance is not strictly needed here if instancesForThisKidAndPeriod
-        // already correctly filters by kidId. However, keeping it for safety or if definition properties were needed.
-        // const definition = getDefinitionForInstance(instance);
-        // if (definition && definition.assignedKidId === selectedKidId) {
+    choreInstances.forEach(instance => {
+      const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
+      if (definition && definition.assignedKidId === selectedKidId && instance.instanceDate >= currentPeriodDateRange.start && instance.instanceDate <= currentPeriodDateRange.end && !instance.categoryStatus) {
         updateChoreInstanceCategory(instance.id, "TO_DO");
-        // }
       }
     });
-  }, [selectedKidId, instancesForThisKidAndPeriod, updateChoreInstanceCategory, getDefinitionForInstance]);
+  }, [selectedKidId, choreInstances, choreDefinitions, currentPeriodDateRange, updateChoreInstanceCategory]);
 
   const kidsForSwitcher = user?.kids || [];
   const swimlaneConfigs = useMemo(() => getKanbanColumnConfigs(selectedKidId).sort((a, b) => a.order - b.order), [getKanbanColumnConfigs, selectedKidId]);
 
   // Batch Action Handlers wrapped in useCallback
-  const handleRequestClearSelection = () => {
-    if (selectedInstanceIds.length > 0) {
-      setIsClearSelectionConfirmOpen(true);
-    }
-  };
-
-  const handleConfirmClearSelection = () => {
-    actualClearSelectionLogic();
-    setIsClearSelectionConfirmOpen(false);
-    addNotification({ message: `${selectedInstanceIds.length} chore(s) selection cleared.`, type: 'info', duration: 3000 });
-  };
-
-  const createBatchActionNotificationMessage = (action: string, result: BatchActionResult): string => {
-    let message = `${action}: ${result.succeededCount} succeeded`;
-    if (result.failedCount > 0) {
-      message += `, ${result.failedCount} failed (IDs: ${result.failedIds.join(', ')}).`;
-    } else {
-      message += '.';
-    }
-    return message;
-  };
-
   const handleBatchMarkCompleteCb = useCallback(async () => {
     if (selectedInstanceIds.length === 0) return;
-    const result = await batchToggleCompleteChoreInstances(selectedInstanceIds, true);
-    addNotification({
-      message: createBatchActionNotificationMessage('Marked complete', result),
-      type: result.failedCount > 0 ? (result.succeededCount > 0 ? 'warning' : 'error') : 'success',
-    });
-    if (result.succeededCount > 0) actualClearSelectionLogic();
-  }, [selectedInstanceIds, batchToggleCompleteChoreInstances, actualClearSelectionLogic, addNotification]);
+    await batchToggleCompleteChoreInstances(selectedInstanceIds, true);
+    alert(`${selectedInstanceIds.length} chore(s) marked as complete.`);
+    handleClearSelection();
+  }, [selectedInstanceIds, batchToggleCompleteChoreInstances, handleClearSelection]);
 
   const handleBatchMarkIncompleteCb = useCallback(async () => {
     if (selectedInstanceIds.length === 0) return;
-    const result = await batchToggleCompleteChoreInstances(selectedInstanceIds, false);
-    addNotification({
-      message: createBatchActionNotificationMessage('Marked incomplete', result),
-      type: result.failedCount > 0 ? (result.succeededCount > 0 ? 'warning' : 'error') : 'success',
-    });
-    if (result.succeededCount > 0) actualClearSelectionLogic();
-  }, [selectedInstanceIds, batchToggleCompleteChoreInstances, actualClearSelectionLogic, addNotification]);
+    await batchToggleCompleteChoreInstances(selectedInstanceIds, false);
+    alert(`${selectedInstanceIds.length} chore(s) marked as incomplete.`);
+    handleClearSelection();
+  }, [selectedInstanceIds, batchToggleCompleteChoreInstances, handleClearSelection]);
 
-  // Note: CategoryChangeModal and KidAssignmentModal already call their respective batch functions
-  // which now return BatchActionResult. The onActionSuccess callbacks in those modals
-  // could be enhanced to use this result for more specific feedback, but for now,
-  // we'll just keep the existing alert and then clear selection.
-  // A deeper refactor would involve passing addNotification to these modals or handling their results here.
-
+  // Simplified handler for CategoryChangeModal's onActionSuccess
   const handleCategoryActionSuccess = useCallback(() => {
-    // This is called from CategoryChangeModal AFTER it performs its action and shows an alert.
-    // We just clear selection here. For more detailed notifications, CategoryChangeModal would need
-    // to return the BatchActionResult or useNotification hook itself.
-    // For now, assuming its internal alert is sufficient for immediate feedback.
-    addNotification({ message: 'Category change process completed.', type: 'info', duration: 3000 });
+    // The modal now handles the alert/feedback internally based on its own success/failure.
+    // KidKanbanBoard just needs to close the modal and clear selection.
+    alert("Category change action attempted."); // Generic feedback, or remove if modal handles all feedback
     categoryModal.closeModal();
-    actualClearSelectionLogic();
-  }, [categoryModal, actualClearSelectionLogic, addNotification]);
+    handleClearSelection();
+  }, [categoryModal, handleClearSelection]);
 
+  // Simplified handler for KidAssignmentModal's onActionSuccess
   const handleKidAssignmentActionSuccess = useCallback(() => {
-    // Similar to CategoryChangeModal, KidAssignmentModal handles its own internal alert.
-    addNotification({ message: 'Kid assignment process completed.', type: 'info', duration: 3000 });
+    // Similar to category change, modal handles specific feedback.
+    alert("Kid assignment action attempted."); // Generic feedback, or remove
     kidAssignmentModal.closeModal();
-    actualClearSelectionLogic();
-  }, [kidAssignmentModal, actualClearSelectionLogic, addNotification]);
-
-  const handleSelectAllByCategory = useCallback((category: MatrixKanbanCategory) => {
-    const instancesInCategory = choreInstancesForSelectedKid.filter(
-      instance => instance.categoryStatus === category
-    );
-    const instanceIdsInCategory = instancesInCategory.map(instance => instance.id);
-    setSelectedInstanceIds(instanceIdsInCategory);
-    addNotification({
-      message: `Selected all ${instanceIdsInCategory.length} chores in ${category.replace('_', ' ')}.`,
-      type: 'info',
-      duration: 3000
-    });
-  }, [choreInstancesForSelectedKid, setSelectedInstanceIds, addNotification]);
+    handleClearSelection();
+  }, [kidAssignmentModal, handleClearSelection]);
 
   // Derive selectedDefinitionIds for KidAssignmentModal - this needs to be available when opening modal
   const selectedDefinitionIdsForModal = useMemo(() => {
     if (selectedInstanceIds.length === 0) return [];
     return Array.from(new Set(
       selectedInstanceIds
-        .map(id => filteredSortedParentInstances.find(inst => inst.id === id)?.choreDefinitionId) // Use prop
+        .map(id => choreInstances.find(inst => inst.id === id)?.choreDefinitionId)
         .filter((id): id is string => !!id)
     ));
-  }, [selectedInstanceIds, filteredSortedParentInstances]);
+  }, [selectedInstanceIds, choreInstances]);
 
   const currentPeriodDisplayString = useMemo(() => {
     if (!currentPeriodDateRange.start) return "";
@@ -373,13 +286,11 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({
       <div className="kid-kanban-board">
         <BatchActionsToolbar
           selectedCount={selectedInstanceIds.length}
-          onClearSelection={handleRequestClearSelection}
+          onClearSelection={handleClearSelection}
           onOpenCategoryModal={categoryModal.openModal}
           onOpenKidAssignmentModal={kidAssignmentModal.openModal}
           onMarkComplete={handleBatchMarkCompleteCb}
           onMarkIncomplete={handleBatchMarkIncompleteCb}
-          onSelectAllByCategory={handleSelectAllByCategory} // Pass the new handler
-          // availableCategories can be implicitly known by BatchActionsToolbar or passed if dynamic
         />
         <CategoryChangeModal
           isVisible={categoryModal.isModalVisible}
@@ -390,17 +301,9 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({
         <KidAssignmentModal
           isVisible={kidAssignmentModal.isModalVisible}
           onClose={kidAssignmentModal.closeModal}
-          selectedDefinitionIds={selectedDefinitionIdsForModal}
+          selectedDefinitionIds={selectedDefinitionIdsForModal} // Pass derived definition IDs
           onActionSuccess={handleKidAssignmentActionSuccess}
-        />
-        <ConfirmationModal
-          isOpen={isClearSelectionConfirmOpen}
-          onClose={() => setIsClearSelectionConfirmOpen(false)}
-          onConfirm={handleConfirmClearSelection}
-          title="Confirm Clear Selection"
-          message={`Are you sure you want to clear all ${selectedInstanceIds.length} selected chore(s)? This cannot be undone.`}
-          confirmButtonText="Clear Selection"
-          cancelButtonText="Keep Selection"
+          // kids prop removed
         />
 
         {/* Kid selection buttons */}
@@ -442,14 +345,12 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({
                 <DateColumnView
                   key={swimlane.id}
                   date={date}
-                  // Pass down the relevant instances and definitions for this specific DateColumnView
-                  instancesForDateColumn={instancesForThisKidAndPeriod}
-                  allDefinitionsForDateColumn={allChoreDefinitions}
                   onEditChore={handleEditChore}
-                  kidId={selectedKidId} // kidId is already correct
+                  // getSwimlaneId={getSwimlaneId} // Retained if DateColumnView needs it for droppable IDs
+                  kidId={selectedKidId}
                   swimlaneConfig={swimlane}
-                  selectedInstanceIds={selectedInstanceIds} // For selection visuals
-                  onToggleSelection={handleToggleSelection} // For selection interaction
+                  selectedInstanceIds={selectedInstanceIds}
+                  onToggleSelection={handleToggleSelection}
                 />
               ))}
             </div>

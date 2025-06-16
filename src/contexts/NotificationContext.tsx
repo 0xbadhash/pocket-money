@@ -1,5 +1,6 @@
+// src/contexts/NotificationContext.tsx
 import React, { createContext, useState, useContext, useCallback, ReactNode } from 'react';
-import type { NotificationMessage } from '../types';
+import type { NotificationMessage } from '../types'; // Assuming NotificationMessage is in types.ts
 
 interface NotificationContextType {
   notifications: NotificationMessage[];
@@ -9,36 +10,26 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const NotificationProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const [notifications, setNotifications] = useState<NotificationMessage[]>([]);
 
   const removeNotification = useCallback((id: string) => {
-    setNotifications(prevNotifications =>
-      prevNotifications.filter(notification => notification.id !== id)
-    );
+    setNotifications(prev => prev.filter(n => n.id !== id));
   }, []);
 
-  const addNotification = useCallback(
-    (notification: Omit<NotificationMessage, 'id'>) => {
-      const id = Date.now().toString() + Math.random().toString(36).substr(2, 9); // More robust ID
-      const newNotification = { ...notification, id };
+  const addNotification = useCallback((notification: Omit<NotificationMessage, 'id'>) => {
+    const id = Date.now().toString() + Math.random().toString(36).substring(2, 9);
+    const fullNotification = { ...notification, id };
+    setNotifications(prev => [fullNotification, ...prev.slice(0, 4)]); // Keep max 5 notifications
 
-      setNotifications(prevNotifications => [newNotification, ...prevNotifications]);
+    const duration = notification.duration || (notification.type === 'success' || notification.type === 'info' ? 5000 : undefined);
 
-      if (notification.duration) {
-        setTimeout(() => {
-          removeNotification(id);
-        }, notification.duration);
-      } else if (notification.type === 'success' || notification.type === 'info') {
-        // Default auto-dismiss for success/info messages after 5 seconds
-        setTimeout(() => {
-          removeNotification(id);
-        }, 5000);
-      }
-      // Error and warning messages persist by default unless a duration is specified
-    },
-    [removeNotification]
-  );
+    if (duration) {
+      setTimeout(() => {
+        removeNotification(id);
+      }, duration);
+    }
+  }, [removeNotification]);
 
   return (
     <NotificationContext.Provider value={{ notifications, addNotification, removeNotification }}>
