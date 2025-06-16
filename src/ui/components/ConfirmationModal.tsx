@@ -75,19 +75,19 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   // Old Escape key handler - replaced by the one in the effect above
   // useEffect(() => {
   //   const handleEscapeKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
+  //     if (event.key === 'Escape') {
+  //       onClose();
+  //     }
+  //   };
 
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscapeKey);
-    }
+  //   if (isOpen) {
+  //     document.addEventListener('keydown', handleEscapeKey);
+  //   }
 
-    return () => {
-      document.removeEventListener('keydown', handleEscapeKey);
-    };
-  }, [isOpen, onClose]);
+  //   return () => {
+  //     document.removeEventListener('keydown', handleEscapeKey);
+  //   };
+  // }, [isOpen, onClose]); // This line and the one above it (};) were the issue.
 
   if (!isOpen) {
     return null;

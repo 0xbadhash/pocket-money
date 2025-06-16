@@ -26,41 +26,41 @@ describe('EditScopeModal Component', () => {
   });
 
   test('renders correctly when isVisible is true', () => {
-    render(<EditScopeModal {...defaultProps} />);
+    const { container } = render(<EditScopeModal {...defaultProps} />);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText('Confirm Edit Scope')).toBeInTheDocument();
-    // Custom text matcher for the paragraph due to dynamic content and whitespace
-    const pElement = screen.getByText((content, node) => {
-      const nodeText = node?.textContent || "";
-      return node?.tagName.toLowerCase() === 'p' &&
-        nodeText.includes("You've edited") &&
-        nodeText.includes(defaultProps.fieldName!) &&
-        nodeText.includes(`to "${defaultProps.newValue}"`) &&
-        nodeText.includes(". Apply this change to:");
-    });
+    expect(screen.getByRole('heading', { name: 'Confirm Edit Scope', level: 2 })).toBeInTheDocument();
+
+    const pElement = container.querySelector('#edit-scope-modal-message');
     expect(pElement).toBeInTheDocument();
+    expect(pElement).toHaveTextContent(`You've edited ${defaultProps.fieldName} to "${defaultProps.newValue}".`);
+    // The <br /> might result in a space or just concatenation.
+    // Testing the key parts is more robust:
+    expect(pElement).toHaveTextContent("You've edited");
+    expect(pElement).toHaveTextContent(defaultProps.fieldName!);
+    expect(pElement).toHaveTextContent(`to "${defaultProps.newValue}"`);
+    expect(pElement).toHaveTextContent("Apply this change to:");
+
     expect(screen.getByRole('button', { name: /This instance only/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /This and all future instances/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Cancel/i })).toBeInTheDocument();
   });
 
   test('renders default fieldName and newValue when props are not provided', () => {
-    render(<EditScopeModal isVisible={true} onClose={mockOnClose} onConfirmScope={mockOnConfirmScope} />);
-    expect(screen.getByText(/You've edited the field to the new value. Apply this change to:/i)).toBeInTheDocument();
+    const { container } = render(<EditScopeModal isVisible={true} onClose={mockOnClose} onConfirmScope={mockOnConfirmScope} />);
+    const pElement = container.querySelector('#edit-scope-modal-message');
+    expect(pElement).toBeInTheDocument();
+    // Default values are "the field" and "the new value"
+    expect(pElement).toHaveTextContent(`You've edited the field to the new value.`);
+    expect(pElement).toHaveTextContent("Apply this change to:");
   });
 
   test('renders newValue correctly even for numbers (e.g. reward)', () => {
     const propsWithNumber = {...defaultProps, fieldName:"reward", newValue: 10};
-    render(<EditScopeModal {...propsWithNumber} />);
-    const pElement = screen.getByText((content, node) => {
-      const nodeText = node?.textContent || "";
-      return node?.tagName.toLowerCase() === 'p' &&
-        nodeText.includes("You've edited") &&
-        nodeText.includes(propsWithNumber.fieldName!) &&
-        nodeText.includes(`to "${propsWithNumber.newValue}"`) &&
-        nodeText.includes(". Apply this change to:");
-    });
+    const { container } = render(<EditScopeModal {...propsWithNumber} />);
+    const pElement = container.querySelector('#edit-scope-modal-message');
     expect(pElement).toBeInTheDocument();
+    expect(pElement).toHaveTextContent(`You've edited ${propsWithNumber.fieldName} to "${propsWithNumber.newValue}".`);
+    expect(pElement).toHaveTextContent("Apply this change to:");
   });
 
 
