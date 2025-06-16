@@ -1,8 +1,9 @@
 // src/ui/kanban_components/KanbanCard.test.tsx
-import { render, screen, cleanup, fireEvent } from '@testing-library/react'; // Import cleanup & fireEvent
+import { render, screen, cleanup, fireEvent } from '../../../src/test-utils'; // Use customRender
 import userEvent from '@testing-library/user-event';
 import KanbanCard from './KanbanCard';
-import { ChoresContext, ChoresContextType } from '../../contexts/ChoresContext';
+// ChoresContext will be provided by AllTheProviders. We'll mock its hook.
+import { useChoresContext } from '../../contexts/ChoresContext';
 import type { ChoreInstance, ChoreDefinition } from '../../types';
 import { vi } from 'vitest';
 import { useSortable } from '@dnd-kit/sortable'; // Import the actual hook
@@ -26,28 +27,32 @@ vi.mock('@dnd-kit/sortable', async (importOriginal) => {
 // Now useSortable is a mock function, and vi.mocked(useSortable) can be used.
 
 const mockToggleChoreInstanceComplete = vi.fn();
-const mockToggleSubtaskCompletionOnInstance = vi.fn(); // Renamed mock
+const mockToggleSubtaskCompletionOnInstance = vi.fn();
 const mockUpdateChoreDefinition = vi.fn();
 const mockUpdateChoreInstanceField = vi.fn();
-const mockUpdateChoreSeries = vi.fn(); // Added for series edits
+const mockUpdateChoreSeries = vi.fn();
 
-const mockContextValue: ChoresContextType = {
-  choreDefinitions: [],
-  choreInstances: [],
-  addChoreDefinition: vi.fn(),
-  updateChoreDefinition: mockUpdateChoreDefinition,
-  toggleChoreInstanceComplete: mockToggleChoreInstanceComplete,
-  getChoreDefinitionsForKid: vi.fn(() => []),
-  generateInstancesForPeriod: vi.fn(),
-  toggleSubtaskCompletionOnInstance: mockToggleSubtaskCompletionOnInstance, // Use renamed mock
-  toggleChoreDefinitionActiveState: vi.fn(),
-  updateChoreInstanceCategory: vi.fn(),
-  updateChoreInstanceField: mockUpdateChoreInstanceField,
-  updateChoreSeries: mockUpdateChoreSeries, // Added to context
-  batchToggleCompleteChoreInstances: vi.fn(),
-  batchUpdateChoreInstancesCategory: vi.fn(),
-  batchAssignChoreDefinitionsToKid: vi.fn(),
-};
+// Mock the useChoresContext hook
+vi.mock('../../contexts/ChoresContext', async () => ({
+  ...((await vi.importActual('../../contexts/ChoresContext')) as any),
+  useChoresContext: () => ({
+    choreDefinitions: [], // Provide default empty arrays or mock data as needed
+    choreInstances: [],
+    addChoreDefinition: vi.fn(),
+    updateChoreDefinition: mockUpdateChoreDefinition,
+    toggleChoreInstanceComplete: mockToggleChoreInstanceComplete,
+    getChoreDefinitionsForKid: vi.fn(() => []),
+    generateInstancesForPeriod: vi.fn(),
+    toggleSubtaskCompletionOnInstance: mockToggleSubtaskCompletionOnInstance,
+    toggleChoreDefinitionActiveState: vi.fn(),
+    updateChoreInstanceCategory: vi.fn(),
+    updateChoreInstanceField: mockUpdateChoreInstanceField,
+    updateChoreSeries: mockUpdateChoreSeries,
+    batchToggleCompleteChoreInstances: vi.fn().mockResolvedValue({succeededCount: 0, failedCount: 0, succeededIds: [], failedIds: []}),
+    batchUpdateChoreInstancesCategory: vi.fn().mockResolvedValue({succeededCount: 0, failedCount: 0, succeededIds: [], failedIds: []}),
+    batchAssignChoreDefinitionsToKid: vi.fn().mockResolvedValue({succeededCount: 0, failedCount: 0, succeededIds: [], failedIds: []}),
+  }),
+}));
 
 // Initial subtask completions based on mockDefinition
 const initialSubtaskCompletions = {
@@ -93,12 +98,12 @@ const mockDefinition: ChoreDefinition = {
 const renderCardWithSpecificDndState = ({
   instance = mockInstance,
   definition = mockDefinition,
-  // instance = mockInstance, // Duplicate removed
-  // definition = mockDefinition, // Duplicate removed
+  // instance = mockInstance,
+  // definition = mockDefinition,
   isOverlay = false,
   isDraggingValue = false,
   isSelected = false,
-  onToggleSelection, // Removed default vi.fn() here
+  onToggleSelection = vi.fn(), // Provide a default mock if not passed
 } = {}) => {
   vi.mocked(useSortable).mockReturnValueOnce({
     attributes: { 'data-testid': 'sortable-attributes' },
@@ -109,16 +114,15 @@ const renderCardWithSpecificDndState = ({
     isDragging: isDraggingValue,
   });
 
+  // Use the customRender from test-utils which includes AllTheProviders
   return render(
-    <ChoresContext.Provider value={mockContextValue}>
-      <KanbanCard
-        instance={instance}
-        definition={definition}
-        isOverlay={isOverlay}
-        isSelected={isSelected}
-        onToggleSelection={onToggleSelection}
-      />
-    </ChoresContext.Provider>
+    <KanbanCard
+      instance={instance}
+      definition={definition}
+      isOverlay={isOverlay}
+      isSelected={isSelected}
+      onToggleSelection={onToggleSelection}
+    />
   );
 };
 

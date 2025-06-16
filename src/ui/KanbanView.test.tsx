@@ -1,10 +1,16 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent } from '../../src/test-utils'; // Use customRender
 import '@testing-library/jest-dom';
-import { UserContext, UserContextType } from '../contexts/UserContext'; // Corrected path
+// Import hooks to mock their return values
+import { useUserContext } from '../contexts/UserContext';
+import { useChoresContext } from '../contexts/ChoresContext';
+// AppNotificationContext might not be directly used by KanbanView, but by its layout in App.tsx.
+// If tests break due to AppNotificationDisplay (from App.tsx's nav) needing it,
+// then AppNotificationProvider is correctly in test-utils.
+// For now, assuming KanbanView itself doesn't directly call useAppNotification.
 import KanbanView from './KanbanView';
-import type { Kid } from '../types'; // Corrected path if types is at src/types.ts
-import { vi } from 'vitest'; // Import vi for mocking
+import type { Kid } from '../types';
+import { vi } from 'vitest';
 
 // Mock KidKanbanBoard to avoid complex setup
 vi.mock('./kanban_components/KidKanbanBoard', () => ({
@@ -16,27 +22,58 @@ const mockKids: Kid[] = [
   { id: 'kid2', name: 'Bob', kanbanColumnConfigs: [] },
 ];
 
+// Mock context hooks
+vi.mock('../contexts/UserContext', async () => ({
+  ...((await vi.importActual('../contexts/UserContext')) as any),
+  useUserContext: vi.fn(),
+}));
+
+vi.mock('../contexts/ChoresContext', async () => ({
+  ...((await vi.importActual('../contexts/ChoresContext')) as any),
+  useChoresContext: vi.fn(),
+}));
+
+
 describe('KanbanView', () => {
-  const setup = (kids: Kid[] | null, selectedKidId: string | null = null) => {
-    const mockUserContextValue: Partial<UserContextType> = {
+  const setupTest = (kids: Kid[] | null, loading: boolean = false) => {
+    // Setup mock return values for hooks before each relevant test or group
+    vi.mocked(useUserContext).mockReturnValue({
       user: kids ? { id: 'user1', username: 'Test User', email: 'test@example.com', kids: kids } : null,
-      loading: false,
-      // setSelectedKidId: jest.fn(), // This would be part of the component's state, not context directly for selection
-    };
+      loading: loading,
+      // Add other UserContext values/functions if KanbanView uses them
+      updateUser: vi.fn(),
+      updateKid: vi.fn(),
+      addKid: vi.fn(),
+      deleteKid: vi.fn(),
+      getKanbanColumnConfigs: vi.fn(() => []),
+      updateKanbanColumnConfigs: vi.fn(),
+    });
 
-    // For KanbanView, selectedKidId is managed by its own state.
-    // We can't directly set selectedKidId via context for this component.
-    // We will test its state changes via interactions.
+    vi.mocked(useChoresContext).mockReturnValue({
+      choreInstances: [], // Provide default empty or mock data
+      choreDefinitions: [],
+      // Add other ChoresContext values/functions if KanbanView uses them
+      // For example, if KanbanFilters eventually uses something from here
+      addChoreDefinition: vi.fn(),
+      updateChoreDefinition: vi.fn(),
+      toggleChoreInstanceComplete: vi.fn(),
+      getChoreDefinitionsForKid: vi.fn(() => []),
+      generateInstancesForPeriod: vi.fn(),
+      toggleSubtaskCompletionOnInstance: vi.fn(),
+      toggleChoreDefinitionActiveState: vi.fn(),
+      updateChoreInstanceCategory: vi.fn(),
+      updateChoreInstanceField: vi.fn(),
+      batchToggleCompleteChoreInstances: vi.fn().mockResolvedValue({succeededCount:0, failedCount:0, succeededIds:[], failedIds:[]}),
+      batchUpdateChoreInstancesCategory: vi.fn().mockResolvedValue({succeededCount:0, failedCount:0, succeededIds:[], failedIds:[]}),
+      batchAssignChoreDefinitionsToKid: vi.fn().mockResolvedValue({succeededCount:0, failedCount:0, succeededIds:[], failedIds:[]}),
+      updateChoreSeries: vi.fn(),
+    });
 
-    render(
-      <UserContext.Provider value={mockUserContextValue as UserContextType}>
-        <KanbanView />
-      </UserContext.Provider>
-    );
+    render(<KanbanView />);
   };
 
   it('renders kid selection buttons when kids are present', () => {
-    setup(mockKids);
+    setupTest(mockKids);
     expect(screen.getByText('Alice')).toBeInTheDocument();
     expect(screen.getByText('Bob')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Alice' })).toBeInTheDocument();
@@ -44,30 +81,24 @@ describe('KanbanView', () => {
   });
 
   it('renders "No kids found" message when no kids are present', () => {
-    setup([]);
+    setupTest(null); // Pass null for kids
     expect(screen.getByText('No kids found. Please add kids in settings.')).toBeInTheDocument();
   });
 
   it('renders "Loading user data..." when loading', () => {
-    const loadingContextValue: Partial<UserContextType> = { user: null, loading: true };
-     render(
-      <UserContext.Provider value={loadingContextValue as UserContextType}>
-        <KanbanView />
-      </UserContext.Provider>
-    );
+    setupTest(null, true); // Pass null for kids, true for loading
     expect(screen.getByText('Loading user data...')).toBeInTheDocument();
   });
 
   it('renders "Select a kid" message when kids are present but none selected initially', () => {
-    setup(mockKids);
+    setupTest(mockKids);
     expect(screen.getByText('Select a kid to view their Kanban board.')).toBeInTheDocument();
     expect(screen.queryByTestId('kid-kanban-board')).not.toBeInTheDocument();
   });
 
   it('updates selected kid and shows Kanban board when a kid button is clicked', () => {
-    setup(mockKids);
+    setupTest(mockKids);
 
-    // Initially, no board is shown
     expect(screen.queryByTestId('kid-kanban-board')).not.toBeInTheDocument();
 
     const aliceButton = screen.getByRole('button', { name: 'Alice' });
@@ -89,7 +120,7 @@ describe('KanbanView', () => {
   });
 
   it('changes selected kid when another kid button is clicked', () => {
-    setup(mockKids);
+    setupTest(mockKids);
 
     const aliceButton = screen.getByRole('button', { name: 'Alice' });
     fireEvent.click(aliceButton);

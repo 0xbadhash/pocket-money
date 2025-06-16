@@ -187,7 +187,33 @@ describe('KidKanbanBoard - Matrix View', () => {
     });
   });
 
-  // Test for 'Kid selection buttons are rendered and functional' was removed
-  // as this functionality is no longer part of KidKanbanBoard.tsx.
-  // Kid selection is handled by the parent component (e.g., KanbanView.tsx).
+  test('Kid selection buttons are rendered and functional', async () => {
+    const user = userEvent.setup();
+    const kid2MatrixSwimlaneConfigs: KanbanColumnConfig[] = [
+      { id: 'swim_kid2_1', kidId: 'kid_matrix_2', title: 'Kid 2 To Do', order: 0, color: '#ABCDEF', createdAt: 't', updatedAt: 't' },
+    ];
+    if (!mockMatrixUserContext.user) throw new Error("mockMatrixUserContext.user is null");
+    mockMatrixUserContext.user.kids.push({ id: 'kid_matrix_2', name: 'Matrix Kid Two', kanbanColumnConfigs: kid2MatrixSwimlaneConfigs, age: 0, totalFunds:0 });
+
+    (mockMatrixUserContext.getKanbanColumnConfigs as ReturnType<typeof vi.fn>).mockImplementation((kidId: string) => {
+        if (kidId === 'kid_matrix') return mockMatrixSwimlaneConfigs;
+        if (kidId === 'kid_matrix_2') return kid2MatrixSwimlaneConfigs;
+        return [];
+    });
+
+    renderMatrixBoard('kid_matrix');
+
+    expect(screen.getByRole('button', { name: 'Matrix Kid' })).toBeInTheDocument();
+    const kidTwoButton = screen.getByRole('button', { name: 'Matrix Kid Two' });
+    expect(kidTwoButton).toBeInTheDocument();
+
+    expect(screen.getByRole('button', { name: 'Matrix Kid' })).toHaveStyle('font-weight: bold');
+    expect(kidTwoButton).not.toHaveStyle('font-weight: bold');
+
+    await user.click(kidTwoButton);
+
+    expect(kidTwoButton).toHaveStyle('font-weight: bold');
+    expect(screen.getByRole('button', { name: 'Matrix Kid' })).not.toHaveStyle('font-weight: bold');
+    expect(mockMatrixUserContext.getKanbanColumnConfigs).toHaveBeenCalledWith('kid_matrix_2');
+  });
 });
