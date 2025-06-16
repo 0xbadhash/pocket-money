@@ -10,7 +10,6 @@ describe('BatchActionsToolbar Component', () => {
   const mockOnOpenKidAssignmentModal = vi.fn();
   const mockOnMarkComplete = vi.fn();
   const mockOnMarkIncomplete = vi.fn();
-  const mockOnSelectAllByCategory = vi.fn(); // Mock for the new prop
 
   const defaultProps = {
     selectedCount: 2,
@@ -19,7 +18,6 @@ describe('BatchActionsToolbar Component', () => {
     onOpenKidAssignmentModal: mockOnOpenKidAssignmentModal,
     onMarkComplete: mockOnMarkComplete,
     onMarkIncomplete: mockOnMarkIncomplete,
-    onSelectAllByCategory: mockOnSelectAllByCategory, // Add to defaultProps
   };
 
   beforeEach(() => {
@@ -75,22 +73,12 @@ describe('BatchActionsToolbar Component', () => {
   });
 
   // Optional: Test for selectedCount = 0.
-  // The BatchActionsToolbar now always renders, but content changes based on selectedCount.
-  test('does not render action-specific elements when selectedCount is 0, but renders category selector', () => {
-    render(<BatchActionsToolbar {...defaultProps} selectedCount={0} />);
-
-    // Toolbar itself should be present
-    expect(screen.getByRole('toolbar')).toBeInTheDocument();
-
-    // "Select by Category" button should be present
-    expect(screen.getByRole('button', { name: /Select by Category/i })).toBeInTheDocument();
-
-    // Elements specific to active selection should NOT be present
-    expect(screen.queryByText(/selected/i)).toBeNull(); // Count message
-    expect(screen.queryByRole('button', { name: /Assign to Kid/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /Mark as Complete/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /Mark as Incomplete/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /Change Swimlane/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /Clear Selection/i })).toBeNull();
+  // The BatchActionsToolbar itself doesn't hide based on selectedCount;
+  // its parent KidKanbanBoard decides whether to render it.
+  // So, this test is just to ensure it renders text for 0 items if passed.
+  test('renders null when selectedCount is 0', () => {
+    const { container } = render(<BatchActionsToolbar {...defaultProps} selectedCount={0} />);
+    // The component returns null when selectedCount is 0
+    expect(container.firstChild).toBeNull();
   });
 });

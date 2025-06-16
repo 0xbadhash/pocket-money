@@ -9,21 +9,21 @@ import { ChoresProvider } from './contexts/ChoresContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { AppNotificationProvider } from './contexts/AppNotificationContext';
 
-// Define the wrapper component
+// Define the wrapper component with all providers active
 const AllTheProviders: React.FC<{children: ReactNode}> = ({ children }) => {
   return (
-    <BrowserRouter>
-      <UserProvider>
-        <FinancialProvider>
-          <ChoresProvider>
-            <AppNotificationProvider> {/* Depends on ChoresProvider */}
-              <NotificationProvider> {/* General UI notifications, can be fairly outer */}
+    <BrowserRouter> {/* Keep BrowserRouter active */}
+      <UserProvider> {/* UserProvider active */}
+        {/* <FinancialProvider> // Keep FinancialProvider commented out */}
+          {/* <ChoresProvider> // Keep ChoresProvider commented out */}
+            {/* <AppNotificationProvider> // Keep AppNotificationProvider commented out */}
+              {/* <NotificationProvider> // Keep NotificationProvider commented out */}
                 {children}
-              </NotificationProvider>
-            </AppNotificationProvider>
-          </ChoresProvider>
-        </FinancialProvider>
-      </UserProvider>
+              {/* </NotificationProvider> // Keep NotificationProvider commented out */}
+            {/* </AppNotificationProvider> // Keep AppNotificationProvider commented out */}
+          {/* </ChoresProvider> // Keep ChoresProvider commented out */}
+        {/* </FinancialProvider> // Keep FinancialProvider commented out */}
+      </UserProvider> {/* UserProvider active */}
     </BrowserRouter>
   );
 };

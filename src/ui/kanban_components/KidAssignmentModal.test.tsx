@@ -1,8 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, act as reactAct } from '../../../src/test-utils'; // Use customRender
 import KidAssignmentModal from './KidAssignmentModal';
-// UserContext and ChoresContext will be provided by AllTheProviders via test-utils
-// We will mock their hook return values instead of providing context here.
+// Import hooks to mock
 import { useUserContext } from '../../contexts/UserContext';
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { vi } from 'vitest';
@@ -16,27 +15,50 @@ const mockUserKids: Kid[] = [
 ];
 
 // Mock the hooks
-vi.mock('../../contexts/UserContext', async () => ({
-  ...((await vi.importActual('../../contexts/UserContext')) as any), // Preserve other exports if any
-  useUserContext: () => ({
-    user: {
-      id: 'user1',
-      username: 'Test User',
-      email: 'test@example.com',
-      kids: mockUserKids,
-    },
-    // Mock other functions/values from UserContext if KidAssignmentModal uses them
-  }),
-}));
+vi.mock('../../contexts/UserContext', async () => {
+  const actual = await vi.importActual('../../contexts/UserContext') as any;
+  return {
+    ...actual,
+    useUserContext: vi.fn(() => ({ // Default mock, can be overridden in tests
+      user: {
+        id: 'user1',
+        username: 'Test User',
+        email: 'test@example.com',
+        kids: mockUserKids,
+        settings: {}, createdAt: '', updatedAt: '',
+      },
+      loading: false, error: null, login: vi.fn(), logout: vi.fn(), updateUser: vi.fn(),
+      addKid: vi.fn(() => 'new_kid_id'), updateKid: vi.fn(), deleteKid: vi.fn(),
+      getKanbanColumnConfigs: vi.fn(() => []), addKanbanColumnConfig: vi.fn(async () => {}),
+      updateKanbanColumnConfig: vi.fn(async () => {}), deleteKanbanColumnConfig: vi.fn(async () => {}),
+      reorderKanbanColumnConfigs: vi.fn(async () => {}),
+    })),
+  };
+});
 
-vi.mock('../../contexts/ChoresContext', async () => ({
-  ...((await vi.importActual('../../contexts/ChoresContext')) as any), // Preserve other exports
-  useChoresContext: () => ({
-    batchAssignChoreDefinitionsToKid: mockBatchAssignChoreDefinitionsToKid,
-    // Mock other functions/values from ChoresContext if KidAssignmentModal uses them
-  }),
-}));
-
+vi.mock('../../contexts/ChoresContext', async () => {
+  const actual = await vi.importActual('../../contexts/ChoresContext') as any;
+  return {
+    ...actual,
+    useChoresContext: vi.fn(() => ({
+      choreInstances: [],
+      choreDefinitions: [],
+      batchAssignChoreDefinitionsToKid: mockBatchAssignChoreDefinitionsToKid, // Use the spy here
+      addChoreDefinition: vi.fn(),
+      updateChoreDefinition: vi.fn(async () => {}),
+      toggleChoreInstanceComplete: vi.fn(),
+      getChoreDefinitionsForKid: vi.fn(() => []),
+      generateInstancesForPeriod: vi.fn(),
+      toggleSubtaskCompletionOnInstance: vi.fn(),
+      toggleChoreDefinitionActiveState: vi.fn(),
+      updateChoreInstanceCategory: vi.fn(),
+      updateChoreInstanceField: vi.fn(async () => {}),
+      batchToggleCompleteChoreInstances: vi.fn().mockResolvedValue({succeededCount:0, failedCount:0, succeededIds:[], failedIds:[]}),
+      batchUpdateChoreInstancesCategory: vi.fn().mockResolvedValue({succeededCount:0, failedCount:0, succeededIds:[], failedIds:[]}),
+      updateChoreSeries: vi.fn(async () => {}),
+    })),
+  };
+});
 
 describe('KidAssignmentModal Component', () => {
   const mockOnClose = vi.fn();
@@ -67,8 +89,8 @@ describe('KidAssignmentModal Component', () => {
     mockUserKids.forEach(kid => {
       expect(screen.getByRole('option', { name: kid.name })).toBeInTheDocument();
     });
-    expect(screen.getByRole('option', { name: 'Unassign' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Confirm/i })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Unassign Chores' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Confirm Assignment/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Cancel/i })).toBeInTheDocument();
   });
 
@@ -105,7 +127,7 @@ describe('KidAssignmentModal Component', () => {
   });
 
   test('clicking "Confirm" calls batchAssign, onActionSuccess, and onClose with selected kid ID', async () => {
-    mockBatchAssignChoreDefinitionsToKid.mockResolvedValueOnce({succeededCount: 2, failedCount: 0, succeededIds: defaultSelectedDefinitionIds, failedIds: []});
+    mockBatchAssignChoreDefinitionsToKid.mockResolvedValueOnce({succeededCount: defaultSelectedDefinitionIds.length, failedCount: 0, succeededIds: defaultSelectedDefinitionIds, failedIds: []});
     render(<KidAssignmentModal {...defaultProps} />);
 
     const selectElement = screen.getByRole('combobox');
@@ -123,7 +145,7 @@ describe('KidAssignmentModal Component', () => {
   });
 
   test('clicking "Confirm" calls batchAssign with null for "Unassign"', async () => {
-    mockBatchAssignChoreDefinitionsToKid.mockResolvedValueOnce({succeededCount: 2, failedCount: 0, succeededIds: defaultSelectedDefinitionIds, failedIds: []});
+    mockBatchAssignChoreDefinitionsToKid.mockResolvedValueOnce({succeededCount: defaultSelectedDefinitionIds.length, failedCount: 0, succeededIds: defaultSelectedDefinitionIds, failedIds: []});
     render(<KidAssignmentModal {...defaultProps} />);
 
     const selectElement = screen.getByRole('combobox');

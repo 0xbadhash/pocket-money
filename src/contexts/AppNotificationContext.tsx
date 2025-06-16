@@ -1,115 +1,102 @@
-import React, { createContext, useState, useContext, useCallback, ReactNode, useEffect } from 'react';
-import type { AppNotification, ChoreInstance, ChoreDefinition } from '../types';
-import { useChoresContext } from './ChoresContext'; // To access chore data
-import { getTodayDateString } from '../utils/dateUtils'; // For date comparisons
+// src/contexts/AppNotificationContext.tsx
+import React, { createContext, useState, useContext, useCallback, useEffect, ReactNode } from 'react';
+import type { AppNotification } from '../types'; // Assuming AppNotification is in types.ts
+import { useChoresContext } from './ChoresContext'; // Dependency
+import { ChoreInstance, ChoreDefinition } from '../types';
 
 interface AppNotificationContextType {
   appNotifications: AppNotification[];
   fetchAppNotifications: () => void;
-  markAsRead: (notificationId: string) => void; // Stubbed for now
+  markAsRead: (notificationId: string) => void;
   unreadCount: number;
 }
 
 const AppNotificationContext = createContext<AppNotificationContextType | undefined>(undefined);
 
-export const AppNotificationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const AppNotificationProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const [appNotifications, setAppNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const { choreInstances, choreDefinitions } = useChoresContext();
 
+  const markAsRead = useCallback((notificationId: string) => {
+    setAppNotifications(prev =>
+      prev.map(n => (n.id === notificationId ? { ...n, isRead: true } : n))
+    );
+  }, []);
+
   const fetchAppNotifications = useCallback(() => {
-    const todayStr = getTodayDateString();
+    // More robust guard clause
+    if (!choreInstances || !choreDefinitions || !Array.isArray(choreInstances) || !Array.isArray(choreDefinitions)) {
+      // console.warn('AppNotificationContext: choreInstances or choreDefinitions not available or not arrays yet.');
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize to start of today
+
     const newNotifications: AppNotification[] = [];
 
     choreInstances.forEach((instance: ChoreInstance) => {
-      if (instance.isComplete) {
-        return; // Skip completed chores
-      }
+      if (instance.isComplete) return;
 
-      const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
-      if (!definition) {
-        return; // Skip if definition not found
-      }
+      const definition = choreDefinitions.find((def: ChoreDefinition) => def.id === instance.choreDefinitionId);
+      if (!definition) return;
 
-      const choreName = definition.title || 'Unnamed Chore';
+      const instanceDueDate = new Date(instance.instanceDate + 'T00:00:00'); // Ensure local timezone interpretation
+      instanceDueDate.setHours(0,0,0,0); // Normalize
+
       let notificationType: AppNotification['type'] | null = null;
-      let message = "";
+      let message = '';
 
-      // Check for overdue
-      if (instance.instanceDate < todayStr) {
-        notificationType = 'overdue';
-        message = `Overdue: '${choreName}' was due on ${instance.instanceDate}.`;
-      }
-      // Check for due today
-      else if (instance.instanceDate === todayStr) {
+      if (instanceDueDate.getTime() === today.getTime()) {
         notificationType = 'due_today';
-        message = `Due Today: '${choreName}' is due today.`;
+        message = `Due Today: '${definition.title}' is due today.`;
+      } else if (instanceDueDate.getTime() < today.getTime()) {
+        notificationType = 'overdue';
+        message = `Overdue: '${definition.title}' was due on ${instance.instanceDate}.`;
       }
 
       if (notificationType) {
-        // Avoid duplicates: check if a notification for this instance & type already exists
         const existingNotification = appNotifications.find(
-          (n) => n.choreInstanceId === instance.id && n.type === notificationType
+          n => n.choreInstanceId === instance.id && n.type === notificationType && !n.isRead
         );
-        // Also avoid creating new if an *unread* notification of same type for same instance already exists
-        // from a previous fetch (if appNotifications isn't cleared between fetches)
-        const alreadyExistsUnread = newNotifications.some(
-            (n) => n.choreInstanceId === instance.id && n.type === notificationType
-        ) || appNotifications.some(
-            (n) => n.choreInstanceId === instance.id && n.type === notificationType && !n.isRead
-        );
-
-
-        if (!alreadyExistsUnread) {
+        if (!existingNotification) {
           newNotifications.push({
-            id: `${notificationType}-${instance.id}-${Date.now()}`, // More unique ID
+            id: `${notificationType}-${instance.id}-${Date.now()}`,
             message,
             choreInstanceId: instance.id,
             choreDefinitionId: definition.id,
             type: notificationType,
-            date: todayStr, // Date notification was generated/identified
-            isRead: false, // New notifications are unread
+            date: new Date().toISOString(),
+            isRead: false,
           });
         }
       }
     });
-
-    // Combine with existing unread notifications of other types, then add new ones
-    // This simple merge might create duplicates if fetch is called multiple times without clearing old ones.
-    // A more robust approach would be to intelligently merge or replace.
-    // For now, let's assume we only want to add new, unique (by instanceId and type) notifications.
-
-    setAppNotifications(prev => {
-        const existingUnread = prev.filter(n => n.isRead === false);
-        const trulyNewNotifications = newNotifications.filter(nn =>
-            !existingUnread.some(en => en.choreInstanceId === nn.choreInstanceId && en.type === nn.type)
-        );
-        return [...existingUnread, ...trulyNewNotifications];
-    });
-
-  }, [choreInstances, choreDefinitions, appNotifications]); // appNotifications in deps for duplicate check
-
-  const markAsRead = useCallback((notificationId: string) => {
-    setAppNotifications(prevNotifications =>
-      prevNotifications.map(n =>
-        n.id === notificationId ? { ...n, isRead: true } : n
-      )
-    );
-  }, []);
+    if (newNotifications.length > 0) {
+      setAppNotifications(prev => {
+        const currentUnreadIds = new Set(prev.filter(n => !n.isRead).map(n => `${n.type}-${n.choreInstanceId}`));
+        const trulyNew = newNotifications.filter(nn => !currentUnreadIds.has(`${nn.type}-${nn.choreInstanceId}`));
+        if (trulyNew.length > 0) {
+          return [...prev.filter(n => n.isRead), ...prev.filter(n => !n.isRead && !trulyNew.some(tn => tn.choreInstanceId === n.choreInstanceId && tn.type === n.type)), ...trulyNew];
+        }
+        return prev;
+      });
+    }
+  // Reduce re-runs by being specific about dependencies.
+  // choreInstances and choreDefinitions are primary. appNotifications is for deduping against current non-new ones.
+  }, [choreInstances, choreDefinitions, appNotifications, setAppNotifications]);
 
   useEffect(() => {
-    // Update unread count whenever appNotifications change
-    setUnreadCount(appNotifications.filter(n => !n.isRead).length);
-  }, [appNotifications]);
-
-  // Initial fetch on mount - might need to be more strategic if choreInstances load async
-  // This relies on ChoresContext already having its data when this provider mounts or updates.
-  useEffect(() => {
-    if(choreInstances.length > 0 && choreDefinitions.length > 0) { // Only fetch if data is available
+    // Initial fetch and re-fetch when chore data changes
+    if (choreInstances && choreDefinitions) { // Check if core data is loaded
         fetchAppNotifications();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [choreInstances, choreDefinitions]); // Re-fetch if core data changes. `fetchAppNotifications` itself is memoized.
+  }, [choreInstances, choreDefinitions, fetchAppNotifications]);
+
+  useEffect(() => {
+    setUnreadCount(appNotifications.filter(n => !n.isRead).length);
+  }, [appNotifications]);
 
   return (
     <AppNotificationContext.Provider value={{ appNotifications, fetchAppNotifications, markAsRead, unreadCount }}>
