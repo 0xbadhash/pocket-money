@@ -4,8 +4,7 @@ import KidAssignmentModal from './KidAssignmentModal';
 // Import hooks to mock
 import { useUserContext } from '../../contexts/UserContext';
 import { useChoresContext } from '../../contexts/ChoresContext';
-import { vi } from 'vitest';
-import '@testing-library/jest-dom';
+import { describe, it, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import type { Kid } from '../../types';
 
 const mockBatchAssignChoreDefinitionsToKid = vi.fn();

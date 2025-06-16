@@ -1,12 +1,11 @@
 import React from 'react';
 import { render, screen, fireEvent } from '../test-utils'; // Corrected import path
-import '@testing-library/jest-dom';
 // Import hooks to mock their return values
 import { useUserContext } from '../contexts/UserContext';
 import { useChoresContext } from '../contexts/ChoresContext';
 import KanbanView from './KanbanView';
 import type { Kid } from '../types';
-import { vi } from 'vitest';
+import { describe, it, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 
 // Mock KidKanbanBoard - COMMENTED OUT FOR DIAGNOSTIC
 // vi.mock('./kanban_components/KidKanbanBoard', () => ({
