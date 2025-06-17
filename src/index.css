@@ -355,3 +355,22 @@ button:focus-visible {
   border-radius: var(--border-radius-xs, 2px); /* Keep slightly smaller for inset look */
   transition: width 0.3s ease-in-out;
 }
+
+/* Overdue Card Styling */
+.kanban-card-overdue {
+  border-left-width: 5px;
+  border-left-style: solid;
+  border-left-color: var(--danger-color, #dc3545); /* Fallback to Bootstrap's danger red */
+  background-color: var(--danger-background-soft, #fdecea); /* A very light red/pink */
+}
+
+/* Ensure overdue style overrides selection style for the border if needed,
+   or that selection style is applied additively (e.g. box-shadow for selection).
+   For now, this specific border should take precedence.
+   If selection is, for example, a blue border on all sides, this will make the left border red.
+*/
+
+.kanban-card-overdue h4 {
+  /* Optionally make title a bit more distinct for overdue cards */
+  /* color: var(--danger-color-dark, #a71d2a); */
+}
