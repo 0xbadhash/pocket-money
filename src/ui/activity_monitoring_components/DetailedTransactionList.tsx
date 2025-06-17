@@ -13,7 +13,7 @@ const DetailedTransactionList: React.FC<DetailedTransactionListProps> = ({ trans
 
   const getKidNameForTable = (kidId: string | undefined): string => {
     if (!kidId) return 'General';
-    const kid = kids.find(k => k.id === kidId);
+    const kid = kids.find((k: { id: string; name: string }) => k.id === kidId);
     return kid ? kid.name : `ID: ${kidId}`; // Fallback if kid not found
   };
 
@@ -35,11 +35,11 @@ const DetailedTransactionList: React.FC<DetailedTransactionListProps> = ({ trans
               <th>Amount</th>
             </tr>
           </thead>
-          <tbody>{/* Ensure no whitespace before map */}
+          <tbody>
             {transactionsToDisplay.map((tx) => (
-              <tr key={tx.id}>{/* Ensure no whitespace before td */}
+              <tr key={tx.id}>
                 <td>{tx.date}</td>
-                <td>{getKidNameForTable(tx.kidId)}</td> {/* Display kid name */}
+                <td>{getKidNameForTable(tx.kidId)}</td>
                 <td>{tx.description}</td>
                 <td>{tx.category}</td>
                 <td style={{ color: tx.amount < 0 ? 'red' : 'green' }}>
