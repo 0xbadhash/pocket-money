@@ -76,6 +76,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   const [editingPriorityValue, setEditingPriorityValue] = useState<'Low' | 'Medium' | 'High' | ''>('');
 
   const [newCommentText, setNewCommentText] = useState('');
+  const [showComments, setShowComments] = useState(false); // New state for comments visibility
   const [showActivityLog, setShowActivityLog] = useState(false);
 
   const [isEditingTags, setIsEditingTags] = useState(false);
@@ -755,32 +756,42 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
       {recurrenceInfo && <p style={{ fontStyle: 'italic', fontSize: '0.8em', color: 'var(--text-color-secondary)' }}>{recurrenceInfo}</p>}
       <p style={{ fontSize: '0.9em' }}>Status: {instance.isComplete ? 'Complete' : 'Incomplete'}</p>
 
-      {/* Comments Section */}
-      {instance.instanceComments && instance.instanceComments.length > 0 && (
-        <div className="comments-section" style={{ marginTop: '10px', borderTop: '1px solid var(--border-color, #eee)', paddingTop: '8px' }}>
-          <h5 style={{ fontSize: '0.9em', marginBottom: '5px', color: 'var(--text-color-secondary, #666)', marginTop: '0' }}>Comments:</h5>
-          {instance.instanceComments.map(comment => (
-            <div key={comment.id} className="comment-item" style={{ marginBottom: '4px', fontSize: '0.85em' }}>
-              <strong>{comment.userName}</strong> ({new Date(comment.createdAt).toLocaleDateString()}): {comment.text}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Add Comment Form */}
-      <div className="add-comment-form" style={{ marginTop: '10px' }}>
-        <textarea
-          value={newCommentText}
-          onChange={(e) => setNewCommentText(e.target.value)}
-          placeholder="Add a comment..."
-          rows={2}
-          style={{ width: '100%', boxSizing: 'border-box', marginBottom: '4px', padding: '4px', border: '1px solid #ccc', borderRadius: '3px' }}
-          disabled={instance.isSkipped}
-        />
-        <button onClick={handleAddComment} disabled={!newCommentText.trim() || instance.isSkipped} className="button-primary" style={{ fontSize: '0.9em' }}>
-          Add Comment
+      {/* User Comments Section Toggle & Display */}
+      <div style={{ marginTop: '10px' }}>
+        <button onClick={() => setShowComments(!showComments)} className="button-link">
+          {showComments ? 'Hide Comments' : 'View Comments'} ({instance.instanceComments?.length || 0})
         </button>
+        {showComments && (
+          <div className="comments-section" style={{ marginTop: '8px', borderTop: '1px solid var(--border-color, #eee)', paddingTop: '8px' }}>
+            <h5 style={{ fontSize: '0.9em', marginBottom: '5px', color: 'var(--text-color-secondary, #666)', marginTop: '0' }}>User Comments</h5>
+            {instance.instanceComments && instance.instanceComments.length > 0 ? (
+              instance.instanceComments.map(comment => (
+                <div key={comment.id} className="comment-item" style={{ marginBottom: '4px', fontSize: '0.85em', borderBottom: '1px dotted #eee', paddingBottom: '4px' }}>
+                  <span style={{fontWeight: 'bold'}}>{comment.userName}</span> <span style={{fontSize: '0.8em', color: '#777'}}>({new Date(comment.createdAt).toLocaleString()}):</span>
+                  <p style={{margin: '2px 0 0 0', whiteSpace: 'pre-wrap'}}>{comment.text}</p>
+                </div>
+              ))
+            ) : (
+              <p style={{fontSize: '0.8em', color: '#777'}}>No comments yet.</p>
+            )}
+            {/* Add Comment Form (inside comments section) */}
+            <div className="add-comment-form" style={{ marginTop: '10px' }}>
+              <textarea
+                value={newCommentText}
+                onChange={(e) => setNewCommentText(e.target.value)}
+                placeholder="Add a comment..."
+                rows={2}
+                style={{ width: '100%', boxSizing: 'border-box', marginBottom: '4px', padding: '4px', border: '1px solid #ccc', borderRadius: '3px' }}
+                disabled={instance.isSkipped}
+              />
+              <button onClick={handleAddComment} disabled={!newCommentText.trim() || instance.isSkipped} className="button-primary" style={{ fontSize: '0.9em' }}>
+                Add Comment
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
 
       {!instance.isSkipped && (
         <button
