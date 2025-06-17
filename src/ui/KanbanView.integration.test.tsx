@@ -41,9 +41,10 @@ const mockUser = {
 
 const mockGenerateInstancesForPeriod = vi.fn();
 const mockGetKanbanColumnConfigs = vi.fn(() => [ // Default swimlanes for KidKanbanBoard
-    { id: 'col1', kidId: 'kid1', title: 'To Do', order: 0, color: '#FFFFFF' },
-    { id: 'col2', kidId: 'kid1', title: 'In Progress', order: 1, color: '#FFFFE0' },
-    { id: 'col3', kidId: 'kid1', title: 'Done', order: 2, color: '#90EE90' },
+    // This mock is no longer central to KidKanbanBoard's matrix layout,
+    // but UserContext still provides it. KidKanbanBoard itself doesn't use its output for rows/columns.
+    // We'll keep it for UserContext completeness but won't rely on its output for matrix assertions.
+    { id: 'col-config-1', kidId: 'kid1', title: 'Old Config To Do', order: 0, color: '#ABCDEF' }
 ]);
 
 
@@ -110,26 +111,41 @@ describe('KanbanView Integration Test', () => {
       </UserContext.Provider>
     );
 
-    expect(screen.getByText('Select a kid to view their Kanban board.')).toBeInTheDocument();
+    // Initial state: Kid Alpha should be auto-selected due to useEffect in KanbanView
+    expect(screen.queryByText('Select a kid to view their Kanban board.')).not.toBeInTheDocument();
+
     const kidAlphaButton = screen.getByRole('button', { name: 'Kid Alpha' });
     expect(kidAlphaButton).toBeInTheDocument();
+    expect(kidAlphaButton).toHaveStyle('font-weight: bold'); // Check if styled as selected
 
-    await user.click(kidAlphaButton);
+    // KidKanbanBoard for Kid Alpha should be rendered
+    // expect(mockGetKanbanColumnConfigs).toHaveBeenCalledWith('kid1'); // Not relevant for matrix layout
+    expect(mockGenerateInstancesForPeriod).toHaveBeenCalled();
 
-    expect(mockGetKanbanColumnConfigs).toHaveBeenCalledWith('kid1');
-    expect(mockGenerateInstancesForPeriod).toHaveBeenCalled(); // Called by KidKanbanBoard's useEffect
-
-    // Check for an element that indicates KidKanbanBoard has rendered for the selected kid
-    // e.g., the "Today" button from date navigation, or the mocked DateColumnView
     await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Today' })).toBeInTheDocument();
-        expect(screen.queryAllByTestId('mock-date-column-view').length).toBeGreaterThan(0); // Ensure DateColumnViews are rendered
+        expect(screen.getByRole('button', { name: 'Today' })).toBeInTheDocument(); // Part of KidKanbanBoard
+        expect(screen.queryAllByTestId('mock-date-column-view').length).toBe(21); // 7 days * 3 categories
     });
-    expect(screen.queryByText('Select a kid to view their Kanban board.')).not.toBeInTheDocument();
+
+    // Now click Kid Beta
+    const kidBetaButton = screen.getByRole('button', { name: 'Kid Beta' });
+    await user.click(kidBetaButton);
+
+    // expect(mockGetKanbanColumnConfigs).toHaveBeenCalledWith('kid2'); // Not relevant for matrix layout
+    // generateInstancesForPeriod should be called again for Kid Beta
+    expect(mockGenerateInstancesForPeriod).toHaveBeenCalledTimes(2); // Initial + after click
+
+    await waitFor(() => {
+        // Ensure UI updates for Kid Beta
+        expect(screen.getByRole('button', { name: 'Kid Beta' })).toHaveStyle('font-weight: bold');
+        expect(screen.getByRole('button', { name: 'Kid Alpha' })).not.toHaveStyle('font-weight: bold');
+        // DateColumnViews should still be 21, KidKanbanBoard re-renders for new kidId
+        expect(screen.queryAllByTestId('mock-date-column-view').length).toBe(21);
+    });
   });
 
   test('shows loading message when UserContext is loading', () => {
-     const loadingUserContextValue = { ...baseUserContextValue, loading: true, user: null };
+    const loadingUserContextValue = { ...baseUserContextValue, loading: true, user: null };
     render(
       <UserContext.Provider value={loadingUserContextValue}>
         <ChoresContext.Provider value={mockChoresContextValue}>
@@ -143,7 +159,7 @@ describe('KanbanView Integration Test', () => {
   test('shows message if no kids are available', () => {
     const noKidsUser = { ...mockUser, kids: [] };
     const noKidsContextValue = { ...baseUserContextValue, user: noKidsUser };
-     render(
+    render(
       <UserContext.Provider value={noKidsContextValue}>
         <ChoresContext.Provider value={mockChoresContextValue}>
           <KanbanView />
@@ -153,16 +169,24 @@ describe('KanbanView Integration Test', () => {
     expect(screen.getByText('No kids found. Please add kids in settings.')).toBeInTheDocument();
   });
 
-  test('shows "Select a kid to view their Kanban board." if a user is loaded but no kid is selected yet', () => {
-      render(
-        <UserContext.Provider value={baseUserContextValue}>
-          <ChoresContext.Provider value={mockChoresContextValue}>
-            <KanbanView />
-          </ChoresContext.Provider>
-        </UserContext.Provider>
-      );
-      expect(screen.getByText('Select a kid to view their Kanban board.')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Kid Alpha' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Kid Beta' })).toBeInTheDocument();
+  test('verifies initial auto-selection of the first kid', async () => {
+    render(
+      <UserContext.Provider value={baseUserContextValue}>
+        <ChoresContext.Provider value={mockChoresContextValue}>
+          <KanbanView />
+        </ChoresContext.Provider>
+      </UserContext.Provider>
+    );
+
+    // Kid Alpha (first kid) should be auto-selected
+    const kidAlphaButton = screen.getByRole('button', { name: 'Kid Alpha' });
+    expect(kidAlphaButton).toHaveStyle('font-weight: bold');
+
+    // KidKanbanBoard should be rendered for Kid Alpha
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Today' })).toBeInTheDocument(); // Element from KidKanbanBoard
+      expect(screen.queryAllByTestId('mock-date-column-view').length).toBe(21);
+    });
+    expect(mockGenerateInstancesForPeriod).toHaveBeenCalledTimes(1);
   });
 });

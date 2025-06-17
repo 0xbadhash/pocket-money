@@ -42,12 +42,13 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     choreInstances,
     generateInstancesForPeriod,
     updateChoreInstanceCategory,
+    updateChoreInstanceField, // Added updateChoreInstanceField
     batchToggleCompleteChoreInstances,
     batchUpdateChoreInstancesCategory,
     batchAssignChoreDefinitionsToKid,
   } = useChoresContext();
-  const { getKanbanColumnConfigs, user } = useUserContext();
-  const allKids = user?.kids || [];
+  // const { user } = useUserContext(); // user object not directly needed here anymore
+  // const allKids = user?.kids || []; // allKids not needed for switcher
 
   // Custom Hooks for selection and modal states
   const {
@@ -77,7 +78,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   const [showAddChoreModal, setShowAddChoreModal] = useState(false);
   const [addChoreDefaultDate, setAddChoreDefaultDate] = useState<Date | null>(null);
   const [editingChore, setEditingChore] = useState<ChoreDefinition | null>(null);
-  const [selectedKidId, setSelectedKidId] = useState<string>(kidId);
+  // const [selectedKidId, setSelectedKidId] = useState<string>(kidId); // Removed: Use kidId prop directly
 
   useEffect(() => {
     localStorage.setItem('kanban_columnTheme', selectedColumnTheme);
@@ -90,8 +91,8 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     }
   }, [actionFeedbackMessage]);
 
+  // Effect to clear selections when the kidId prop changes
   useEffect(() => {
-    setSelectedKidId(kidId);
     setSelectedInstanceIds([]);
   }, [kidId, setSelectedInstanceIds]);
 
@@ -110,14 +111,14 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   }, [selectedPeriod, currentVisibleStartDate]);
 
   useEffect(() => {
-    if (!selectedKidId) return; // Use selectedKidId from state for consistency
+    if (!kidId) return; // Use kidId prop directly
     if (currentPeriodDateRange.start && currentPeriodDateRange.end) {
       generateInstancesForPeriod(
         currentPeriodDateRange.start,
         currentPeriodDateRange.end
       );
     }
-  }, [selectedKidId, currentPeriodDateRange, generateInstancesForPeriod]);
+  }, [kidId, currentPeriodDateRange, generateInstancesForPeriod]); // Use kidId prop
 
 
   const getDefinitionForInstance = useCallback((instance: ChoreInstance): ChoreDefinition | undefined => {
@@ -155,17 +156,38 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     }
     const { dateString: targetDateString, category: newCategory } = parsedOverId;
 
-    if (activeInstance.instanceDate !== targetDateString) {
-      setActionFeedbackMessage("Chores can only be moved between categories for the same day in this view.");
+    const dateChanged = activeInstance.instanceDate !== targetDateString;
+    const categoryChanged = activeInstance.categoryStatus !== newCategory;
+
+    if (!dateChanged && !categoryChanged) {
+      // setActiveDragItem(null); // Already handled at the beginning of the function
       return;
     }
-    if (activeInstance.categoryStatus !== newCategory) {
-      updateChoreInstanceCategory(activeInstance.id.toString(), newCategory);
-      const definition = getDefinitionForInstance(activeInstance);
-      const categoryTitles: Record<MatrixKanbanCategory, string> = { TO_DO: "To Do", IN_PROGRESS: "In Progress", COMPLETED: "Completed" };
-      setActionFeedbackMessage(`${definition?.title || "Chore"} moved to ${categoryTitles[newCategory]}.`);
+
+    if (dateChanged) {
+      updateChoreInstanceField(activeInstance.id.toString(), 'instanceDate', targetDateString);
     }
-  }, [choreInstances, getDefinitionForInstance, updateChoreInstanceCategory, setActionFeedbackMessage]);
+
+    if (categoryChanged) {
+      updateChoreInstanceCategory(activeInstance.id.toString(), newCategory);
+    }
+
+    const definition = getDefinitionForInstance(activeInstance);
+    const categoryTitles: Record<MatrixKanbanCategory, string> = { TO_DO: "To Do", IN_PROGRESS: "In Progress", COMPLETED: "Completed" };
+    let feedback = `${definition?.title || "Chore"} moved`;
+    if (categoryChanged) {
+      feedback += ` to ${categoryTitles[newCategory]}`;
+    }
+    if (dateChanged) {
+      // Ensure date is displayed in a user-friendly format, matching other date displays if possible
+      // Using new Date() and toLocaleDateString for simplicity here. Adjust formatting as needed.
+      const displayDate = new Date(targetDateString + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+      feedback += ` to date ${displayDate}`;
+    }
+    feedback += ".";
+    setActionFeedbackMessage(feedback);
+
+  }, [choreInstances, getDefinitionForInstance, updateChoreInstanceCategory, updateChoreInstanceField, setActionFeedbackMessage]);
 
   const handleDragCancel = useCallback(() => setActiveDragItem(null), []);
 
@@ -206,24 +228,35 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
       return parts.length === 2 ? { dateString: parts[0], category: parts[1] as MatrixKanbanCategory } : null;
     }
     const dashParts = swimlaneId.split('-');
-    if (dashParts.length >= 4) {
-      return { dateString: dashParts.slice(0, 3).join('-'), category: dashParts.slice(3).join('-') as MatrixKanbanCategory };
+    if (dashParts.length >= 4) { // e.g. 2023-10-26-TO_DO
+      const datePart = dashParts.slice(0, 3).join('-'); // YYYY-MM-DD
+      const categoryPart = dashParts.slice(3).join('-') as MatrixKanbanCategory; // TO_DO, IN_PROGRESS etc.
+      // Basic validation for category part
+      if (["TO_DO", "IN_PROGRESS", "COMPLETED"].includes(categoryPart)) {
+        return { dateString: datePart, category: categoryPart };
+      }
     }
     return null;
   }
 
   useEffect(() => {
-    if (!selectedKidId) return;
+    if (!kidId) return; // Use kidId prop
     choreInstances.forEach(instance => {
       const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
-      if (definition && definition.assignedKidId === selectedKidId && instance.instanceDate >= currentPeriodDateRange.start && instance.instanceDate <= currentPeriodDateRange.end && !instance.categoryStatus) {
+      // Ensure the instance is assigned to the currently viewed kid by the KidKanbanBoard
+      if (definition && definition.assignedKidId === kidId &&
+          instance.instanceDate >= currentPeriodDateRange.start &&
+          instance.instanceDate <= currentPeriodDateRange.end &&
+          !instance.categoryStatus) {
         updateChoreInstanceCategory(instance.id, "TO_DO");
       }
     });
-  }, [selectedKidId, choreInstances, choreDefinitions, currentPeriodDateRange, updateChoreInstanceCategory]);
+  }, [kidId, choreInstances, choreDefinitions, currentPeriodDateRange, updateChoreInstanceCategory]); // Use kidId prop
 
-  const kidsForSwitcher = user?.kids || [];
-  const swimlaneConfigs = useMemo(() => getKanbanColumnConfigs(selectedKidId).sort((a, b) => a.order - b.order), [getKanbanColumnConfigs, selectedKidId]);
+  // const kidsForSwitcher = user?.kids || []; // Removed: Kid selection is now in KanbanView
+
+  // Define statusCategories directly as it's fixed
+  const statusCategories: MatrixKanbanCategory[] = ["TO_DO", "IN_PROGRESS", "COMPLETED"];
 
   // Batch Action Handlers wrapped in useCallback
   const handleBatchMarkCompleteCb = useCallback(async () => {
@@ -306,15 +339,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
           // kids prop removed
         />
 
-        {/* Kid selection buttons */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-          {kidsForSwitcher.map(kid => (
-            <button key={kid.id} onClick={() => setSelectedKidId(kid.id)}
-              style={{ fontWeight: selectedKidId === kid.id ? 'bold' : 'normal', background: selectedKidId === kid.id ? '#1976d2' : '#f5f5f5', color: selectedKidId === kid.id ? '#fff' : '#333', border: '1px solid #ccc', borderRadius: 4, padding: '6px 16px', cursor: 'pointer' }}>
-              {kid.name}
-            </button>
-          ))}
-        </div>
+        {/* Kid selection buttons DIV removed */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
           <button onClick={() => handleOpenAddChore()} style={{ fontWeight: 'bold', padding: '6px 16px' }}>+ Assign New Chore</button>
         </div>
@@ -341,16 +366,16 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
         <div className="matrix-kanban-body" style={{ display: 'flex', justifyContent: 'space-around', gap: '5px' }}>
           {visibleDates.map(date => (
             <div key={date.toISOString()} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {swimlaneConfigs.map(swimlane => (
+              {statusCategories.map(category => (
                 <DateColumnView
-                  key={swimlane.id}
+                  key={category} // Using category as key, assuming it's unique for this inner loop
                   date={date}
-                  onEditChore={handleEditChore}
-                  // getSwimlaneId={getSwimlaneId} // Retained if DateColumnView needs it for droppable IDs
-                  kidId={selectedKidId}
-                  swimlaneConfig={swimlane}
+                  category={category}
+                  kidId={kidId} // Use kidId prop
                   selectedInstanceIds={selectedInstanceIds}
                   onToggleSelection={handleToggleSelection}
+                  onEditChore={handleEditChore}
+                  // getSwimlaneId might not be needed or needs to be re-evaluated
                 />
               ))}
             </div>
@@ -362,7 +387,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div style={{ background: '#fff', padding: 24, borderRadius: 8, minWidth: 320, boxShadow: '0 2px 16px rgba(0,0,0,0.2)' }}>
               <h3 style={{ marginTop: 0 }}>Assign New Chore</h3>
-              <AddChoreForm defaultKidId={selectedKidId} defaultDueDate={addChoreDefaultDate || undefined} defaultCategoryStatus="TO_DO" onSuccess={handleChoreCreated} onCancel={handleCloseAddChore} enableSubtasks enableRecurrence defaultIsRecurring={false} />
+              <AddChoreForm defaultKidId={kidId} defaultDueDate={addChoreDefaultDate || undefined} defaultCategoryStatus="TO_DO" onSuccess={handleChoreCreated} onCancel={handleCloseAddChore} enableSubtasks enableRecurrence defaultIsRecurring={false} />
             </div>
           </div>
         )}
