@@ -19,6 +19,7 @@ interface KanbanCardProps {
   onEditChore?: (chore: ChoreDefinition) => void;
   isSelected?: boolean;
   onToggleSelection?: (instanceId: string, isSelected: boolean) => void;
+  onCardClick?: (instance: ChoreInstance, definition: ChoreDefinition) => void; // Added prop
 }
 
 const KanbanCard: React.FC<KanbanCardProps> = ({
@@ -28,6 +29,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   onEditChore,
   isSelected = false,
   onToggleSelection,
+  onCardClick, // Destructured prop
 }) => {
   const {
     toggleChoreInstanceComplete,
@@ -218,16 +220,27 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
       style={style}
       {...attributes}
       {...(instance.isSkipped ? {} : listeners)}
+      onClick={(e: React.MouseEvent<HTMLDivElement>) => {
+        if (instance.isSkipped) return;
+        const target = e.target as HTMLElement;
+        const interactiveSelectors = ['button', 'input', 'select', 'textarea', '.edit-icon-button', '[aria-label*="action"]', '[role="button"]', '.button-link'];
+        if (interactiveSelectors.some(selector => target.closest(selector))) {
+          return;
+        }
+        if (onCardClick) {
+          onCardClick(instance, definition);
+        }
+      }}
       className={`kanban-card ${instance.isComplete ? 'complete' : ''} ${instance.isSkipped ? 'skipped' : ''} ${isOverdue ? 'kanban-card-overdue' : ''} ${isDragging && !isOverlay ? 'dragging' : ''} ${isOverlay ? 'is-overlay' : ''} ${isSelected ? 'selected' : ''}`}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        {isEditingTitle ? ( <input ref={titleInputRef} type="text" value={editingTitleValue} onChange={(e) => setEditingTitleValue(e.target.value)} onBlur={handleSaveTitle} onKeyDown={handleTitleInputKeyDown} style={{ flexGrow: 1, marginRight: '8px' }} disabled={loadingStates.title} /> ) : (
+        {isEditingTitle ? ( <input ref={titleInputRef} type="text" value={editingTitleValue} onChange={(e) => setEditingTitleValue(e.target.value)} onBlur={handleSaveTitle} onKeyDown={handleTitleInputKeyDown} style={{ flexGrow: 1, marginRight: '8px' }} disabled={loadingStates.title} onClick={(e) => e.stopPropagation()} /> ) : (
           <>
-            <h4 style={{ margin: 0, flexGrow: 1, cursor: (loadingStates.title || instance.isSkipped) ? 'default' : 'text', textDecoration: instance.isSkipped && !instance.isComplete ? 'line-through' : 'none' }} onClick={!loadingStates.title && !instance.isSkipped ? handleEditTitle : undefined}>
+            <h4 style={{ margin: 0, flexGrow: 1, cursor: (loadingStates.title || instance.isSkipped) ? 'default' : 'text', textDecoration: instance.isSkipped && !instance.isComplete ? 'line-through' : 'none' }} onClick={(e) => {if (!loadingStates.title && !instance.isSkipped) { e.stopPropagation(); handleEditTitle(); }}}>
               {definition.title} {instance.isSkipped && <span style={{fontSize: '0.8em', color: 'grey'}}>(Skipped)</span>}
             </h4>
             {loadingStates.title && <span style={{fontSize: '0.8em'}}>Saving...</span>}
-            {!isEditingTitle && !loadingStates.title && !instance.isSkipped && (<button onClick={handleEditTitle} className="edit-icon-button">✏️</button>)}
+            {!isEditingTitle && !loadingStates.title && !instance.isSkipped && (<button onClick={(e) => { e.stopPropagation(); handleEditTitle();}} className="edit-icon-button">✏️</button>)}
           </>
         )}
         {!isOverlay && typeof onToggleSelection === 'function' && !isEditingTitle && !instance.isSkipped && (<input type="checkbox" checked={isSelected} onChange={(e) => { e.stopPropagation(); onToggleSelection(instance.id, e.target.checked); }} onClick={(e) => e.stopPropagation()} style={{ marginLeft: '8px' }} disabled={instance.isSkipped} /> )}
@@ -244,30 +257,30 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
 
       <div style={{ fontSize: '0.9em', display: 'flex', gap: '5px', alignItems: 'center', marginTop: '4px' }}> {/* Priority */}
         <span>Priority:</span>
-        {isEditingPriority ? (<select value={editingPriorityValue} onChange={(e) => setEditingPriorityValue(e.target.value as any)} onBlur={handleSavePriority} onKeyDown={handlePrioritySelectKeyDown} autoFocus disabled={instance.isSkipped}><option value="">Default</option><option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option></select>) : (<><span style={getPriorityStyle(effectivePriority)}>{effectivePriority || 'Default'}</span>{!instance.isSkipped && <button onClick={handleEditPriority} className="edit-icon-button">✏️</button>}</>)}
+        {isEditingPriority ? (<select value={editingPriorityValue} onChange={(e) => setEditingPriorityValue(e.target.value as any)} onBlur={handleSavePriority} onKeyDown={handlePrioritySelectKeyDown} autoFocus disabled={instance.isSkipped} onClick={(e) => e.stopPropagation()}><option value="">Default</option><option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option></select>) : (<><span style={getPriorityStyle(effectivePriority)}>{effectivePriority || 'Default'}</span>{!instance.isSkipped && <button onClick={(e) => { e.stopPropagation(); handleEditPriority();}} className="edit-icon-button">✏️</button>}</>)}
       </div>
       <div style={{ fontSize: '0.9em', display: 'flex', gap: '5px', alignItems: 'center', marginTop: '4px' }}> {/* Due Date */}
         <span>Due:</span>
-        {isEditingDate ? (<input ref={dateInputRef} type="date" value={editingDateValue} onChange={(e) => setEditingDateValue(e.target.value)} onBlur={handleSaveDate} onKeyDown={handleDateInputKeyDown} disabled={instance.isSkipped} />) : (<><span>{instance.instanceDate}</span>{!instance.isSkipped && <button onClick={handleEditDate} className="edit-icon-button">✏️</button>}</>)}
+        {isEditingDate ? (<input ref={dateInputRef} type="date" value={editingDateValue} onChange={(e) => setEditingDateValue(e.target.value)} onBlur={handleSaveDate} onKeyDown={handleDateInputKeyDown} disabled={instance.isSkipped} onClick={(e) => e.stopPropagation()} />) : (<><span>{instance.instanceDate}</span>{!instance.isSkipped && <button onClick={(e) => { e.stopPropagation(); handleEditDate();}} className="edit-icon-button">✏️</button>}</>)}
       </div>
       {definition.rewardAmount !== undefined && ( /* Reward */
         <div style={{ fontSize: '0.9em', display: 'flex', gap: '5px', alignItems: 'center' }}><span>Reward:</span>
-        {isEditingReward ? (<input ref={rewardInputRef} type="number" value={editingRewardValue} onChange={(e) => setEditingRewardValue(e.target.value)} onBlur={handleSaveReward} onKeyDown={handleRewardInputKeyDown} min="0" step="0.01" disabled={instance.isSkipped} />) : (<>$ {(instance.overriddenRewardAmount ?? definition.rewardAmount)?.toFixed(2) || '0.00'}{instance.overriddenRewardAmount != null && <span style={{fontSize:'0.8em', color: 'grey'}}>(edited)</span>}{!instance.isSkipped && <button onClick={handleEditReward} className="edit-icon-button">✏️</button>}</>)}
+        {isEditingReward ? (<input ref={rewardInputRef} type="number" value={editingRewardValue} onChange={(e) => setEditingRewardValue(e.target.value)} onBlur={handleSaveReward} onKeyDown={handleRewardInputKeyDown} min="0" step="0.01" disabled={instance.isSkipped} onClick={(e) => e.stopPropagation()} />) : (<>$ {(instance.overriddenRewardAmount ?? definition.rewardAmount)?.toFixed(2) || '0.00'}{instance.overriddenRewardAmount != null && <span style={{fontSize:'0.8em', color: 'grey'}}>(edited)</span>}{!instance.isSkipped && <button onClick={(e) => { e.stopPropagation(); handleEditReward();}} className="edit-icon-button">✏️</button>}</>)}
         </div>
       )}
 
       {/* Tags Display and Edit */}
       {isEditingTags && !instance.isSkipped ? (
-        <div style={{ marginTop: '8px', marginBottom: '8px' }}>
+        <div style={{ marginTop: '8px', marginBottom: '8px' }} onClick={(e) => e.stopPropagation()}>
           <input type="text" value={editingTagsValue} onChange={(e) => setEditingTagsValue(e.target.value)} placeholder="Tags, comma-separated" style={{width: 'calc(100% - 120px)'}} autoFocus />
-          <button onClick={async () => { setLoadingStates(p=>({...p, tags:true})); await updateChoreDefinition(definition.id, { tags: editingTagsValue.split(',').map(t => t.trim()).filter(Boolean) }); addNotification({message:'Tags updated!', type:'success'}); setLoadingStates(p=>({...p, tags:false})); setIsEditingTags(false); }} className="button-primary" disabled={loadingStates.tags}>Save</button>
-          <button onClick={() => setIsEditingTags(false)} className="button-secondary" disabled={loadingStates.tags}>Cancel</button>
+          <button onClick={async (e) => { e.stopPropagation(); setLoadingStates(p=>({...p, tags:true})); await updateChoreDefinition(definition.id, { tags: editingTagsValue.split(',').map(t => t.trim()).filter(Boolean) }); addNotification({message:'Tags updated!', type:'success'}); setLoadingStates(p=>({...p, tags:false})); setIsEditingTags(false); }} className="button-primary" disabled={loadingStates.tags}>Save</button>
+          <button onClick={(e) => { e.stopPropagation(); setIsEditingTags(false);}} className="button-secondary" disabled={loadingStates.tags}>Cancel</button>
         </div>
       ) : (
         (definition.tags && definition.tags.length > 0) || !instance.isSkipped ? (
           <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
             {definition.tags && definition.tags.length > 0 ? definition.tags.map(tag => (<span key={tag} className="chore-tag">{tag}</span>)) : <span style={{fontSize:'0.8em', color:'#777'}}>No tags.</span>}
-            {!instance.isSkipped && <button onClick={() => { setEditingTagsValue(definition.tags?.join(', ') || ''); setIsEditingTags(true); }} className="edit-icon-button" aria-label="Edit tags">✏️</button>}
+            {!instance.isSkipped && <button onClick={(e) => { e.stopPropagation(); setEditingTagsValue(definition.tags?.join(', ') || ''); setIsEditingTags(true); }} className="edit-icon-button" aria-label="Edit tags">✏️</button>}
           </div>
         ) : null
       )}
@@ -275,7 +288,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
       {definition.subTasks && definition.subTasks.length > 0 && ( /* Subtasks */
         <div style={{ marginTop: '10px', borderTop: '1px solid #eee', paddingTop: '8px' }}>
           <h5 style={{fontSize:'0.9em', margin:'0 0 5px 0'}}>Sub-tasks:</h5>
-          {definition.subTasks.map(st => (<div key={st.id} style={{display:'flex', alignItems:'center'}}><input type="checkbox" id={`st-${instance.id}-${st.id}`} checked={!!instance.subtaskCompletions?.[st.id]} onChange={() => !instance.isSkipped && toggleSubtaskCompletionOnInstance(instance.id, st.id)} disabled={instance.isSkipped} /><label htmlFor={`st-${instance.id}-${st.id}`} style={{textDecoration:instance.subtaskCompletions?.[st.id]?'line-through':'none', cursor: instance.isSkipped?'default':'pointer'}}>{st.title}</label></div>))}
+          {definition.subTasks.map(st => (<div key={st.id} style={{display:'flex', alignItems:'center'}}><input type="checkbox" id={`st-${instance.id}-${st.id}`} checked={!!instance.subtaskCompletions?.[st.id]} onChange={(e) => {e.stopPropagation(); if(!instance.isSkipped) toggleSubtaskCompletionOnInstance(instance.id, st.id);}} disabled={instance.isSkipped} onClick={(e) => e.stopPropagation()} /><label htmlFor={`st-${instance.id}-${st.id}`} style={{textDecoration:instance.subtaskCompletions?.[st.id]?'line-through':'none', cursor: instance.isSkipped?'default':'pointer'}}>{st.title}</label></div>))}
         </div>
       )}
 
@@ -284,11 +297,11 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
 
       {/* User Comments Section */}
       <div style={{ marginTop: '10px', marginBottom: '10px' }}>
-        <button onClick={() => setShowComments(!showComments)} className="button-link">
+        <button onClick={(e) => {e.stopPropagation(); setShowComments(!showComments);}} className="button-link">
           {showComments ? 'Hide Comments' : 'View Comments'} ({instance.instanceComments?.length || 0})
         </button>
         {showComments && (
-          <div className="comments-section" style={{ marginTop: '8px', borderTop: '1px solid var(--border-color, #eee)', paddingTop: '8px' }}>
+          <div className="comments-section" style={{ marginTop: '8px', borderTop: '1px solid var(--border-color, #eee)', paddingTop: '8px' }} onClick={(e)=>e.stopPropagation()}>
             <h5 style={{ fontSize: '0.9em', marginBottom: '5px', color: 'var(--text-color-secondary, #666)', marginTop: '0' }}>User Comments</h5>
             {instance.instanceComments && instance.instanceComments.length > 0 ? (
               instance.instanceComments.map(comment => (
@@ -299,8 +312,8 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
               ))
             ) : (<p style={{fontSize: '0.8em', color: '#777'}}>No comments yet.</p>)}
             <div className="add-comment-form" style={{ marginTop: '10px' }}>
-              <textarea value={newCommentText} onChange={(e) => setNewCommentText(e.target.value)} placeholder="Add a comment..." rows={2} style={{ width: '100%', boxSizing: 'border-box', marginBottom: '4px' }} disabled={instance.isSkipped} />
-              <button onClick={handleAddComment} disabled={!newCommentText.trim() || instance.isSkipped} className="button-primary">Add Comment</button>
+              <textarea value={newCommentText} onChange={(e) => setNewCommentText(e.target.value)} placeholder="Add a comment..." rows={2} style={{ width: '100%', boxSizing: 'border-box', marginBottom: '4px' }} disabled={instance.isSkipped} onClick={(e) => e.stopPropagation()} />
+              <button onClick={(e) => {e.stopPropagation(); handleAddComment();}} disabled={!newCommentText.trim() || instance.isSkipped} className="button-primary">Add Comment</button>
             </div>
           </div>
         )}
@@ -308,11 +321,11 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
 
       {/* Activity Log Section */}
       <div style={{ marginTop: '10px' }}>
-        <button onClick={() => setShowActivityLog(!showActivityLog)} className="button-link">
+        <button onClick={(e) => {e.stopPropagation(); setShowActivityLog(!showActivityLog);}} className="button-link">
           {showActivityLog ? 'Hide Activity' : 'View Activity'} ({instance.activityLog?.length || 0})
         </button>
         {showActivityLog && (
-          <div className="activity-log-section" style={{ marginTop: '8px', maxHeight: '150px', overflowY: 'auto', border: '1px solid #eee', padding: '8px', fontSize: '0.8em', backgroundColor: '#f9f9f9' }}>
+          <div className="activity-log-section" style={{ marginTop: '8px', maxHeight: '150px', overflowY: 'auto', border: '1px solid #eee', padding: '8px', fontSize: '0.8em', backgroundColor: '#f9f9f9' }} onClick={(e)=>e.stopPropagation()}>
             <h5 style={{ fontSize: '0.9em', marginBottom: '5px', color: 'var(--text-color-secondary, #666)', marginTop: '0' }}>Activity Log</h5>
             {instance.activityLog && instance.activityLog.length > 0 ? (
               instance.activityLog.map(log => (
@@ -328,15 +341,15 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
         )}
       </div>
 
-      {!instance.isSkipped && (<button onClick={() => toggleChoreInstanceComplete(instance.id)} style={{ marginTop: '10px' }} className="button-secondary" disabled={instance.isSkipped}>{instance.isComplete ? 'Mark Incomplete' : 'Mark Complete'}</button>)}
-      {instance.isSkipped ? (<button onClick={() => toggleSkipInstance(instance.id)} style={{ marginTop: '10px' }} className="button-tertiary">Unskip</button>) : (!instance.isComplete && <button onClick={() => toggleSkipInstance(instance.id)} style={{ marginTop: '10px', marginLeft: '8px' }} className="button-tertiary">Skip</button>)}
+      {!instance.isSkipped && (<button onClick={(e) => {e.stopPropagation(); toggleChoreInstanceComplete(instance.id);}} style={{ marginTop: '10px' }} className="button-secondary" disabled={instance.isSkipped}>{instance.isComplete ? 'Mark Incomplete' : 'Mark Complete'}</button>)}
+      {instance.isSkipped ? (<button onClick={(e) => {e.stopPropagation(); toggleSkipInstance(instance.id);}} style={{ marginTop: '10px' }} className="button-tertiary">Unskip</button>) : (!instance.isComplete && <button onClick={(e) => {e.stopPropagation(); toggleSkipInstance(instance.id);}} style={{ marginTop: '10px', marginLeft: '8px' }} className="button-tertiary">Skip</button>)}
       {onEditChore && !instance.isSkipped && (<button type="button" onClick={e => { e.stopPropagation(); onEditChore(definition); }} style={{ marginTop: '10px', marginLeft: '8px' }} className="button-edit">Edit Chore Def</button>)}
 
       <div style={{ position: 'relative', display: 'inline-block', marginLeft: '8px' }}>
         <button aria-label="Quick actions" onClick={e => { e.stopPropagation(); setShowMenu(v => !v); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2em', padding: 0, color: '#888' }}>⋮</button>
         {showMenu && (
           <div id={`quick-action-menu-${instance.id}`} style={{position: 'absolute', top: 24, right: 0, background: '#fff', border: '1px solid #ccc', borderRadius: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', zIndex: 100, minWidth: 120}} onClick={e => e.stopPropagation()}>
-            <button style={{display:'block', width:'100%', background:'none', border:'none', padding:'8px 12px', textAlign:'left', cursor:'pointer'}} onClick={() => { setShowMenu(false); if (onEditChore && !instance.isSkipped) onEditChore(definition); }} disabled={instance.isSkipped}>Edit Chore Def</button>
+            <button style={{display:'block', width:'100%', background:'none', border:'none', padding:'8px 12px', textAlign:'left', cursor:'pointer'}} onClick={(e) => { e.stopPropagation(); setShowMenu(false); if (onEditChore && !instance.isSkipped) onEditChore(definition); }} disabled={instance.isSkipped}>Edit Chore Def</button>
           </div>
         )}
       </div>

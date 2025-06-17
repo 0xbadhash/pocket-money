@@ -12,7 +12,8 @@ interface DateColumnViewProps {
   kidId?: string;
   selectedInstanceIds: string[];
   onToggleSelection: (instanceId: string, isSelected: boolean) => void;
-  isToday?: boolean; // Added isToday prop
+  isToday?: boolean;
+  onCardClick?: (instance: ChoreInstance, definition: ChoreDefinition) => void; // New prop
 }
 
 // Removed categoryDisplayTitles and categoryStyles
@@ -24,6 +25,8 @@ const DateColumnView: React.FC<DateColumnViewProps> = ({
   kidId,
   selectedInstanceIds,
   onToggleSelection,
+  isToday, // Ensure isToday is destructured
+  onCardClick, // Destructure new prop
 }) => {
   const { choreInstances, choreDefinitions } = useChoresContext();
   const dateString = date.toISOString().split('T')[0];
@@ -101,6 +104,7 @@ const DateColumnView: React.FC<DateColumnViewProps> = ({
               onEditChore={onEditChore}
               isSelected={selectedInstanceIds.includes(instance.id)}
               onToggleSelection={onToggleSelection}
+              onCardClick={onCardClick} // Pass it down
             />
           );
         })

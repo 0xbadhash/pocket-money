@@ -1,10 +1,9 @@
 // src/contexts/ChoresContext.tsx
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
-// Ensure KanbanColumnConfig is imported if it's replacing MatrixKanbanCategory in some contexts
 import type { ChoreDefinition, ChoreInstance, KanbanColumnConfig } from '../types';
 import { useFinancialContext } from '../contexts/FinancialContext';
-import { useUserContext } from './UserContext'; // Import useUserContext
+import { useUserContext } from './UserContext';
 import { generateChoreInstances } from '../utils/choreUtils';
 
 export type KanbanChoreOrders = Record<string, string[]>;
@@ -12,7 +11,7 @@ export type KanbanChoreOrders = Record<string, string[]>;
 interface ChoresContextType {
   choreDefinitions: ChoreDefinition[];
   choreInstances: ChoreInstance[];
-  addChoreDefinition: (choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete' | 'definitionComments' | 'activityLog'>) => void; // activityLog not on definition
+  addChoreDefinition: (choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete' | 'definitionComments' | 'activityLog'>) => void;
   toggleChoreInstanceComplete: (instanceId: string) => void;
   getChoreDefinitionsForKid: (kidId: string) => ChoreDefinition[];
   generateInstancesForPeriod: (startDate: string, endDate: string, defaultKanbanColumnId?: string) => void;
@@ -89,521 +88,312 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     try {
       const storedDefinitions = localStorage.getItem('choreDefinitions');
       setChoreDefinitions(storedDefinitions ? JSON.parse(storedDefinitions) : defaultInitialDefinitions);
-    } catch (error) {
-      console.error("Failed to load chore definitions from localStorage:", error);
-      setChoreDefinitions(defaultInitialDefinitions);
-    }
+    } catch (error) { console.error("Error loading definitions:", error); setChoreDefinitions(defaultInitialDefinitions); }
     try {
       const storedInstances = localStorage.getItem('choreInstances');
       setChoreInstances(storedInstances ? JSON.parse(storedInstances) : []);
-    } catch (error) {
-      console.error("Failed to load chore instances from localStorage:", error);
-      setChoreInstances([]);
-    }
+    } catch (error) { console.error("Error loading instances:", error); setChoreInstances([]); }
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem('choreDefinitions', JSON.stringify(choreDefinitions));
-  }, [choreDefinitions]);
-
-  useEffect(() => {
-    localStorage.setItem('choreInstances', JSON.stringify(choreInstances));
-  }, [choreInstances]);
+  useEffect(() => { localStorage.setItem('choreDefinitions', JSON.stringify(choreDefinitions)); }, [choreDefinitions]);
+  useEffect(() => { localStorage.setItem('choreInstances', JSON.stringify(choreInstances)); }, [choreInstances]);
 
   const addChoreDefinition = useCallback((choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete' | 'definitionComments'>) => {
     const newChoreDef: ChoreDefinition = {
-      id: `cd${Date.now()}`,
-      isComplete: false,
-      ...choreDefData,
-      definitionComments: [], // Initialize empty
-      // activityLog not on definition
+      id: `cd${Date.now()}`, isComplete: false, ...choreDefData, definitionComments: []
     };
-    setChoreDefinitions(prevDefs => [newChoreDef, ...prevDefs]);
+    setChoreDefinitions(prev => [newChoreDef, ...prev]);
   }, []);
 
-  const generateInstancesForPeriod = useCallback((
-    periodStartDate: string,
-    periodEndDate: string,
-    defaultKanbanColumnId?: string
-  ) => {
-    const activeDefinitions = choreDefinitions.filter(def => !def.isComplete);
-    const definitionsForGeneration = activeDefinitions.map(def => {
-      if (def.earlyStartDate && def.dueDate && new Date(def.earlyStartDate) < new Date(def.dueDate)) {
-        return { ...def, dueDate: def.earlyStartDate };
-      }
-      return def;
-    });
-
-    const rawNewInstances = generateChoreInstances(definitionsForGeneration, periodStartDate, periodEndDate);
-    const newInstancesWithFields = rawNewInstances.map(rawInstance => {
-      const definition = choreDefinitions.find(def => def.id === rawInstance.choreDefinitionId);
-      let initialSubtaskCompletions: Record<string, boolean> = {};
-      if (definition?.subTasks) {
-        definition.subTasks.forEach(st => { initialSubtaskCompletions[st.id] = st.isComplete || false; });
-      }
+  const generateInstancesForPeriod = useCallback((startDate: string, endDate: string, defaultKanbanColumnId?: string) => {
+    const activeDefs = choreDefinitions.filter(def => !def.isComplete);
+    const defsForGen = activeDefs.map(def => (def.earlyStartDate && def.dueDate && new Date(def.earlyStartDate) < new Date(def.dueDate)) ? { ...def, dueDate: def.earlyStartDate } : def);
+    const rawNew = generateChoreInstances(defsForGen, startDate, endDate);
+    const newInstances = rawNew.map(raw => {
+      const def = choreDefinitions.find(d => d.id === raw.choreDefinitionId);
+      let subCompletions: Record<string,boolean> = {};
+      def?.subTasks?.forEach(st => { subCompletions[st.id] = st.isComplete || false; });
       return {
-        ...rawInstance,
-        isComplete: false,
-        categoryStatus: defaultKanbanColumnId || "",
-        subtaskCompletions: initialSubtaskCompletions,
-        previousSubtaskCompletions: undefined,
-        priority: definition?.priority,
-        instanceComments: [],
-        isSkipped: false,
-        activityLog: [
-          { timestamp: new Date().toISOString(), action: 'Instance Created', userId: 'system', userName: 'System' }
-        ],
+        ...raw, isComplete: false, categoryStatus: defaultKanbanColumnId || "",
+        subtaskCompletions: subCompletions, previousSubtaskCompletions: undefined,
+        priority: def?.priority, instanceComments: [], instanceDescription: undefined, // Added instanceDescription
+        isSkipped: false, activityLog: [{ timestamp: new Date().toISOString(), action: 'Instance Created', userId:'system', userName:'System' }]
       };
     });
-
-    setChoreInstances(prevInstances => {
-      const outsideOfPeriod = prevInstances.filter(inst => {
-        const instDate = new Date(inst.instanceDate);
-        instDate.setUTCHours(0,0,0,0);
-        const periodStartNorm = new Date(periodStartDate);
-        periodStartNorm.setUTCHours(0,0,0,0);
-        const periodEndNorm = new Date(periodEndDate);
-        periodEndNorm.setUTCHours(0,0,0,0);
-        return instDate < periodStartNorm || instDate > periodEndNorm;
-      });
-      const updatedGeneratedForPeriod = newInstancesWithFields.map(newInstance => {
-        const oldMatchingInstance = prevInstances.find(oldInst => oldInst.id === newInstance.id);
-        return oldMatchingInstance ? { ...newInstance, ...oldMatchingInstance } : newInstance;
-      });
-      return [...outsideOfPeriod, ...updatedGeneratedForPeriod];
+    setChoreInstances(prev => {
+      const outside = prev.filter(inst => new Date(inst.instanceDate) < new Date(startDate) || new Date(inst.instanceDate) > new Date(endDate));
+      const updated = newInstances.map(ni => prev.find(oi => oi.id === ni.id) ? { ...ni, ...prev.find(oi => oi.id === ni.id) } : ni);
+      return [...outside, ...updated];
     });
-  }, [choreDefinitions, logActivity]); // logActivity added to dependencies if used here, but it's for modifications
+  }, [choreDefinitions]); // Removed logActivity from deps as it's not directly used here for now
 
   const toggleChoreInstanceComplete = useCallback((instanceId: string) => {
-    setChoreInstances(prevInstances =>
-      prevInstances.map(inst => {
-        if (inst.id === instanceId) {
-          if (inst.isSkipped) return inst; // Cannot complete a skipped task
-
-          const definition = choreDefinitions.find(def => def.id === inst.choreDefinitionId);
-          if (!definition || !definition.assignedKidId) return inst;
-
-          const kidKanbanColumns = getKanbanColumnConfigs(definition.assignedKidId);
-          let updatedInst = { ...inst, isComplete: !inst.isComplete };
-
-          if (updatedInst.isComplete) {
-            if (definition.rewardAmount && definition.rewardAmount > 0) {
-              addKidReward(definition.assignedKidId, definition.rewardAmount, `${definition.title} (${inst.instanceDate})`);
-            }
-            const doneColumn = kidKanbanColumns.find(col => col.isCompletedColumn);
-            if (doneColumn && updatedInst.categoryStatus !== doneColumn.id) {
-              updatedInst.previousSubtaskCompletions = { ...updatedInst.subtaskCompletions };
-              const allTrueSubtasks: Record<string, boolean> = {};
-              (definition.subTasks || []).forEach(st => allTrueSubtasks[st.id] = true);
-              updatedInst.subtaskCompletions = allTrueSubtasks;
-              updatedInst.categoryStatus = doneColumn.id;
-               updatedInst = logActivity(updatedInst, 'Status Changed (Auto)', currentUser?.id, currentUser?.username, `to '${doneColumn.title}' due to completion`);
-            } else if (updatedInst.categoryStatus === doneColumn?.id) { // Already in done column
-                const allTrueSubtasks: Record<string, boolean> = {};
-                (definition.subTasks || []).forEach(st => allTrueSubtasks[st.id] = true);
-                updatedInst.subtaskCompletions = allTrueSubtasks; // Ensure subtasks are marked complete
-            }
-          } else { // Marking as incomplete
-            const currentColumnConfig = kidKanbanColumns.find(col => col.id === updatedInst.categoryStatus);
-            if (currentColumnConfig?.isCompletedColumn) {
-              const firstNonDoneColumn = kidKanbanColumns.find(col => !col.isCompletedColumn) || kidKanbanColumns[0];
-              if (firstNonDoneColumn) {
-                updatedInst.categoryStatus = firstNonDoneColumn.id;
-                if (updatedInst.previousSubtaskCompletions) {
-                  updatedInst.subtaskCompletions = { ...updatedInst.previousSubtaskCompletions };
-                  updatedInstance.previousSubtaskCompletions = undefined;
-                }
-                updatedInst = logActivity(updatedInst, 'Status Changed (Auto)', currentUser?.id, currentUser?.username, `to '${firstNonDoneColumn.title}' due to uncompletion`);
+    setChoreInstances(prev => prev.map(inst => {
+      if (inst.id === instanceId && !inst.isSkipped) {
+        const def = choreDefinitions.find(d => d.id === inst.choreDefinitionId);
+        if (!def || !def.assignedKidId) return inst;
+        const cols = getKanbanColumnConfigs(def.assignedKidId);
+        let updated = { ...inst, isComplete: !inst.isComplete };
+        if (updated.isComplete) {
+          if (def.rewardAmount && def.rewardAmount > 0) addKidReward(def.assignedKidId, def.rewardAmount, `${def.title} (${inst.instanceDate})`);
+          const doneCol = cols.find(c => c.isCompletedColumn);
+          if (doneCol && updated.categoryStatus !== doneCol.id) {
+            updated.previousSubtaskCompletions = { ...updated.subtaskCompletions };
+            const allTrue: Record<string,boolean> = {};
+            def.subTasks?.forEach(st => allTrue[st.id] = true);
+            updated.subtaskCompletions = allTrue;
+            updated.categoryStatus = doneCol.id;
+            updated = logActivity(updated, 'Status Changed (Auto)', currentUser?.id, currentUser?.username, `to '${doneCol.title}' due to completion`);
+          } else if (updated.categoryStatus === doneCol?.id) {
+             const allTrue: Record<string,boolean> = {};
+             def.subTasks?.forEach(st => allTrue[st.id] = true);
+             updated.subtaskCompletions = allTrue;
+          }
+        } else {
+          const curColCfg = cols.find(c => c.id === updated.categoryStatus);
+          if (curColCfg?.isCompletedColumn) {
+            const nonDoneCol = cols.find(c => !c.isCompletedColumn) || cols[0];
+            if (nonDoneCol) {
+              updated.categoryStatus = nonDoneCol.id;
+              if (updated.previousSubtaskCompletions) {
+                updated.subtaskCompletions = { ...updated.previousSubtaskCompletions };
+                updated.previousSubtaskCompletions = undefined;
               }
+              updated = logActivity(updated, 'Status Changed (Auto)', currentUser?.id, currentUser?.username, `to '${nonDoneCol.title}' due to uncompletion`);
             }
           }
-          updatedInst = logActivity(updatedInst, updatedInst.isComplete ? 'Marked Complete' : 'Marked Incomplete', currentUser?.id, currentUser?.username);
-          return updatedInst;
         }
-        return inst;
-      })
-    );
+        updated = logActivity(updated, updated.isComplete ? 'Marked Complete' : 'Marked Incomplete', currentUser?.id, currentUser?.username);
+        return updated;
+      }
+      return inst;
+    }));
   }, [choreDefinitions, addKidReward, getKanbanColumnConfigs, logActivity, currentUser]);
 
   const toggleSubtaskCompletionOnInstance = useCallback((instanceId: string, subtaskId: string) => {
-    setChoreInstances(prevInstances => {
-      const instanceIndex = prevInstances.findIndex(inst => inst.id === instanceId);
-      if (instanceIndex === -1) return prevInstances;
+    setChoreInstances(prev => prev.map(inst => {
+      if (inst.id === instanceId) {
+        let current = { ...inst };
+        const def = choreDefinitions.find(d => d.id === current.choreDefinitionId);
+        if (!def || !def.assignedKidId) return inst;
 
-      let currentInstance = prevInstances[instanceIndex];
-      const definition = choreDefinitions.find(def => def.id === currentInstance.choreDefinitionId);
-      if (!definition || !definition.assignedKidId) return prevInstances;
+        current.subtaskCompletions = { ...current.subtaskCompletions, [subtaskId]: !current.subtaskCompletions?.[subtaskId] };
+        const subTitle = def.subTasks?.find(st=>st.id === subtaskId)?.title || 'Unknown';
+        current = logActivity(current, 'Subtask Toggled', currentUser?.id, currentUser?.username, `'${subTitle}' to ${current.subtaskCompletions[subtaskId] ? 'Complete':'Incomplete'}`);
 
-      const newSubtaskCompletions = { ...currentInstance.subtaskCompletions, [subtaskId]: !currentInstance.subtaskCompletions?.[subtaskId] };
-      currentInstance = { ...currentInstance, subtaskCompletions: newSubtaskCompletions };
+        const allDone = def.subTasks?.every(st => !!current.subtaskCompletions[st.id]) ?? true;
+        const cols = getKanbanColumnConfigs(def.assignedKidId);
+        const curColCfg = cols.find(c => c.id === current.categoryStatus);
+        const origStatus = current.categoryStatus;
 
-      const subtaskTitle = definition.subTasks?.find(st => st.id === subtaskId)?.title || 'Unknown Subtask';
-      const newCompletionState = currentInstance.subtaskCompletions[subtaskId];
-      currentInstance = logActivity(currentInstance, 'Subtask Toggled', currentUser?.id, currentUser?.username, `'${subtaskTitle}' to ${newCompletionState ? 'Complete' : 'Incomplete'}`);
-
-      const allSubtasksComplete = definition.subTasks?.every(st => !!currentInstance.subtaskCompletions[st.id]) ?? true;
-      const kidKanbanColumns = getKanbanColumnConfigs(definition.assignedKidId);
-      const currentColumnConfig = kidKanbanColumns.find(col => col.id === currentInstance.categoryStatus);
-      const originalStatus = currentInstance.categoryStatus;
-
-      if (allSubtasksComplete && currentColumnConfig && !currentColumnConfig.isCompletedColumn) {
-        const firstDoneColumn = kidKanbanColumns.find(col => col.isCompletedColumn);
-        if (firstDoneColumn) {
-          currentInstance.isComplete = true;
-          currentInstance.previousSubtaskCompletions = { ...currentInstance.subtaskCompletions };
-          currentInstance.categoryStatus = firstDoneColumn.id;
-        } else {
-          currentInstance.isComplete = true; // No done column, but all subtasks are complete
-        }
-      } else if (!allSubtasksComplete && currentColumnConfig && currentColumnConfig.isCompletedColumn) {
-        const firstNonDoneColumn = kidKanbanColumns.find(col => !col.isCompletedColumn) || kidKanbanColumns[0];
-        if (firstNonDoneColumn) {
-          currentInstance.isComplete = false;
-          if (currentInstance.previousSubtaskCompletions) {
-            currentInstance.subtaskCompletions = { ...currentInstance.previousSubtaskCompletions };
-            currentInstance.previousSubtaskCompletions = undefined;
+        if (allDone && curColCfg && !curColCfg.isCompletedColumn) {
+          const doneCol = cols.find(c => c.isCompletedColumn);
+          if (doneCol) { current.isComplete = true; current.previousSubtaskCompletions = {...current.subtaskCompletions}; current.categoryStatus = doneCol.id; }
+          else { current.isComplete = true; }
+        } else if (!allDone && curColCfg && curColCfg.isCompletedColumn) {
+          const nonDoneCol = cols.find(c => !c.isCompletedColumn) || cols[0];
+          if (nonDoneCol) {
+            current.isComplete = false;
+            if (current.previousSubtaskCompletions) { current.subtaskCompletions = {...current.previousSubtaskCompletions}; current.previousSubtaskCompletions = undefined; }
+            current.categoryStatus = nonDoneCol.id;
           }
-          currentInstance.categoryStatus = firstNonDoneColumn.id;
+        } else {
+          if (!curColCfg?.isCompletedColumn) current.isComplete = allDone;
+          else current.isComplete = true;
         }
-      } else { // Not changing columns
-        if (!currentColumnConfig?.isCompletedColumn) {
-          currentInstance.isComplete = allSubtasksComplete;
-        } else { // Is in a completed column
-            currentInstance.isComplete = true; // Should remain true
-             // if a subtask was unchecked, it implies it moved out of done column already.
-             // if it's still in done column and a subtask is unchecked, this state is inconsistent.
-             // For now, assume if it's in a done column, it's complete.
+        if (origStatus !== current.categoryStatus) {
+          const newColTitle = cols.find(c => c.id === current.categoryStatus)?.title || current.categoryStatus;
+          current = logActivity(current, 'Status Changed (Auto)', currentUser?.id, currentUser?.username, `to '${newColTitle}'`);
         }
+        return current;
       }
-
-      if (originalStatus !== currentInstance.categoryStatus) {
-         const newColTitle = kidKanbanColumns.find(col => col.id === currentInstance.categoryStatus)?.title || currentInstance.categoryStatus;
-         currentInstance = logActivity(currentInstance, 'Status Changed (Auto)', currentUser?.id, currentUser?.username, `to '${newColTitle}' due to subtask update`);
-      }
-
-      const finalInstances = [...prevInstances];
-      finalInstances[instanceIndex] = currentInstance;
-      return finalInstances;
-    });
+      return inst;
+    }));
   }, [choreDefinitions, getKanbanColumnConfigs, logActivity, currentUser]);
 
   const updateChoreInstanceCategory = useCallback((instanceId: string, newStatusId: string) => {
-    setChoreInstances(prevInstances =>
-      prevInstances.map(inst => {
-        if (inst.id === instanceId) {
-          if (inst.categoryStatus === newStatusId) return inst; // No change
-
-          const definition = choreDefinitions.find(def => def.id === inst.choreDefinitionId);
-          if (!definition || !definition.assignedKidId) return inst;
-
-          const kidKanbanColumns = getKanbanColumnConfigs(definition.assignedKidId);
-          const newColumnConfig = kidKanbanColumns.find(col => col.id === newStatusId);
-          const oldColumnConfig = kidKanbanColumns.find(col => col.id === inst.categoryStatus);
-
-          let updatedInstance = { ...inst, categoryStatus: newStatusId };
-
-          if (newColumnConfig?.isCompletedColumn) {
-            updatedInstance.isComplete = true;
-            if (Object.keys(inst.subtaskCompletions || {}).length > 0 || (definition.subTasks && definition.subTasks.length > 0)) {
-              updatedInstance.previousSubtaskCompletions = { ...inst.subtaskCompletions };
-              const allTrueSubtasks: Record<string, boolean> = {};
-              (definition.subTasks || []).forEach(st => allTrueSubtasks[st.id] = true);
-              updatedInstance.subtaskCompletions = allTrueSubtasks;
-            }
-          } else if (oldColumnConfig?.isCompletedColumn && !newColumnConfig?.isCompletedColumn) {
-            updatedInstance.isComplete = false;
-            if (updatedInstance.previousSubtaskCompletions) {
-              updatedInstance.subtaskCompletions = { ...updatedInstance.previousSubtaskCompletions };
-              updatedInstance.previousSubtaskCompletions = undefined;
-            }
-            updatedInstance.isComplete = definition.subTasks?.every(st => !!updatedInstance.subtaskCompletions[st.id]) ?? !definition.subTasks;
+    setChoreInstances(prev => prev.map(inst => {
+      if (inst.id === instanceId && inst.categoryStatus !== newStatusId) {
+        const def = choreDefinitions.find(d => d.id === inst.choreDefinitionId);
+        if (!def || !def.assignedKidId) return inst;
+        const cols = getKanbanColumnConfigs(def.assignedKidId);
+        const newColCfg = cols.find(c => c.id === newStatusId);
+        const oldColCfg = cols.find(c => c.id === inst.categoryStatus);
+        let updated = { ...inst, categoryStatus: newStatusId };
+        if (newColCfg?.isCompletedColumn) {
+          updated.isComplete = true;
+          if (def.subTasks && def.subTasks.length > 0) {
+            updated.previousSubtaskCompletions = { ...inst.subtaskCompletions };
+            const allTrue:Record<string,boolean> = {};
+            def.subTasks.forEach(st => allTrue[st.id] = true);
+            updated.subtaskCompletions = allTrue;
           }
-
-          const newColTitle = newColumnConfig?.title || newStatusId;
-          updatedInstance = logActivity(updatedInstance, 'Status Changed', currentUser?.id, currentUser?.username, `to '${newColTitle}'`);
-          return updatedInstance;
+        } else if (oldColCfg?.isCompletedColumn && !newColCfg?.isCompletedColumn) {
+          updated.isComplete = false;
+          if (updated.previousSubtaskCompletions) { updated.subtaskCompletions = {...updated.previousSubtaskCompletions}; updated.previousSubtaskCompletions = undefined; }
+          updated.isComplete = def.subTasks?.every(st => !!updated.subtaskCompletions[st.id]) ?? !def.subTasks;
         }
-        return inst;
-      })
-    );
+        updated = logActivity(updated, 'Status Changed', currentUser?.id, currentUser?.username, `to '${newColCfg?.title || newStatusId}'`);
+        return updated;
+      }
+      return inst;
+    }));
   }, [choreDefinitions, getKanbanColumnConfigs, logActivity, currentUser]);
 
   const updateChoreInstanceField = useCallback(async (instanceId: string, fieldName: keyof ChoreInstance, value: any) => {
-    setChoreInstances(prevInstances =>
-      prevInstances.map(inst => {
-        if (inst.id === instanceId) {
-          let updatedInst = { ...inst, [fieldName]: value };
-          if (fieldName === 'priority') {
-            updatedInst = logActivity(updatedInst, 'Priority Changed', currentUser?.id, currentUser?.username, `to ${value || 'Default'}`);
-          } else if (fieldName === 'instanceDate') {
-            updatedInst = logActivity(updatedInst, 'Date Changed', currentUser?.id, currentUser?.username, `to ${value}`);
-          } else if (fieldName === 'overriddenRewardAmount') {
-             const definition = choreDefinitions.find(def => def.id === inst.choreDefinitionId);
-             const baseReward = definition?.rewardAmount ?? 0;
-             const newReward = value !== undefined ? value : baseReward;
-            updatedInst = logActivity(updatedInst, 'Reward Changed', currentUser?.id, currentUser?.username, `to $${Number(newReward).toFixed(2)}`);
-          }
-          return updatedInst;
+    setChoreInstances(prev => prev.map(inst => {
+      if (inst.id === instanceId) {
+        let updated = { ...inst, [fieldName]: value };
+        if (fieldName === 'priority') updated = logActivity(updated, 'Priority Changed', currentUser?.id, currentUser?.username, `to ${value || 'Default'}`);
+        else if (fieldName === 'instanceDate') updated = logActivity(updated, 'Date Changed', currentUser?.id, currentUser?.username, `to ${value}`);
+        else if (fieldName === 'overriddenRewardAmount') {
+          const def = choreDefinitions.find(d => d.id === inst.choreDefinitionId);
+          updated = logActivity(updated, 'Reward Changed', currentUser?.id, currentUser?.username, `to $${Number(value !== undefined ? value : (def?.rewardAmount ?? 0)).toFixed(2)}`);
+        } else if (fieldName === 'instanceDescription') {
+            updated = logActivity(updated, 'Instance Description Changed', currentUser?.id, currentUser?.username, value ? `to "${value.substring(0,30)}..."` : "cleared");
         }
-        return inst;
-      })
-    );
+        return updated;
+      }
+      return inst;
+    }));
   }, [choreDefinitions, logActivity, currentUser]);
 
-  const batchToggleCompleteChoreInstances = useCallback(async (instanceIds: string[], markAsComplete: boolean) => {
-    setChoreInstances(prevInstances => {
-      return prevInstances.map(instance => {
-        if (instanceIds.includes(instance.id)) {
-          if (instance.isComplete === markAsComplete) return instance;
-
-          const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
-          if (!definition || !definition.assignedKidId) return instance;
-
-          if (markAsComplete && !instance.isComplete && definition.rewardAmount && definition.rewardAmount > 0) {
-            addKidReward(definition.assignedKidId, definition.rewardAmount, `${definition.title} (${instance.instanceDate})`);
-          }
-          let updatedInstance = { ...instance };
-          const originalStatus = instance.categoryStatus;
-          const kidKanbanColumns = getKanbanColumnConfigs(definition.assignedKidId);
-
-          if (markAsComplete) {
-            updatedInstance.isComplete = true;
-            const doneColumn = kidKanbanColumns.find(col => col.isCompletedColumn);
-            if (doneColumn) updatedInstance.categoryStatus = doneColumn.id;
-
-            if (Object.keys(updatedInstance.subtaskCompletions || {}).length > 0 || (definition.subTasks && definition.subTasks.length > 0)) {
-              updatedInstance.previousSubtaskCompletions = { ...updatedInstance.subtaskCompletions };
-              const allTrueSubtasks: Record<string, boolean> = {};
-              (definition.subTasks || []).forEach(st => allTrueSubtasks[st.id] = true);
-              updatedInstance.subtaskCompletions = allTrueSubtasks;
-            }
-          } else {
-            updatedInstance.isComplete = false;
-            const firstNonDoneColumn = kidKanbanColumns.find(col => !col.isCompletedColumn) || kidKanbanColumns[0];
-            if (firstNonDoneColumn) updatedInstance.categoryStatus = firstNonDoneColumn.id;
-
-            if (updatedInstance.previousSubtaskCompletions) {
-              updatedInstance.subtaskCompletions = { ...updatedInstance.previousSubtaskCompletions };
-              updatedInstance.previousSubtaskCompletions = undefined;
-            }
-          }
-          updatedInstance = logActivity(updatedInstance, updatedInstance.isComplete ? 'Marked Complete (Batch)' : 'Marked Incomplete (Batch)', currentUser?.id, currentUser?.username);
-          if (originalStatus !== updatedInstance.categoryStatus) {
-             const newColTitle = kidKanbanColumns.find(col => col.id === updatedInstance.categoryStatus)?.title || updatedInstance.categoryStatus;
-             updatedInstance = logActivity(updatedInstance, 'Status Changed (Batch Auto)', currentUser?.id, currentUser?.username, `to '${newColTitle}'`);
-          }
-          return updatedInstance;
+  const batchToggleCompleteChoreInstances = useCallback(async (ids: string[], markAsComplete: boolean) => {
+    setChoreInstances(prev => prev.map(inst => {
+      if (ids.includes(inst.id) && inst.isComplete !== markAsComplete) {
+        const def = choreDefinitions.find(d => d.id === inst.choreDefinitionId);
+        if (!def || !def.assignedKidId) return inst;
+        if (markAsComplete && !inst.isComplete && def.rewardAmount && def.rewardAmount > 0) addKidReward(def.assignedKidId, def.rewardAmount, `${def.title} (${inst.instanceDate})`);
+        let updated = { ...inst };
+        const origStatus = inst.categoryStatus;
+        const cols = getKanbanColumnConfigs(def.assignedKidId);
+        if (markAsComplete) {
+          updated.isComplete = true;
+          const doneCol = cols.find(c=>c.isCompletedColumn);
+          if(doneCol) updated.categoryStatus = doneCol.id;
+          if (def.subTasks && def.subTasks.length > 0) { updated.previousSubtaskCompletions = {...inst.subtaskCompletions}; const allTrue:Record<string,boolean>={}; def.subTasks.forEach(st=>allTrue[st.id]=true); updated.subtaskCompletions=allTrue;}
+        } else {
+          updated.isComplete = false;
+          const nonDoneCol = cols.find(c=>!c.isCompletedColumn) || cols[0];
+          if(nonDoneCol) updated.categoryStatus = nonDoneCol.id;
+          if(updated.previousSubtaskCompletions) {updated.subtaskCompletions = {...updated.previousSubtaskCompletions}; updated.previousSubtaskCompletions = undefined;}
         }
-        return instance;
-      });
-    });
+        updated = logActivity(updated, markAsComplete ? 'Marked Complete (Batch)' : 'Marked Incomplete (Batch)', currentUser?.id, currentUser?.username);
+        if (origStatus !== updated.categoryStatus) updated = logActivity(updated, 'Status Changed (Batch Auto)', currentUser?.id, currentUser?.username, `to '${cols.find(c=>c.id===updated.categoryStatus)?.title || updated.categoryStatus}'`);
+        return updated;
+      }
+      return inst;
+    }));
   }, [choreDefinitions, addKidReward, getKanbanColumnConfigs, logActivity, currentUser]);
 
-  const batchUpdateChoreInstancesCategory = useCallback(async (instanceIds: string[], newStatusId: string) => {
-    setChoreInstances(prevInstances =>
-      prevInstances.map(inst => {
-        if (instanceIds.includes(inst.id)) {
-          if (inst.categoryStatus === newStatusId) return inst;
-
-          const definition = choreDefinitions.find(def => def.id === inst.choreDefinitionId);
-          if (!definition || !definition.assignedKidId) return inst;
-
-          const kidKanbanColumns = getKanbanColumnConfigs(definition.assignedKidId);
-          const newColumnConfig = kidKanbanColumns.find(col => col.id === newStatusId);
-          const oldColumnConfig = kidKanbanColumns.find(col => col.id === inst.categoryStatus);
-
-          let updatedInstance = { ...inst, categoryStatus: newStatusId };
-
-          if (newColumnConfig?.isCompletedColumn) {
-            updatedInstance.isComplete = true;
-            if (Object.keys(inst.subtaskCompletions || {}).length > 0 || (definition.subTasks && definition.subTasks.length > 0)) {
-              updatedInstance.previousSubtaskCompletions = { ...inst.subtaskCompletions };
-              const allTrueSubtasks: Record<string, boolean> = {};
-              (definition.subTasks || []).forEach(st => allTrueSubtasks[st.id] = true);
-              updatedInstance.subtaskCompletions = allTrueSubtasks;
-            }
-          } else if (oldColumnConfig?.isCompletedColumn && !newColumnConfig?.isCompletedColumn) {
-            updatedInstance.isComplete = false;
-            if (updatedInstance.previousSubtaskCompletions) {
-              updatedInstance.subtaskCompletions = { ...updatedInstance.previousSubtaskCompletions };
-              updatedInstance.previousSubtaskCompletions = undefined;
-            }
-            updatedInstance.isComplete = definition.subTasks?.every(st => !!updatedInstance.subtaskCompletions[st.id]) ?? !definition.subTasks;
-          }
-          const newColTitle = newColumnConfig?.title || newStatusId;
-          updatedInstance = logActivity(updatedInstance, 'Status Changed (Batch)', currentUser?.id, currentUser?.username, `to '${newColTitle}'`);
-          return updatedInstance;
+  const batchUpdateChoreInstancesCategory = useCallback(async (ids: string[], newStatusId: string) => {
+    setChoreInstances(prev => prev.map(inst => {
+      if (ids.includes(inst.id) && inst.categoryStatus !== newStatusId) {
+        const def = choreDefinitions.find(d => d.id === inst.choreDefinitionId);
+        if (!def || !def.assignedKidId) return inst;
+        const cols = getKanbanColumnConfigs(def.assignedKidId);
+        const newColCfg = cols.find(c => c.id === newStatusId);
+        const oldColCfg = cols.find(c => c.id === inst.categoryStatus);
+        let updated = { ...inst, categoryStatus: newStatusId };
+        if (newColCfg?.isCompletedColumn) {
+          updated.isComplete = true;
+          if (def.subTasks && def.subTasks.length > 0) { updated.previousSubtaskCompletions = {...inst.subtaskCompletions}; const allTrue:Record<string,boolean>={}; def.subTasks.forEach(st=>allTrue[st.id]=true); updated.subtaskCompletions=allTrue;}
+        } else if (oldColCfg?.isCompletedColumn && !newColCfg?.isCompletedColumn) {
+          updated.isComplete = false;
+          if(updated.previousSubtaskCompletions) {updated.subtaskCompletions = {...updated.previousSubtaskCompletions}; updated.previousSubtaskCompletions = undefined;}
+          updated.isComplete = def.subTasks?.every(st=>!!updated.subtaskCompletions[st.id]) ?? !def.subTasks;
         }
-        return inst;
-      })
-    );
+        updated = logActivity(updated, 'Status Changed (Batch)', currentUser?.id, currentUser?.username, `to '${newColCfg?.title || newStatusId}'`);
+        return updated;
+      }
+      return inst;
+    }));
   }, [choreDefinitions, getKanbanColumnConfigs, logActivity, currentUser]);
 
   const addCommentToInstance = useCallback(async (instanceId: string, commentText: string, userId: string, userName: string) => {
-    setChoreInstances(prevInstances =>
-      prevInstances.map(inst => {
-        if (inst.id === instanceId) {
-          const newCommentEntry = {
-            id: `cmt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-            userId,
-            userName,
-            text: commentText,
-            createdAt: new Date().toISOString(),
-          };
-          // As per refined requirement, comments are NOT logged to activityLog here.
-          // They are stored in instanceComments and displayed separately.
-          return {
-            ...inst,
-            instanceComments: [...(inst.instanceComments || []), newCommentEntry],
-          };
-        }
-        return inst;
-      })
-    );
-  }, []); // Removed currentUser dependency as it's not used for logging here
+    setChoreInstances(prev => prev.map(inst => {
+      if (inst.id === instanceId) {
+        const newComment = { id: `cmt_${Date.now()}_${Math.random().toString(36).substring(2,9)}`, userId, userName, text: commentText, createdAt: new Date().toISOString() };
+        return { ...inst, instanceComments: [...(inst.instanceComments || []), newComment] };
+      }
+      return inst;
+    }));
+  }, []);
 
   const toggleSkipInstance = useCallback(async (instanceId: string) => {
-    setChoreInstances(prevInstances =>
-      prevInstances.map(inst => {
-        if (inst.id === instanceId) {
-          let updatedInst = { ...inst, isSkipped: !inst.isSkipped };
-          updatedInst = logActivity(updatedInst, updatedInst.isSkipped ? 'Instance Skipped' : 'Instance Unskipped', currentUser?.id, currentUser?.username);
-          return updatedInst;
-        }
-        return inst;
-      })
-    );
+    setChoreInstances(prev => prev.map(inst => {
+      if (inst.id === instanceId) {
+        let updated = { ...inst, isSkipped: !inst.isSkipped };
+        updated = logActivity(updated, updated.isSkipped ? 'Instance Skipped' : 'Instance Unskipped', currentUser?.id, currentUser?.username);
+        return updated;
+      }
+      return inst;
+    }));
   }, [logActivity, currentUser]);
 
-  const updateChoreSeries = useCallback(async (
-    definitionId: string,
-    updates: Partial<Pick<ChoreDefinition, 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'hour' | 'minute' | 'timeOfDay' | 'priority'>>,
-    fromDate: string,
-    fieldName: 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'timeOfDay' | 'priority'
-  ) => {
+  const updateChoreSeries = useCallback(async (definitionId: string, updates: Partial<Pick<ChoreDefinition, 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'hour' | 'minute' | 'timeOfDay' | 'priority'>>, fromDate: string, fieldName: 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'timeOfDay' | 'priority') => {
     setChoreDefinitions(prevDefs => {
-      const definitionIndex = prevDefs.findIndex(d => d.id === definitionId);
-      if (definitionIndex === -1) return prevDefs;
+      const defIdx = prevDefs.findIndex(d => d.id === definitionId);
+      if (defIdx === -1) return prevDefs;
+      const origDef = prevDefs[defIdx];
+      let updatedDefFields = { ...updates };
+      if (updates.subTasks) updatedDefFields.subTasks = updates.subTasks.map((st, i) => ({ id: st.id || `st_${Date.now()}_${i}`, ...st }));
+      const newDef: ChoreDefinition = { ...origDef, ...updatedDefFields, updatedAt: new Date().toISOString() };
+      const newDefs = [...prevDefs];
+      newDefs[defIdx] = newDef;
 
-      const originalDefinition = prevDefs[definitionIndex];
-      let updatedDefinitionFields = { ...updates };
-      if (updates.subTasks) {
-        updatedDefinitionFields.subTasks = updates.subTasks.map((st, index) => ({ id: st.id || `st_${Date.now()}_${index}`, ...st }));
-      }
-      const newDefinition: ChoreDefinition = { ...originalDefinition, ...updatedDefinitionFields, updatedAt: new Date().toISOString() };
-      const newDefinitions = [...prevDefs];
-      newDefinitions[definitionIndex] = newDefinition;
-
-      setChoreInstances(prevInstances => {
-        const instancesToKeep = prevInstances.filter(inst => inst.choreDefinitionId !== definitionId || inst.instanceDate < fromDate);
-        let regenerationEndDate = newDefinition.recurrenceEndDate;
-        if (!regenerationEndDate) {
-          const fromDateObj = new Date(fromDate);
-          fromDateObj.setFullYear(fromDateObj.getFullYear() + 1);
-          regenerationEndDate = fromDateObj.toISOString().split('T')[0];
+      setChoreInstances(prevInsts => {
+        const toKeep = prevInsts.filter(i => i.choreDefinitionId !== definitionId || i.instanceDate < fromDate);
+        let regenEndDate = newDef.recurrenceEndDate;
+        if (!regenEndDate) { const fd = new Date(fromDate); fd.setFullYear(fd.getFullYear() + 1); regenEndDate = fd.toISOString().split('T')[0]; }
+        let futureInsts: ChoreInstance[] = [];
+        if (newDef.recurrenceType && !newDef.isComplete) {
+          const rawNew = generateChoreInstances([newDef], fromDate, regenEndDate);
+          futureInsts = rawNew.map(raw => {
+            let subComp:Record<string,boolean>={}; newDef.subTasks?.forEach(st => subComp[st.id]=st.isComplete||false);
+            return { ...raw, isComplete:false, categoryStatus:"", subtaskCompletions:subComp, previousSubtaskCompletions:undefined, priority:newDef.priority, instanceComments:[], instanceDescription: undefined, isSkipped:false, activityLog:[] };
+          });
         }
-        let newFutureInstances: ChoreInstance[] = [];
-        if (newDefinition.recurrenceType && !newDefinition.isComplete) {
-            const rawNewFutureInstances = generateChoreInstances([newDefinition], fromDate, regenerationEndDate);
-            newFutureInstances = rawNewFutureInstances.map(rawInstance => {
-                let initialSubtaskCompletions: Record<string, boolean> = {};
-                if (newDefinition.subTasks) {
-                    newDefinition.subTasks.forEach(st => { initialSubtaskCompletions[st.id] = st.isComplete || false; });
-                }
-                return {
-                    ...rawInstance,
-                    isComplete: false,
-                    categoryStatus: "",
-                    subtaskCompletions: initialSubtaskCompletions,
-                    previousSubtaskCompletions: undefined,
-                    priority: newDefinition.priority,
-                    instanceComments: [],
-                    isSkipped: false,
-                    activityLog: [],
-                };
-            });
+        const firstAffected = prevInsts.find(i => i.choreDefinitionId === definitionId && i.instanceDate === fromDate);
+        if (firstAffected) {
+            const loggedFirst = logActivity(firstAffected, `Series Updated: ${fieldName}`, currentUser?.id, currentUser?.username, `Field '${fieldName}' for series from ${fromDate}`);
+            const idx = toKeep.findIndex(i => i.id === loggedFirst.id); // This might be -1 if firstAffected was not in toKeep
+            if (idx !== -1) toKeep[idx] = loggedFirst;
+            // If not found in toKeep (because its instanceDate was >= fromDate), it will be replaced by newFutureInstances if applicable
+            // or simply removed if it's a non-recurring chore whose date was changed.
+            // This specific logging on 'firstAffected' might be lost if it's part of the instances being replaced.
+            // A more robust way for series logging might be needed if this single-instance log is insufficient.
         }
-        // Log series update on the first affected instance if it exists
-        const firstInstanceToUpdate = prevInstances.find(inst => inst.choreDefinitionId === definitionId && inst.instanceDate === fromDate);
-        if (firstInstanceToUpdate) {
-            const updatedFirstInstance = logActivity(firstInstanceToUpdate, `Series Updated: ${fieldName}`, currentUser?.id, currentUser?.username, `Field '${fieldName}' changed for series from ${fromDate}`);
-            const index = instancesToKeep.findIndex(inst => inst.id === updatedFirstInstance.id);
-            if (index !== -1) instancesToKeep[index] = updatedFirstInstance;
-            // Note: This only logs on one instance. For broader series logging, might need a different approach.
-        }
-
-        return [...instancesToKeep, ...newFutureInstances];
+        return [...toKeep, ...futureInsts];
       });
-      return newDefinitions;
+      return newDefs;
     });
-  }, [logActivity, currentUser]); // Added logActivity & currentUser
+  }, [logActivity, currentUser]);
 
-  // Simplified ChoresContextType for this example
-  const getChoreDefinitionsForKid = useCallback((kidId: string): ChoreDefinition[] => {
-    return choreDefinitions.filter(def => def.assignedKidId === kidId);
-  }, [choreDefinitions]);
-
-  const toggleChoreDefinitionActiveState = useCallback((definitionId: string) => {
-    setChoreDefinitions(prevDefs =>
-      prevDefs.map(def =>
-        def.id === definitionId ? { ...def, isComplete: !def.isComplete } : def
-      )
-    );
-  }, []);
-
-  const batchAssignChoreDefinitionsToKid = useCallback(async (definitionIds: string[], newKidId: string | null) => {
-    setChoreDefinitions(prevDefs =>
-      prevDefs.map(def => {
-        if (definitionIds.includes(def.id)) {
-          return { ...def, assignedKidId: newKidId || undefined, updatedAt: new Date().toISOString() };
-        }
-        return def;
-      })
-    );
-  }, []);
-
+  const getChoreDefinitionsForKid = useCallback((kidId: string): ChoreDefinition[] => choreDefinitions.filter(def => def.assignedKidId === kidId), [choreDefinitions]);
+  const toggleChoreDefinitionActiveState = useCallback((definitionId: string) => setChoreDefinitions(prev => prev.map(def => def.id === definitionId ? { ...def, isComplete: !def.isComplete } : def)), []);
+  const batchAssignChoreDefinitionsToKid = useCallback(async (definitionIds: string[], newKidId: string | null) => setChoreDefinitions(prev => prev.map(def => definitionIds.includes(def.id) ? { ...def, assignedKidId: newKidId || undefined, updatedAt: new Date().toISOString() } : def)), []);
 
   const contextValue = useMemo(() => ({
-    choreDefinitions,
-    choreInstances,
-    addChoreDefinition,
-    toggleChoreInstanceComplete,
-    getChoreDefinitionsForKid,
-    generateInstancesForPeriod,
-    toggleSubtaskCompletionOnInstance,
-    toggleChoreDefinitionActiveState,
-    updateChoreInstanceCategory,
-    updateChoreDefinition,
-    updateChoreInstanceField,
-    batchToggleCompleteChoreInstances,
-    batchUpdateChoreInstancesCategory,
-    batchAssignChoreDefinitionsToKid,
-    updateChoreSeries,
-    addCommentToInstance,
-    toggleSkipInstance,
+    choreDefinitions, choreInstances, addChoreDefinition, toggleChoreInstanceComplete, getChoreDefinitionsForKid,
+    generateInstancesForPeriod, toggleSubtaskCompletionOnInstance, toggleChoreDefinitionActiveState,
+    updateChoreInstanceCategory, updateChoreDefinition, updateChoreInstanceField,
+    batchToggleCompleteChoreInstances, batchUpdateChoreInstancesCategory, batchAssignChoreDefinitionsToKid,
+    updateChoreSeries, addCommentToInstance, toggleSkipInstance,
   }), [
-    choreDefinitions,
-    choreInstances,
-    addChoreDefinition,
-    toggleChoreInstanceComplete,
-    getChoreDefinitionsForKid,
-    generateInstancesForPeriod,
-    toggleSubtaskCompletionOnInstance,
-    toggleChoreDefinitionActiveState,
-    updateChoreInstanceCategory,
-    updateChoreDefinition,
-    updateChoreInstanceField,
-    batchToggleCompleteChoreInstances,
-    batchUpdateChoreInstancesCategory,
-    batchAssignChoreDefinitionsToKid,
-    updateChoreSeries,
-    addCommentToInstance,
-    toggleSkipInstance,
+    choreDefinitions, choreInstances, addChoreDefinition, toggleChoreInstanceComplete, getChoreDefinitionsForKid,
+    generateInstancesForPeriod, toggleSubtaskCompletionOnInstance, toggleChoreDefinitionActiveState,
+    updateChoreInstanceCategory, updateChoreDefinition, updateChoreInstanceField,
+    batchToggleCompleteChoreInstances, batchUpdateChoreInstancesCategory, batchAssignChoreDefinitionsToKid,
+    updateChoreSeries, addCommentToInstance, toggleSkipInstance,
   ]);
 
-  return (
-    <ChoresContext.Provider value={contextValue}>
-      {children}
-    </ChoresContext.Provider>
-  );
+  return <ChoresContext.Provider value={contextValue}>{children}</ChoresContext.Provider>;
 };
+
+// Note for future: The dependencies array for useCallback/useMemo for functions that use `logActivity`
+// should include `logActivity` if it's not stable (i.e. if `currentUser` changes often).
+// However, `logActivity` is memoized with `currentUser` as a dependency, and `contextValue` is memoized
+// with all its functions. This setup should generally be stable.
+// The main `ChoreProvider`'s `useEffect` hooks for localStorage do not depend on `logActivity`.
+// Functions passed in contextValue are already memoized with useCallback.

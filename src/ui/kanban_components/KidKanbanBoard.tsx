@@ -25,10 +25,9 @@ import {
 } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { getTodayDateString, getWeekRange, getMonthRange } from '../../utils/dateUtils'; // getTodayDateString is already imported
+import { getTodayDateString, getWeekRange, getMonthRange } from '../../utils/dateUtils';
 import AddChoreForm from '../../components/AddChoreForm';
-
-interface ActiveDragItem {
+import InstanceDetailModal from './InstanceDetailModal'; // Import the modal
   instance: ChoreInstance;
   definition: ChoreDefinition;
 }
@@ -79,6 +78,9 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   const [showAddChoreModal, setShowAddChoreModal] = useState(false);
   const [addChoreDefaultDate, setAddChoreDefaultDate] = useState<Date | null>(null);
   const [editingChore, setEditingChore] = useState<ChoreDefinition | null>(null);
+
+  const [modalInstance, setModalInstance] = useState<ChoreInstance | null>(null);
+  const [modalDefinition, setModalDefinition] = useState<ChoreDefinition | null>(null);
 
   const todayString = getTodayDateString(); // Get today's date string
 
@@ -335,6 +337,16 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     return <div>Loading kid information...</div>;
   }
 
+  const handleOpenInstanceModal = useCallback((instance: ChoreInstance, definition: ChoreDefinition) => {
+    setModalInstance(instance);
+    setModalDefinition(definition);
+  }, []);
+
+  const handleCloseInstanceModal = useCallback(() => {
+    setModalInstance(null);
+    setModalDefinition(null);
+  }, []);
+
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
@@ -430,7 +442,8 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
                     selectedInstanceIds={selectedInstanceIds}
                     onToggleSelection={handleToggleSelection}
                     onEditChore={handleEditChore}
-                    isToday={isToday} // Pass isToday prop
+                    isToday={isToday}
+                    onCardClick={handleOpenInstanceModal} // Pass modal opener
                   />
                 ))}
               </div>
@@ -438,7 +451,16 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
           })}
         </div>
 
-        {/* Add/Edit Chore Modals */}
+        {/* Add/Edit Chore Modals & Instance Detail Modal */}
+        {modalInstance && modalDefinition && (
+          <InstanceDetailModal
+            instance={modalInstance}
+            definition={modalDefinition}
+            isVisible={!!modalInstance}
+            onClose={handleCloseInstanceModal}
+          />
+        )}
+
         {showAddChoreModal && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div style={{ background: '#fff', padding: 24, borderRadius: 8, minWidth: 320, boxShadow: '0 2px 16px rgba(0,0,0,0.2)' }}>
