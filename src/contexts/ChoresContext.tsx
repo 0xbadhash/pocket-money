@@ -564,6 +564,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     return Promise.resolve();
   }, []);
 
+  // Remove duplicate batchAssignChoreDefinitionsToKid from contextValue
   const contextValue = useMemo(() => ({
     choreDefinitions,
     choreInstances,
