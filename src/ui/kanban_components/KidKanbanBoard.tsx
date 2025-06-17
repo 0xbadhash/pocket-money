@@ -3,6 +3,7 @@
  * Displays a Kanban board for a specific kid, showing their chores.
  */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Link } from 'react-router-dom'; // Import Link
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { useUserContext } from '../../contexts/UserContext';
 import type { ChoreDefinition, ChoreInstance, KanbanPeriod, Kid, ColumnThemeOption, MatrixKanbanCategory, KanbanColumnConfig } from '../../types';
@@ -23,8 +24,8 @@ import {
   DragOverlay,
 } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
-import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'; // Removed arrayMove as it's not used
-import { getTodayDateString, getWeekRange, getMonthRange } from '../../utils/dateUtils';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { getTodayDateString, getWeekRange, getMonthRange } from '../../utils/dateUtils'; // getTodayDateString is already imported
 import AddChoreForm from '../../components/AddChoreForm';
 
 interface ActiveDragItem {
@@ -47,7 +48,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     // batchUpdateChoreInstancesCategory, // This will be updated later if still needed with new types
     batchAssignChoreDefinitionsToKid,
   } = useChoresContext();
-  const { getKanbanColumnConfigs } = useUserContext();
+  const { getKanbanColumnConfigs, user } = useUserContext(); // Ensure user is destructured
   // const allKids = user?.kids || []; // allKids not needed for switcher
 
   // Custom Hooks for selection and modal states
@@ -78,7 +79,8 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   const [showAddChoreModal, setShowAddChoreModal] = useState(false);
   const [addChoreDefaultDate, setAddChoreDefaultDate] = useState<Date | null>(null);
   const [editingChore, setEditingChore] = useState<ChoreDefinition | null>(null);
-  // const [selectedKidId, setSelectedKidId] = useState<string>(kidId); // Removed: Use kidId prop directly
+
+  const todayString = getTodayDateString(); // Get today's date string
 
   useEffect(() => {
     localStorage.setItem('kanban_columnTheme', selectedColumnTheme);
@@ -317,8 +319,14 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     return (
       <div style={{ padding: '20px', textAlign: 'center' }}>
         <p>No status columns configured for this kid.</p>
-        <p>Please go to Settings &gt; Kanban Columns to set them up.</p>
-        {/* Optionally, add a direct link/button to settings if your routing supports it */}
+        <p>Please go to Settings &gt; Kanban Columns to set them up, or an admin can assist.</p>
+        {user && user.role === 'admin' && (
+          <div style={{ marginTop: '10px' }}>
+            <Link to="/settings">
+              <button className="button-primary">Configure Columns in Settings</button>
+            </Link>
+          </div>
+        )}
       </div>
     );
   }
@@ -375,24 +383,59 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
 
         {/* Matrix Kanban Grid */}
         <div className="matrix-kanban-header" style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '5px', borderBottom: '1px solid #ccc', paddingBottom: '5px' }}>
-          {visibleDates.map(date => (<div key={date.toISOString()} className="date-header" style={{ flex: 1, textAlign: 'center', fontWeight: 'bold' }}>{formatDateHeader(date)}</div>))}
+          {visibleDates.map(date => {
+            const dateStr = date.toISOString().split('T')[0];
+            const isToday = dateStr === todayString;
+            return (
+              <div
+                key={date.toISOString()}
+                className={`date-header ${isToday ? 'today' : ''}`}
+                style={{
+                  flex: 1,
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  padding: '5px 0',
+                  backgroundColor: isToday ? 'var(--highlight-background, #fffde7)' : 'transparent',
+                  borderLeft: isToday ? '2px solid var(--primary-color, #007bff)' : 'none',
+                  borderRight: isToday ? '2px solid var(--primary-color, #007bff)' : 'none',
+                  position: 'relative',
+                }}
+              >
+                {formatDateHeader(date)}
+              </div>
+            );
+          })}
         </div>
         <div className="matrix-kanban-body" style={{ display: 'flex', justifyContent: 'space-around', gap: '5px' }}>
-          {visibleDates.map(date => (
-            <div key={date.toISOString()} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {statusColumns.map(statusColumn => (
-                <DateColumnView
-                  key={statusColumn.id}
-                  date={date}
-                  statusColumn={statusColumn} // Pass the full statusColumn object
-                  kidId={kidId}
-                  selectedInstanceIds={selectedInstanceIds}
-                  onToggleSelection={handleToggleSelection}
-                  onEditChore={handleEditChore}
-                />
-              ))}
-            </div>
-          ))}
+          {visibleDates.map(date => {
+            const dateStr = date.toISOString().split('T')[0];
+            const isToday = dateStr === todayString;
+            return (
+              <div
+                key={date.toISOString()}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                }}
+                className={isToday ? 'today-column-container' : ''}
+              >
+                {statusColumns.map(statusColumn => (
+                  <DateColumnView
+                    key={statusColumn.id}
+                    date={date}
+                    statusColumn={statusColumn}
+                    kidId={kidId}
+                    selectedInstanceIds={selectedInstanceIds}
+                    onToggleSelection={handleToggleSelection}
+                    onEditChore={handleEditChore}
+                    isToday={isToday} // Pass isToday prop
+                  />
+                ))}
+              </div>
+            );
+          })}
         </div>
 
         {/* Add/Edit Chore Modals */}

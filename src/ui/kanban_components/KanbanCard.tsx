@@ -76,6 +76,10 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   const [editingPriorityValue, setEditingPriorityValue] = useState<'Low' | 'Medium' | 'High' | ''>('');
 
   const [newCommentText, setNewCommentText] = useState('');
+  const [showActivityLog, setShowActivityLog] = useState(false);
+
+  const [isEditingTags, setIsEditingTags] = useState(false);
+  const [editingTagsValue, setEditingTagsValue] = useState('');
 
 
   // Ensure loadingStates includes 'title' and other relevant fields
@@ -632,8 +636,83 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
               {tag}
             </span>
           ))}
+          {!instance.isSkipped && !isEditingTags && (
+            <button
+              onClick={() => {
+                setEditingTagsValue(definition.tags?.join(', ') || '');
+                setIsEditingTags(true);
+              }}
+              className="edit-icon-button"
+              aria-label="Edit tags"
+              style={{marginLeft: '8px'}}
+              disabled={loadingStates.tags} // Disable if tags are currently being saved (optional)
+            >
+              ✏️
+            </button>
+          )}
         </div>
       )}
+      {isEditingTags && !instance.isSkipped && (
+        <div style={{ marginTop: '8px', marginBottom: '8px' }}>
+          <input
+            type="text"
+            value={editingTagsValue}
+            onChange={(e) => setEditingTagsValue(e.target.value)}
+            placeholder="Enter tags, comma-separated"
+            style={{ width: 'calc(100% - 120px)', marginRight: '8px', padding: '4px', border: '1px solid #ccc', borderRadius: '3px' }}
+            autoFocus
+          />
+          <button
+            onClick={async () => {
+              setLoadingStates(prev => ({ ...prev, tags: true }));
+              const newTagsArray = editingTagsValue.split(',').map(tag => tag.trim()).filter(tag => tag);
+              try {
+                await updateChoreDefinition(definition.id, { tags: newTagsArray });
+                addNotification({ message: 'Tags updated!', type: 'success' });
+              } catch (error) {
+                addNotification({ message: 'Failed to update tags.', type: 'error' });
+                console.error("Failed to update tags:", error);
+              } finally {
+                setLoadingStates(prev => ({ ...prev, tags: false }));
+                setIsEditingTags(false);
+              }
+            }}
+            className="button-primary"
+            disabled={loadingStates.tags}
+          >
+            Save
+          </button>
+          <button
+            onClick={() => setIsEditingTags(false)}
+            style={{marginLeft: '4px'}}
+            className="button-secondary"
+            disabled={loadingStates.tags}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+      {/* Fallback display if tags are empty and not editing, or if card is skipped and was editing */}
+      { !isEditingTags && (!definition.tags || definition.tags.length === 0) && (
+          <div className="chore-tags-container" style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
+            <span style={{fontSize: '0.8em', color: '#777'}}>No tags.</span>
+            {!instance.isSkipped && (
+               <button
+                onClick={() => {
+                  setEditingTagsValue('');
+                  setIsEditingTags(true);
+                }}
+                className="edit-icon-button"
+                aria-label="Add tags"
+                style={{marginLeft: '8px'}}
+              >
+                ✏️
+              </button>
+            )}
+          </div>
+        )
+      }
+
 
       {definition.subTasks && definition.subTasks.length > 0 && (
         <div
@@ -790,6 +869,27 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
             </button>
             {/* Add more quick actions here as needed, ensure they respect isSkipped */}
           </div>
+        )}
+      </div>
+
+      <div style={{ marginTop: '10px' }}>
+        <button onClick={() => setShowActivityLog(!showActivityLog)} className="button-link">
+          {showActivityLog ? 'Hide Activity' : 'View Activity'} ({instance.activityLog?.length || 0})
+        </button>
+        {showActivityLog && instance.activityLog && instance.activityLog.length > 0 && (
+          <div className="activity-log-section" style={{ marginTop: '8px', maxHeight: '150px', overflowY: 'auto', border: '1px solid #eee', padding: '8px', fontSize: '0.8em', backgroundColor: '#f9f9f9' }}>
+            {instance.activityLog.map(log => (
+              <div key={log.timestamp + log.action} className="activity-log-entry" style={{ marginBottom: '4px', borderBottom: '1px dotted #ddd', paddingBottom: '4px' }}>
+                <span style={{ fontWeight: 'bold' }}>{new Date(log.timestamp).toLocaleString()}</span> -
+                <span style={{ color: '#555', marginLeft: '4px' }}>{log.userName || log.userId || 'System'}</span>:
+                <span style={{ marginLeft: '4px', fontWeight: '500' }}>{log.action}</span>
+                {log.details && <span style={{ marginLeft: '4px', color: '#777' }}>({log.details})</span>}
+              </div>
+            ))}
+          </div>
+        )}
+         {showActivityLog && (!instance.activityLog || instance.activityLog.length === 0) && (
+            <p style={{fontSize: '0.8em', color: '#777', marginTop: '4px'}}>No activity yet.</p>
         )}
       </div>
 
