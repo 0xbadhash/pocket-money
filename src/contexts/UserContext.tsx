@@ -1,7 +1,6 @@
 // src/contexts/UserContext.tsx
 import React, { createContext, useState, useEffect, ReactNode, useContext, useMemo } from 'react';
 import type { User, Kid, KanbanColumnConfig } from '../types'; // Import Kid and KanbanColumnConfig types
-import { vi } from 'vitest'; // Import vi for mocking functions
 
 export interface User {
   id: string;
@@ -78,21 +77,21 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     user,
     loading,
     error,
-    login: vi.fn((userData: User) => {
+    login: (userData: User) => {
       setUser(userData);
       // console.log('Mock login called with:', userData); // Optional: for debugging
-    }),
-    logout: vi.fn(() => {
+    },
+    logout: () => {
       setUser(null);
       // console.log('Mock logout called'); // Optional: for debugging
-    }),
-    updateUser: vi.fn((updatedUserData: Partial<User>) => {
+    },
+    updateUser: (updatedUserData: Partial<User>) => {
       // console.log('Mock updateUser called with:', updatedUserData); // Optional: for debugging
       if (user) {
         setUser({ ...user, ...updatedUserData });
       }
-    }),
-    addKid: vi.fn((kidData: Omit<Kid, 'id' | 'kanbanColumnConfigs' | 'totalFunds'> & { totalFunds?: number }) => {
+    },
+    addKid: (kidData: Omit<Kid, 'id' | 'kanbanColumnConfigs' | 'totalFunds'> & { totalFunds?: number }) => {
       // console.log('Mock addKid called with:', kidData); // Optional: for debugging
       if (user) {
         const newKid: Kid = {
@@ -106,39 +105,27 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         return newKid.id;
       }
       return undefined;
-    }),
-    updateKid: vi.fn((updatedKidData: Kid) => {
-      // console.log('Mock updateKid called with:', updatedKidData); // Optional: for debugging
+    },
+    updateKid: (updatedKidData: Kid) => {
       if (user) {
         setUser({
           ...user,
-          kids: user.kids.map(kid => kid.id === updatedKidData.id ? updatedKidData : kid),
+          kids: user.kids.map((kid: Kid) => kid.id === updatedKidData.id ? updatedKidData : kid),
         });
       }
-    }),
-    deleteKid: vi.fn((kidId: string) => {
-      // console.log('Mock deleteKid called for kidId:', kidId); // Optional: for debugging
+    },
+    deleteKid: (kidId: string) => {
       if (user) {
-        setUser({ ...user, kids: user.kids.filter(kid => kid.id !== kidId) });
+        setUser({ ...user, kids: user.kids.filter((kid: Kid) => kid.id !== kidId) });
       }
-    }),
-    getKanbanColumnConfigs: vi.fn((kidId: string) => {
-      // console.log('Mock getKanbanColumnConfigs called for kidId:', kidId); // Optional: for debugging
-      // KidKanbanBoard no longer relies on this for matrix rows, but it might be called.
+    },
+    getKanbanColumnConfigs: (_kidId: string) => {
       return [];
-    }),
-    addKanbanColumnConfig: vi.fn(async (kidId: string, title: string, color?: string) => {
-      // console.log('Mock addKanbanColumnConfig called with:', kidId, title, color); // Optional: for debugging
-    }),
-    updateKanbanColumnConfig: vi.fn(async (updatedConfig: KanbanColumnConfig) => {
-      // console.log('Mock updateKanbanColumnConfig called with:', updatedConfig); // Optional: for debugging
-    }),
-    deleteKanbanColumnConfig: vi.fn(async (kidId: string, configId: string) => {
-      // console.log('Mock deleteKanbanColumnConfig called with:', kidId, configId); // Optional: for debugging
-    }),
-    reorderKanbanColumnConfigs: vi.fn(async (kidId: string, orderedConfigs: KanbanColumnConfig[]) => {
-      // console.log('Mock reorderKanbanColumnConfigs called with:', kidId, orderedConfigs); // Optional: for debugging
-    }),
+    },
+    addKanbanColumnConfig: async (_kidId: string, _title: string, _color?: string) => {},
+    updateKanbanColumnConfig: async (_updatedConfig: KanbanColumnConfig) => {},
+    deleteKanbanColumnConfig: async (_kidId: string, _configId: string) => {},
+    reorderKanbanColumnConfigs: async (_kidId: string, _orderedConfigs: KanbanColumnConfig[]) => {},
   }), [user, loading, error]);
 
   return (
