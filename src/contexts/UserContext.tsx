@@ -3,65 +3,36 @@ import React, { createContext, useState, useEffect, ReactNode, useContext, useMe
 import type { User, Kid, KanbanColumnConfig } from '../types'; // Import Kid and KanbanColumnConfig types
 import { vi } from 'vitest'; // Import vi for mocking functions
 
-// Define the shape of the user data
-// This should align with how user data is structured, including an ID.
 export interface User {
   id: string;
-  username: string; // Changed from 'name' for clarity if it's a username
+  username: string;
   email: string;
   kids: Kid[];
-  settings?: { // Example: User-specific settings
+  settings?: {
     defaultView?: string;
     theme?: 'light' | 'dark';
   };
-  // Add other user-specific fields here
   createdAt?: string;
   updatedAt?: string;
 }
 
-// Define the shape of the context value
 export interface UserContextType {
   user: User | null;
-  // isLoading: boolean; // Changed from loading for clarity
-  loading: boolean; // Reverted to loading to match original type
-  error: string | null; // Add error state
-
-  // Basic user functions
+  loading: boolean;
+  error: string | null;
   login: (userData: User) => void;
   logout: () => void;
   updateUser: (updatedUserData: Partial<User>) => void;
-
-  // Kid specific functions
-  // Ensure these are optional or provide dummy implementations if not central to UserProvider's core
   addKid: (kidData: Omit<Kid, 'id' | 'kanbanColumnConfigs' | 'totalFunds'> & { totalFunds?: number }) => string | undefined;
   updateKid: (updatedKidData: Kid) => void;
   deleteKid: (kidId: string) => void;
-  // selectKid: (kidId: string | null) => void; // This was not in original UserContextType
-  // getKidById: (kidId: string) => Kid | null; // This was not in original UserContextType
-  // selectedKidId: string | null; // This was not in original UserContextType
-
-  // Kanban Column Config functions
   getKanbanColumnConfigs: (kidId: string) => KanbanColumnConfig[];
   addKanbanColumnConfig: (kidId: string, title: string, color?: string) => Promise<void>;
   updateKanbanColumnConfig: (updatedConfig: KanbanColumnConfig) => Promise<void>;
   deleteKanbanColumnConfig: (kidId: string, configId: string) => Promise<void>;
   reorderKanbanColumnConfigs: (kidId: string, orderedConfigs: KanbanColumnConfig[]) => Promise<void>;
-
-  // Theme and Avatar related (if these were part of a more complete UserContextType)
-  // themes?: string[];
-  // currentTheme?: string;
-  // setTheme?: (themeName: string) => void;
-  // avatars?: string[];
-  // updateKidFunds?: (kidId: string, amount: number) => void; // Not in original UserContextType
-  // addTransaction?: (kidId: string, transaction: any) => void; // Not in original UserContextType
 }
 
-
-/**
- * Context for managing user data, including authentication state, user profile,
- * kid profiles, and settings like custom Kanban column configurations.
- * Provides functions to interact with and modify this data.
- */
 export const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const useUserContext = (): UserContextType => {
@@ -77,6 +48,7 @@ interface UserProviderProps {
 }
 
 export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
+  
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
