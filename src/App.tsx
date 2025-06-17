@@ -8,13 +8,11 @@ import ActivityMonitoringView from './ui/ActivityMonitoringView';
 import KidDetailView from './ui/KidDetailView';
 import ChoreManagementView from './ui/ChoreManagementView';
 import KanbanView from './ui/KanbanView';
-import { UserProvider, useUserContext } from './contexts/UserContext'; // Import useUserContext
 import { FinancialProvider } from './contexts/FinancialContext';
 import { ChoresProvider } from './contexts/ChoresContext';
 import { NotificationProvider } from './contexts/NotificationContext'; // Added import
 
 function App() {
-  const { user } = useUserContext(); // Get user from context
   const [theme, setTheme] = useState('light'); // Default theme
 
   const toggleTheme = () => {
@@ -27,55 +25,51 @@ function App() {
 
   return (
     <BrowserRouter>
-      <UserProvider>
-        <FinancialProvider>
-          <ChoresProvider>
-            <NotificationProvider> // Added wrapper
-              <div>
-                <nav style={{
-                  marginBottom: 'var(--spacing-md)', /* Using CSS var */
-                background: 'var(--surface-color-hover)', /* Using CSS var */
-                padding: 'var(--spacing-sm) var(--spacing-md)', /* Using CSS var */
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                borderBottom: 'var(--border-width) solid var(--border-color)' /* Adding a bottom border */
-              }}>
-                <ul style={{ listStyleType: 'none', padding: 0, margin: 0, display: 'flex', gap: 'var(--spacing-md)' /* Using CSS var */ }}>
-                  <li><Link to="/">Dashboard</Link></li>
-                  <li><Link to="/funds">Funds Management</Link></li>
-                  {user && user.role === 'admin' && (
-                    <li><Link to="/settings">Settings</Link></li>
-                  )}
-                  <li><Link to="/activity">Activity Monitoring</Link></li>
-                  <li><Link to="/chores">Chores</Link></li>
-                  <li><Link to="/kanban">Kanban Board</Link></li>
-                </ul>
-                <button
-                  onClick={toggleTheme}
-                  className="theme-toggle-button"
-                >
-                  Switch to {theme === 'light' ? 'Dark' : 'Light'} Mode
-                </button>
-              </nav>
+      <FinancialProvider>
+        <ChoresProvider>
+          <NotificationProvider>
+            <div>
+              <nav style={{
+                marginBottom: 'var(--spacing-md)', /* Using CSS var */
+              background: 'var(--surface-color-hover)', /* Using CSS var */
+              padding: 'var(--spacing-sm) var(--spacing-md)', /* Using CSS var */
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              borderBottom: 'var(--border-width) solid var(--border-color)' /* Adding a bottom border */
+            }}>
+              <ul style={{ listStyleType: 'none', padding: 0, margin: 0, display: 'flex', gap: 'var(--spacing-md)' /* Using CSS var */ }}>
+                <li><Link to="/">Dashboard</Link></li>
+                <li><Link to="/funds">Funds Management</Link></li>
+                <li><Link to="/settings">Settings</Link></li>
+                <li><Link to="/activity">Activity Monitoring</Link></li>
+                <li><Link to="/chores">Chores</Link></li>
+                <li><Link to="/kanban">Kanban Board</Link></li>
+              </ul>
+              <button
+                onClick={toggleTheme}
+                className="theme-toggle-button"
+              >
+                Switch to {theme === 'light' ? 'Dark' : 'Light'} Mode
+              </button>
+            </nav>
 
-              {/* Removed <hr /> as nav now has a borderBottom */}
+            {/* Removed <hr /> as nav now has a borderBottom */}
 
-              <Routes>
-                <Route path="/" element={<DashboardView />} />
-                <Route path="/funds" element={<FundsManagementView />} />
-                <Route path="/settings" element={<SettingsView />} />
-                <Route path="/activity" element={<ActivityMonitoringView />} />
-                <Route path="/kid/:kidId" element={<KidDetailView />} />
-                <Route path="/chores" element={<ChoreManagementView />} />
-                <Route path="/kanban" element={<KanbanView />} />
-                <Route path="*" element={<DashboardView />} />
-              </Routes>
-              </div>
-            </NotificationProvider> // Added wrapper
-          </ChoresProvider>
-        </FinancialProvider>
-      </UserProvider>
+            <Routes>
+              <Route path="/" element={<DashboardView />} />
+              <Route path="/funds" element={<FundsManagementView />} />
+              <Route path="/settings" element={<SettingsView />} />
+              <Route path="/activity" element={<ActivityMonitoringView />} />
+              <Route path="/kid/:kidId" element={<KidDetailView />} />
+              <Route path="/chores" element={<ChoreManagementView />} />
+              <Route path="/kanban" element={<KanbanView />} />
+              <Route path="*" element={<DashboardView />} />
+            </Routes>
+            </div>
+          </NotificationProvider>
+        </ChoresProvider>
+      </FinancialProvider>
     </BrowserRouter>
   );
 }

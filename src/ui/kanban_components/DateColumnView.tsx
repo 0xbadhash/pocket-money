@@ -24,6 +24,7 @@ const DateColumnView: React.FC<DateColumnViewProps> = ({
   kidId,
   selectedInstanceIds,
   onToggleSelection,
+  isToday = false, // Default to false
 }) => {
   const { choreInstances, choreDefinitions } = useChoresContext();
   const dateString = date.toISOString().split('T')[0];
@@ -59,14 +60,13 @@ const DateColumnView: React.FC<DateColumnViewProps> = ({
   // primary highlight is on the header and column container via KidKanbanBoard.
   // Adding a specific border or slight background adjustment here if needed.
 
+  // Use isToday from props
   const columnStyle = {
     backgroundColor: currentBackgroundColor,
     color: defaultTextColor,
     borderLeft: `4px solid ${statusColumn.color || defaultBorderColor}`,
-    // Example: Add a subtle right border to each column inside a "today" container for emphasis
     borderRight: isToday ? `1px dashed var(--primary-color-light, #7bceff)` : `1px solid transparent`,
   };
-
 
   return (
     <div

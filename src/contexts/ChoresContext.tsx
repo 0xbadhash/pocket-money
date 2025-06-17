@@ -528,78 +528,64 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
         if (firstInstanceToUpdate) {
             const updatedFirstInstance = logActivity(firstInstanceToUpdate, `Series Updated: ${fieldName}`, currentUser?.id, currentUser?.username, `Field '${fieldName}' changed for series from ${fromDate}`);
             const index = instancesToKeep.findIndex(inst => inst.id === updatedFirstInstance.id);
-            if (index !== -1) instancesToKeep[index] = updatedFirstInstance;
-            // Note: This only logs on one instance. For broader series logging, might need a different approach.
-        }
-
+            if (index !== -1) {
+              instancesToKeep[index] = updatedFirstInstance;
+            }
+          }
         return [...instancesToKeep, ...newFutureInstances];
       });
       return newDefinitions;
     });
-  }, [logActivity, currentUser]); // Added logActivity & currentUser
+  }, [choreDefinitions, logActivity, currentUser]);
 
-  // Simplified ChoresContextType for this example
-  const getChoreDefinitionsForKid = useCallback((kidId: string): ChoreDefinition[] => {
-    return choreDefinitions.filter(def => def.assignedKidId === kidId);
-  }, [choreDefinitions]);
-
-  const toggleChoreDefinitionActiveState = useCallback((definitionId: string) => {
-    setChoreDefinitions(prevDefs =>
-      prevDefs.map(def =>
-        def.id === definitionId ? { ...def, isComplete: !def.isComplete } : def
-      )
-    );
+  // Add missing updateChoreDefinition implementation
+  const updateChoreDefinition = useCallback(async (definitionId: string, updates: Partial<ChoreDefinition>) => {
+    setChoreDefinitions(prevDefs => {
+      const index = prevDefs.findIndex(def => def.id === definitionId);
+      if (index === -1) return prevDefs;
+      const updatedDef = { ...prevDefs[index], ...updates };
+      const newDefs = [...prevDefs];
+      newDefs[index] = updatedDef;
+      return newDefs;
+    });
+    return Promise.resolve();
   }, []);
-
-  const batchAssignChoreDefinitionsToKid = useCallback(async (definitionIds: string[], newKidId: string | null) => {
-    setChoreDefinitions(prevDefs =>
-      prevDefs.map(def => {
-        if (definitionIds.includes(def.id)) {
-          return { ...def, assignedKidId: newKidId || undefined, updatedAt: new Date().toISOString() };
-        }
-        return def;
-      })
-    );
-  }, []);
-
 
   const contextValue = useMemo(() => ({
     choreDefinitions,
     choreInstances,
     addChoreDefinition,
     toggleChoreInstanceComplete,
-    getChoreDefinitionsForKid,
+    getChoreDefinitionsForKid: (kidId: string) => choreDefinitions.filter(def => def.assignedKidId === kidId),
     generateInstancesForPeriod,
     toggleSubtaskCompletionOnInstance,
-    toggleChoreDefinitionActiveState,
+    toggleChoreDefinitionActiveState: (definitionId: string) => {
+      setChoreDefinitions(prevDefs =>
+        prevDefs.map(def => def.id === definitionId ? { ...def, isComplete: !def.isComplete } : def)
+      );
+    },
     updateChoreInstanceCategory,
     updateChoreDefinition,
     updateChoreInstanceField,
     batchToggleCompleteChoreInstances,
     batchUpdateChoreInstancesCategory,
-    batchAssignChoreDefinitionsToKid,
+    batchAssignChoreDefinitionsToKid: async (definitionIds: string[], newKidId: string | null) => {
+      setChoreDefinitions(prevDefs =>
+        prevDefs.map(def => {
+          if (definitionIds.includes(def.id)) {
+            return { ...def, assignedKidId: newKidId || undefined };
+          }
+          return def;
+        })
+      );
+      setChoreInstances(prevInstances =>
+        prevInstances.map(inst => definitionIds.includes(inst.choreDefinitionId) ? { ...inst, assignedKidId: newKidId } : inst)
+      );
+    },
     updateChoreSeries,
     addCommentToInstance,
     toggleSkipInstance,
-  }), [
-    choreDefinitions,
-    choreInstances,
-    addChoreDefinition,
-    toggleChoreInstanceComplete,
-    getChoreDefinitionsForKid,
-    generateInstancesForPeriod,
-    toggleSubtaskCompletionOnInstance,
-    toggleChoreDefinitionActiveState,
-    updateChoreInstanceCategory,
-    updateChoreDefinition,
-    updateChoreInstanceField,
-    batchToggleCompleteChoreInstances,
-    batchUpdateChoreInstancesCategory,
-    batchAssignChoreDefinitionsToKid,
-    updateChoreSeries,
-    addCommentToInstance,
-    toggleSkipInstance,
-  ]);
+  }), [choreDefinitions, choreInstances, addChoreDefinition, toggleChoreInstanceComplete, generateInstancesForPeriod, toggleSubtaskCompletionOnInstance, updateChoreInstanceCategory, updateChoreDefinition, updateChoreInstanceField, batchToggleCompleteChoreInstances, batchUpdateChoreInstancesCategory, batchAssignChoreDefinitionsToKid, updateChoreSeries, addCommentToInstance, toggleSkipInstance]);
 
   return (
     <ChoresContext.Provider value={contextValue}>
