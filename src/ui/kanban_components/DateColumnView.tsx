@@ -7,14 +7,15 @@ import { useDroppable } from '@dnd-kit/core';
 
 interface DateColumnViewProps {
   date: Date;
-  statusColumn: KanbanColumnConfig; // Changed from category to statusColumn
+  statusColumn: KanbanColumnConfig;
   onEditChore?: (chore: ChoreDefinition) => void;
   kidId?: string;
   selectedInstanceIds: string[];
   onToggleSelection: (instanceId: string, isSelected: boolean) => void;
+  isToday?: boolean; // Added isToday prop
 }
 
-// Removed categoryDisplayTitles and categoryStyles as they are now dynamic
+// Removed categoryDisplayTitles and categoryStyles
 
 const DateColumnView: React.FC<DateColumnViewProps> = ({
   date,
@@ -50,20 +51,29 @@ const DateColumnView: React.FC<DateColumnViewProps> = ({
   const defaultTextColor = '#333333';
   const defaultBorderColor = '#CCCCCC';
 
+  let currentBackgroundColor = statusColumn.color || defaultBackgroundColor;
+  if (isOver) {
+    currentBackgroundColor = '#D3D3D3'; // Hover effect
+  }
+  // Note: isToday styling for individual DateColumnView is subtle,
+  // primary highlight is on the header and column container via KidKanbanBoard.
+  // Adding a specific border or slight background adjustment here if needed.
+
   const columnStyle = {
-    backgroundColor: isOver ? '#D3D3D3' : (statusColumn.color || defaultBackgroundColor),
-    color: defaultTextColor, // Assuming text color doesn't change with column color for now
-    borderLeft: `4px solid ${statusColumn.color ? statusColumn.color : defaultBorderColor}`, // Use column color for border too, or a contrasting one
-    // ... other styles from original (borderRadius, marginBottom, padding, minHeight, boxShadow, transition)
+    backgroundColor: currentBackgroundColor,
+    color: defaultTextColor,
+    borderLeft: `4px solid ${statusColumn.color || defaultBorderColor}`,
+    // Example: Add a subtle right border to each column inside a "today" container for emphasis
+    borderRight: isToday ? `1px dashed var(--primary-color-light, #7bceff)` : `1px solid transparent`,
   };
 
 
   return (
     <div
       ref={setNodeRef}
-      className={`swimlane-view swimlane-custom-${statusColumn.id}`} // More generic class name
+      className={`swimlane-view swimlane-custom-${statusColumn.id} ${isToday ? 'today' : ''}`}
       style={{
-        ...columnStyle, // Apply dynamic styles
+        ...columnStyle,
         borderRadius: 6,
         marginBottom: 8,
         padding: '8px 6px 8px 12px',

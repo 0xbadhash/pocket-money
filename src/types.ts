@@ -96,6 +96,7 @@ export interface ChoreInstance {
   priority?: 'Low' | 'Medium' | 'High'; // Can override definition's priority
   instanceComments?: Array<{ id: string; userId: string; userName: string; text: string; createdAt: string; }>;
   isSkipped?: boolean;
+  activityLog?: Array<{ timestamp: string; action: string; userId?: string; userName?: string; details?: string; }>;
 }
 
 /**
@@ -118,6 +119,8 @@ export interface KanbanColumnConfig {
   createdAt?: string;
   /** Optional: Timestamp for when this swimlane configuration was last updated. */
   updatedAt?: string;
+  /** Optional: Indicates if this column represents a "completed" state for chores. */
+  isCompletedColumn?: boolean;
 }
 
 // Keep existing Kanban types for now, they might need adjustment later
