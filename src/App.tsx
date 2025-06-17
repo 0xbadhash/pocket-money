@@ -11,6 +11,7 @@ import KanbanView from './ui/KanbanView';
 import { UserProvider } from './contexts/UserContext';
 import { FinancialProvider } from './contexts/FinancialContext';
 import { ChoresProvider } from './contexts/ChoresContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 function App() {
   const [theme, setTheme] = useState('light'); // Default theme
@@ -28,9 +29,10 @@ function App() {
       <UserProvider>
         <FinancialProvider>
           <ChoresProvider>
-            <div>
-              <nav style={{
-                marginBottom: 'var(--spacing-md)', /* Using CSS var */
+            <NotificationProvider>
+              <div>
+                <nav style={{
+                  marginBottom: 'var(--spacing-md)', /* Using CSS var */
                 background: 'var(--surface-color-hover)', /* Using CSS var */
                 padding: 'var(--spacing-sm) var(--spacing-md)', /* Using CSS var */
                 display: 'flex',
@@ -66,7 +68,8 @@ function App() {
                 <Route path="/kanban" element={<KanbanView />} />
                 <Route path="*" element={<DashboardView />} />
               </Routes>
-            </div>
+              </div>
+            </NotificationProvider>
           </ChoresProvider>
         </FinancialProvider>
       </UserProvider>
