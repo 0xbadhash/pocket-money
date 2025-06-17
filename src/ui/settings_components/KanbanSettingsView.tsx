@@ -5,6 +5,7 @@
  */
 import React, { useState, useEffect, useMemo } from 'react';
 import { useUserContext } from '../../contexts/UserContext';
+import { useChoresContext } from '../../contexts/ChoresContext'; // Import useChoresContext
 import type { Kid, KanbanColumnConfig } from '../../types';
 import * as DndKit from '@dnd-kit/core';
 import {
@@ -38,6 +39,10 @@ interface SortableSwimlaneItemProps {
   currentEditColor: string;
   /** Callback to update the `currentEditColor` state. */
   onEditColorChange: (color: string) => void;
+  /** The current value of the 'isCompletedColumn' checkbox when this item is in edit mode. */
+  currentEditIsCompleted: boolean;
+  /** Callback to update the `currentEditIsCompleted` state. */
+  onEditIsCompletedChange: (isCompleted: boolean) => void;
   /** Callback triggered when the 'Save' button is clicked after editing a title or color. */
   onSaveEdit: () => void;
   /** Callback triggered when the 'Cancel' button is clicked during an edit. */
@@ -61,6 +66,8 @@ const SortableSwimlaneItem: React.FC<SortableSwimlaneItemProps> = ({
   onEditTitleChange,
   currentEditColor,
   onEditColorChange,
+  currentEditIsCompleted,
+  onEditIsCompletedChange,
   onSaveEdit,
   onCancelEdit,
 }) => {
@@ -106,6 +113,15 @@ const SortableSwimlaneItem: React.FC<SortableSwimlaneItemProps> = ({
             aria-label={`Edit color for swimlane ${config.title}`}
             style={{ marginLeft: '8px', marginRight: '8px' }}
           />
+          <label style={{ marginLeft: '8px', marginRight: '4px', display: 'flex', alignItems: 'center' }}>
+            <input
+              type="checkbox"
+              checked={currentEditIsCompleted}
+              onChange={(e) => onEditIsCompletedChange(e.target.checked)}
+              aria-label={`Mark as 'Done' column for swimlane ${config.title}`}
+            />
+            <span style={{fontSize: '0.9em', marginLeft: '4px'}}>Is 'Done' Column?</span>
+          </label>
           <button onClick={onSaveEdit} style={{ marginRight: '4px' }}>Save</button>
           <button onClick={onCancelEdit}>Cancel</button>
         </>
@@ -121,9 +137,11 @@ const SortableSwimlaneItem: React.FC<SortableSwimlaneItemProps> = ({
                 marginRight: '8px',
                 borderRadius: '4px',
               }}
-              aria-hidden="true" // Decorative element
+              aria-hidden="true"
             ></span>
-            <span {...listeners} style={{ flexGrow: 1 }}>{config.title} (Order: {config.order})</span>
+            <span {...listeners} style={{ flexGrow: 1 }}>
+              {config.title} (Order: {config.order}) {config.isCompletedColumn && <em style={{fontSize: '0.85em', color: 'green'}}>(Done Column)</em>}
+            </span>
           </div>
           {/**
            * @section Sortable Swimlane Item Actions
@@ -156,6 +174,7 @@ const KanbanSettingsView: React.FC = () => {
     deleteKanbanColumnConfig,
     reorderKanbanColumnConfigs
   } = useUserContext();
+  const { choreInstances } = useChoresContext(); // Access choreInstances
 
   /** State for the ID of the currently selected kid whose swimlanes are being managed. */
   const [selectedKidId, setSelectedKidId] = useState<string | null>(null);
@@ -167,10 +186,12 @@ const KanbanSettingsView: React.FC = () => {
   const [currentEditTitle, setCurrentEditTitle] = useState<string>('');
   /** State for the color input when editing an existing swimlane. */
   const [currentEditColor, setCurrentEditColor] = useState<string>('#E0E0E0');
+  const [currentEditIsCompleted, setCurrentEditIsCompleted] = useState<boolean>(false);
   /** State for the title input when adding a new swimlane. */
-  const [newColumnTitle, setNewColumnTitle] = useState<string>(''); // Variable name can remain newColumnTitle for simplicity
+  const [newColumnTitle, setNewColumnTitle] = useState<string>('');
   /** State for the color input when adding a new swimlane. */
   const [newColumnColor, setNewColumnColor] = useState<string>('#E0E0E0');
+  const [newColumnIsCompleted, setNewColumnIsCompleted] = useState<boolean>(false);
   /** State for the ID of the swimlane configuration item currently being dragged for reordering. */
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
 
@@ -212,12 +233,12 @@ const KanbanSettingsView: React.FC = () => {
    * Handles adding a new Kanban swimlane for the selected kid.
    * Calls `addKanbanColumnConfig` from UserContext and clears the input field.
    */
-  const handleAddColumn = async () => { // Method name can stay handleAddColumn for less churn if preferred
+  const handleAddColumn = async () => {
     if (selectedKidId && newColumnTitle.trim()) {
-      await addKanbanColumnConfig(selectedKidId, newColumnTitle.trim(), newColumnColor);
+      await addKanbanColumnConfig(selectedKidId, newColumnTitle.trim(), newColumnColor, newColumnIsCompleted);
       setNewColumnTitle('');
-      setNewColumnColor('#E0E0E0'); // Reset color picker to default
-      // `columnsForSelectedKid` (representing swimlanes) will auto-update via useEffect watching `user` context.
+      setNewColumnColor('#E0E0E0');
+      setNewColumnIsCompleted(false); // Reset checkbox
     }
   };
 
@@ -225,10 +246,11 @@ const KanbanSettingsView: React.FC = () => {
    * Sets a swimlane configuration into edit mode.
    * @param {KanbanColumnConfig} config - The swimlane configuration to edit.
    */
-  const handleEditColumn = (config: KanbanColumnConfig) => { // Method name can stay handleEditColumn
+  const handleEditColumn = (config: KanbanColumnConfig) => {
     setEditingColumn(config);
     setCurrentEditTitle(config.title);
-    setCurrentEditColor(config.color || '#E0E0E0'); // Set current color for editing, default if undefined
+    setCurrentEditColor(config.color || '#E0E0E0');
+    setCurrentEditIsCompleted(config.isCompletedColumn || false);
   };
 
   /**
@@ -241,10 +263,12 @@ const KanbanSettingsView: React.FC = () => {
         ...editingColumn,
         title: currentEditTitle.trim(),
         color: currentEditColor,
+        isCompletedColumn: currentEditIsCompleted,
       });
       setEditingColumn(null);
       setCurrentEditTitle('');
-      setCurrentEditColor('#E0E0E0'); // Reset edit color state
+      setCurrentEditColor('#E0E0E0');
+      setCurrentEditIsCompleted(false);
     }
   };
 
@@ -254,7 +278,8 @@ const KanbanSettingsView: React.FC = () => {
   const handleCancelEdit = () => {
     setEditingColumn(null);
     setCurrentEditTitle('');
-    setCurrentEditColor('#E0E0E0'); // Reset edit color state
+    setCurrentEditColor('#E0E0E0');
+    setCurrentEditIsCompleted(false);
   };
 
   /**
@@ -263,28 +288,48 @@ const KanbanSettingsView: React.FC = () => {
    * Includes a TODO comment regarding chore reassignment logic.
    * @param {string} configId - The ID of the swimlane configuration to delete.
    */
-  const handleDeleteColumn = async (configId: string) => { // Method name can stay handleDeleteColumn
-    if (selectedKidId && window.confirm('Are you sure you want to delete this swimlane? Chores currently in this swimlane will need to be manually reassigned from the Kanban board or they might become hidden.')) {
-      await deleteKanbanColumnConfig(selectedKidId, configId);
-      // TODO: Future: Implement UI for chore reassignment or automatic reassignment to a default swimlane
-      // when a swimlane is deleted. KidKanbanBoard currently defaults unassigned chores to the first swimlane.
+  const handleDeleteColumn = async (configId: string) => {
+    if (selectedKidId) {
+      const cardsInColumn = choreInstances.filter(
+        instance => instance.categoryStatus === configId &&
+                    definitionForInstance(instance.choreDefinitionId)?.assignedKidId === selectedKidId
+      );
+
+      let confirmMessage = 'Are you sure you want to delete this swimlane?';
+      if (cardsInColumn.length > 0) {
+        confirmMessage = `Are you sure you want to delete this swimlane? There are ${cardsInColumn.length} card(s) in this swimlane for the selected kid. These cards will become unassigned from a status column. Consider moving them to another column first.`;
+      }
+
+      if (window.confirm(confirmMessage)) {
+        await deleteKanbanColumnConfig(selectedKidId, configId);
+        // Existing TODO about chore reassignment remains relevant for future work.
+      }
     }
+  };
+
+  // Helper to get definition for an instance - needed for assignedKidId check in handleDeleteColumn
+  // This might be slightly redundant if choreInstances already have assignedKidId directly,
+  // but choreDefinitions are typically where assignedKidId resides.
+  // Assuming ChoreInstance might not directly have assignedKidId, so we look up definition.
+  // If ChoreInstance *does* have assignedKidId, this helper can be simplified/removed.
+  const { choreDefinitions } = useChoresContext(); // If not already destructured
+  const definitionForInstance = (definitionId: string) => {
+    return choreDefinitions.find(def => def.id === definitionId);
   };
 
   /**
    * Sets up a default set of Kanban swimlanes ("To Do", "In Progress", "Done")
    * for the selected kid if they have no swimlanes configured.
    */
-  const handleSetupDefaultColumns = async () => { // Method name can stay handleSetupDefaultColumns
+  const handleSetupDefaultColumns = async () => {
     if (!selectedKidId) return;
     const defaultSwimlanes = [
-      { title: "To Do", color: "#FFFFFF" },
-      { title: "In Progress", color: "#FFFFE0" },
-      { title: "Done", color: "#90EE90" },
+      { title: "To Do", color: "#FFFFFF", isCompleted: false },
+      { title: "In Progress", color: "#FFFFE0", isCompleted: false },
+      { title: "Done", color: "#90EE90", isCompleted: true },
     ];
-    // Assuming addKanbanColumnConfig updates context and triggers re-fetch via useEffect
-    for (const { title, color } of defaultSwimlanes) {
-        await addKanbanColumnConfig(selectedKidId, title, color);
+    for (const { title, color, isCompleted } of defaultSwimlanes) {
+        await addKanbanColumnConfig(selectedKidId, title, color, isCompleted);
     }
   };
 
@@ -358,6 +403,15 @@ const KanbanSettingsView: React.FC = () => {
             aria-label="Color for new swimlane"
             style={{ marginRight: '8px', marginLeft: '4px' }}
           />
+          <label style={{ marginRight: '8px', display: 'flex', alignItems: 'center' }}>
+            <input
+              type="checkbox"
+              checked={newColumnIsCompleted}
+              onChange={(e) => setNewColumnIsCompleted(e.target.checked)}
+              aria-label="Mark as 'Done' column for new swimlane"
+            />
+             <span style={{fontSize: '0.9em', marginLeft: '4px'}}>Is 'Done' Column?</span>
+          </label>
           <button onClick={handleAddColumn}>Add Swimlane</button>
 
           <h5 style={{ marginTop: '20px' }} id={`existing-swimlanes-heading-${selectedKidId}`}>Existing Swimlanes:</h5>
@@ -392,6 +446,8 @@ const KanbanSettingsView: React.FC = () => {
                     onEditTitleChange={setCurrentEditTitle}
                     currentEditColor={currentEditColor}
                     onEditColorChange={setCurrentEditColor}
+                    currentEditIsCompleted={currentEditIsCompleted}
+                    onEditIsCompletedChange={setCurrentEditIsCompleted}
                     onSaveEdit={handleSaveEdit}
                     onCancelEdit={handleCancelEdit}
                   />

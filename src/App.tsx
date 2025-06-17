@@ -8,11 +8,13 @@ import ActivityMonitoringView from './ui/ActivityMonitoringView';
 import KidDetailView from './ui/KidDetailView';
 import ChoreManagementView from './ui/ChoreManagementView';
 import KanbanView from './ui/KanbanView';
-import { UserProvider } from './contexts/UserContext';
+import { UserProvider, useUserContext } from './contexts/UserContext'; // Import useUserContext
 import { FinancialProvider } from './contexts/FinancialContext';
 import { ChoresProvider } from './contexts/ChoresContext';
+import { NotificationProvider } from './contexts/NotificationContext'; // Added import
 
 function App() {
+  const { user } = useUserContext(); // Get user from context
   const [theme, setTheme] = useState('light'); // Default theme
 
   const toggleTheme = () => {
@@ -28,9 +30,10 @@ function App() {
       <UserProvider>
         <FinancialProvider>
           <ChoresProvider>
-            <div>
-              <nav style={{
-                marginBottom: 'var(--spacing-md)', /* Using CSS var */
+            <NotificationProvider> // Added wrapper
+              <div>
+                <nav style={{
+                  marginBottom: 'var(--spacing-md)', /* Using CSS var */
                 background: 'var(--surface-color-hover)', /* Using CSS var */
                 padding: 'var(--spacing-sm) var(--spacing-md)', /* Using CSS var */
                 display: 'flex',
@@ -41,7 +44,9 @@ function App() {
                 <ul style={{ listStyleType: 'none', padding: 0, margin: 0, display: 'flex', gap: 'var(--spacing-md)' /* Using CSS var */ }}>
                   <li><Link to="/">Dashboard</Link></li>
                   <li><Link to="/funds">Funds Management</Link></li>
-                  <li><Link to="/settings">Settings</Link></li>
+                  {user && user.role === 'admin' && (
+                    <li><Link to="/settings">Settings</Link></li>
+                  )}
                   <li><Link to="/activity">Activity Monitoring</Link></li>
                   <li><Link to="/chores">Chores</Link></li>
                   <li><Link to="/kanban">Kanban Board</Link></li>
@@ -66,7 +71,8 @@ function App() {
                 <Route path="/kanban" element={<KanbanView />} />
                 <Route path="*" element={<DashboardView />} />
               </Routes>
-            </div>
+              </div>
+            </NotificationProvider> // Added wrapper
           </ChoresProvider>
         </FinancialProvider>
       </UserProvider>

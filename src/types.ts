@@ -50,6 +50,8 @@ export interface ChoreDefinition {
   recurrenceEndDate?: string | null; // Date after which no more instances are generated
   tags?: string[]; // New field for tags
   subTasks?: SubTask[]; // New field for sub-tasks
+  priority?: 'Low' | 'Medium' | 'High';
+  definitionComments?: Array<{ id: string; userId: string; userName: string; text: string; createdAt: string; }>;
 }
 
 export interface ChoreInstance {
@@ -72,9 +74,9 @@ export interface ChoreInstance {
   // New/Modified for Matrix Kanban:
   /**
    * The current category (swimlane) of the chore instance in the Matrix Kanban.
-   * Uses the fixed `MatrixKanbanCategory` type ("TO_DO", "IN_PROGRESS", "COMPLETED").
+   * This will store the ID of a `KanbanColumnConfig`.
    */
-  categoryStatus: MatrixKanbanCategory;
+  categoryStatus: string;
   /**
    * Tracks the completion status of individual subtasks for this specific chore instance.
    * Structure: A record where the key is the `subTaskId` (from `ChoreDefinition.subTasks`)
@@ -91,6 +93,11 @@ export interface ChoreInstance {
   // Optional: if reward is snapshotted per instance or can vary
   overriddenRewardAmount?: number; // For instance-specific reward override
   // kanbanColumnId?: string; // Removed in favor of categoryStatus for Matrix Kanban
+  priority?: 'Low' | 'Medium' | 'High'; // Can override definition's priority
+  instanceComments?: Array<{ id: string; userId: string; userName: string; text: string; createdAt: string; }>;
+  isSkipped?: boolean;
+  activityLog?: Array<{ timestamp: string; action: string; userId?: string; userName?: string; details?: string; }>;
+  instanceDescription?: string;
 }
 
 /**
@@ -113,6 +120,8 @@ export interface KanbanColumnConfig {
   createdAt?: string;
   /** Optional: Timestamp for when this swimlane configuration was last updated. */
   updatedAt?: string;
+  /** Optional: Indicates if this column represents a "completed" state for chores. */
+  isCompletedColumn?: boolean;
 }
 
 // Keep existing Kanban types for now, they might need adjustment later
