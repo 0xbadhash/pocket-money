@@ -28,6 +28,7 @@ const AddChoreForm = ({
   // --- Use effect to populate state when editing ---
   const [title, setTitle] = useState(initialChore?.title || '');
   const [description, setDescription] = useState(initialChore?.description || '');
+  const [priority, setPriority] = useState<'Low' | 'Medium' | 'High' | ''>(initialChore?.priority || '');
   const [assignedKidId, setAssignedKidId] = useState<string | undefined>(initialChore?.assignedKidId || defaultKidId || undefined);
   const [dueDate, setDueDate] = useState(initialChore?.dueDate || (defaultDueDate ? defaultDueDate.toISOString().split('T')[0] : ''));
   const [earlyStartDate, setEarlyStartDate] = useState(initialChore?.earlyStartDate || '');
@@ -58,6 +59,7 @@ const AddChoreForm = ({
     if (initialChore) {
       setTitle(initialChore.title || '');
       setDescription(initialChore.description || '');
+      setPriority(initialChore.priority || '');
       setAssignedKidId(initialChore.assignedKidId || defaultKidId || undefined);
       setDueDate(initialChore.dueDate || (defaultDueDate ? defaultDueDate.toISOString().split('T')[0] : ''));
       setEarlyStartDate(initialChore.earlyStartDate || '');
@@ -109,6 +111,7 @@ const AddChoreForm = ({
       recurrenceEndDate: recurrenceType !== 'none' && recurrenceEndDate ? recurrenceEndDate : null,
       tags: tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag !== '').length > 0 ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag !== '') : undefined,
       subTasks: subTasks.map(st => ({...st, title: st.title.trim()})).filter(st => st.title !== '').length > 0 ? subTasks.map(st => ({...st, title: st.title.trim()})).filter(st => st.title !== '') : undefined,
+      priority: priority || undefined,
     };
 
     addChoreDefinition(choreData);
@@ -126,6 +129,7 @@ const AddChoreForm = ({
     setRecurrenceEndDate('');
     setTagsInput(''); // Reset tags input
     setSubTasks([]); // Reset sub-tasks
+    setPriority(''); // Reset priority
     alert('Chore added!');
     if (onSuccess) onSuccess();
   };
@@ -201,6 +205,16 @@ const AddChoreForm = ({
       <div>
         <label htmlFor="rewardAmount">Reward Amount (Optional):</label>
         <input type="number" id="rewardAmount" value={rewardAmount} onChange={(e) => setRewardAmount(e.target.value)} step="0.01" min="0"/>
+      </div>
+
+      <div>
+        <label htmlFor="priority">Priority (Optional):</label>
+        <select id="priority" value={priority} onChange={(e) => setPriority(e.target.value as 'Low' | 'Medium' | 'High' | '')}>
+          <option value="">Default</option>
+          <option value="Low">Low</option>
+          <option value="Medium">Medium</option>
+          <option value="High">High</option>
+        </select>
       </div>
 
       {/* New Tags Input Field */}

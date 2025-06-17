@@ -39,20 +39,19 @@ interface ChoresContextType {
    * New instances will receive the `defaultKanbanColumnId` if provided and they don't have one already.
    * @param {string} startDate - The start date of the period (YYYY-MM-DD) for instance generation.
    * @param {string} endDate - The end date of the period (YYYY-MM-DD) for instance generation.
-   * @param {string} [defaultKanbanColumnId] - Optional: intended to be a MatrixKanbanCategory for new instances.
+   * @param {string} [defaultKanbanColumnId] - Optional: The ID of a KanbanColumnConfig for new instances.
    */
-  generateInstancesForPeriod: (startDate: string, endDate: string, defaultCategory?: MatrixKanbanCategory) => void;
+  generateInstancesForPeriod: (startDate: string, endDate: string, defaultKanbanColumnId?: string) => void;
   // toggleSubTaskComplete: (choreDefinitionId: string, subTaskId: string) => void; // Removed, operates on instance now
   toggleSubtaskCompletionOnInstance: (instanceId: string, subtaskId: string) => void; // New function
   // updateKanbanChoreOrder: (kidId: string, columnIdentifier: string, orderedChoreIds: string[]) => void; // Removed for Matrix Kanban
   // updateChoreInstanceColumn: (instanceId: string, newKanbanColumnId: string) => void; // Removed, categoryStatus handled differently
   /** Toggles the active state of a chore definition (isComplete field). */
   toggleChoreDefinitionActiveState: (definitionId: string) => void;
-  /** Updates the category status of a chore instance and handles related subtask logic. */
+  /** Updates the category status (Kanban column ID) of a chore instance. */
   updateChoreInstanceCategory: (
     instanceId: string,
-    newCategory: MatrixKanbanCategory,
-    // currentSubtaskCompletions is not strictly needed if we fetch from instance state prior to update
+    newStatusId: string,
   ) => void;
   /** Updates specified fields of a chore definition. */
   updateChoreDefinition: (definitionId: string, updates: Partial<ChoreDefinition>) => Promise<void>;
@@ -60,17 +59,19 @@ interface ChoresContextType {
   updateChoreInstanceField: (instanceId: string, fieldName: keyof ChoreInstance, value: any) => Promise<void>;
   /** Batch marks chore instances as complete or incomplete. */
   batchToggleCompleteChoreInstances: (instanceIds: string[], markAsComplete: boolean) => Promise<void>;
-  /** Batch updates the category for multiple chore instances. */
-  batchUpdateChoreInstancesCategory: (instanceIds: string[], newCategory: MatrixKanbanCategory) => Promise<void>;
+  /** Batch updates the category (Kanban column ID) for multiple chore instances. */
+  batchUpdateChoreInstancesCategory: (instanceIds: string[], newStatusId: string) => Promise<void>;
   /** Batch assigns chore definitions to a new kid. */
   batchAssignChoreDefinitionsToKid: (definitionIds: string[], newKidId: string | null) => Promise<void>;
   /** Updates a chore definition and its future instances from a given date. */
   updateChoreSeries: (
     definitionId: string,
-    updates: Partial<Pick<ChoreDefinition, 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'hour' | 'minute' | 'timeOfDay'>>, // Added more editable fields
+    updates: Partial<Pick<ChoreDefinition, 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'hour' | 'minute' | 'timeOfDay' | 'priority'>>, // Added priority
     fromDate: string, // YYYY-MM-DD, instanceDate of the item that was edited
-    fieldName: 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'timeOfDay' // Field that triggered the series edit
+    fieldName: 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'timeOfDay' | 'priority' // Added priority
   ) => Promise<void>;
+  addCommentToInstance: (instanceId: string, commentText: string, userId: string, userName: string) => Promise<void>;
+  toggleSkipInstance: (instanceId: string) => Promise<void>;
 }
 
 // Create the context
@@ -216,9 +217,9 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
   const generateInstancesForPeriod = useCallback((
     periodStartDate: string,
     periodEndDate: string,
-    defaultCategory?: MatrixKanbanCategory // Updated parameter for Matrix Kanban
+    defaultKanbanColumnId?: string
   ) => {
-    console.log(`Generating instances for period: ${periodStartDate} to ${periodEndDate}. Default category: ${defaultCategory}`);
+    console.log(`Generating instances for period: ${periodStartDate} to ${periodEndDate}. Default status ID: ${defaultKanbanColumnId}`);
 
     // Generate raw instances based on definitions and date range
     // Only generate instances for active (not archived) definitions
@@ -255,9 +256,12 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       return {
         ...rawInstance,
         isComplete: false,
-        categoryStatus: defaultCategory || "TO_DO",
+        categoryStatus: defaultKanbanColumnId || "", // Use provided ID or empty string
         subtaskCompletions: initialSubtaskCompletions,
         previousSubtaskCompletions: undefined,
+        priority: definition?.priority, // Initialize from definition
+        instanceComments: [], // Initialize as empty array
+        isSkipped: false, // Initialize isSkipped
       };
     });
 
@@ -315,100 +319,23 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
         [subtaskId]: !currentInstance.subtaskCompletions?.[subtaskId],
       };
 
-      let updatedInstance = {
+      // Simplified: Only toggle subtask completion. Auto-category change and isComplete logic removed for now.
+      const updatedInstance = {
         ...currentInstance,
         subtaskCompletions: newSubtaskCompletions
       };
-      let newCategoryForAutoMove: MatrixKanbanCategory | null = null;
+      // const allSubtasksComplete = definition.subTasks && definition.subTasks.length > 0
+      //   ? definition.subTasks.every(st => !!updatedInstance.subtaskCompletions[st.id])
+      //   : true;
 
-      // Determine if all subtasks are complete
-      // Handles case with no subtasks (allSubtasksComplete will be true)
-      const allSubtasksComplete = definition.subTasks && definition.subTasks.length > 0
-        ? definition.subTasks.every(st => !!updatedInstance.subtaskCompletions[st.id])
-        : true;
-
-      // 2. Determine if automated category change is needed
-      if (updatedInstance.categoryStatus === "TO_DO") {
-        // If any subtask is now complete (and not all of them, which is handled next)
-        const anySubtaskComplete = definition.subTasks && definition.subTasks.length > 0
-          ? definition.subTasks.some(st => !!updatedInstance.subtaskCompletions[st.id])
-          : false; // No subtasks means none are "partially" complete for this rule.
-
-        if (anySubtaskComplete && !allSubtasksComplete) {
-          newCategoryForAutoMove = "IN_PROGRESS";
-        }
-      }
-
-      // This check can override the TO_DO -> IN_PROGRESS if checking the last subtask makes all complete.
-      // Also handles moving from IN_PROGRESS -> COMPLETED.
-      if (allSubtasksComplete && updatedInstance.categoryStatus !== "COMPLETED") {
-        newCategoryForAutoMove = "COMPLETED";
-      }
-
-      // 3. If an automated move is determined, apply category change logic (from updateChoreInstanceCategory)
-      if (newCategoryForAutoMove) {
-        let finalSubtaskCompletions = { ...updatedInstance.subtaskCompletions };
-        let finalPreviousSubtaskCompletions = updatedInstance.previousSubtaskCompletions;
-        let finalOverallInstanceComplete = updatedInstance.isComplete; // Start with current
-
-        const oldCategoryForAutoMove = updatedInstance.categoryStatus; // Category before this auto-move
-
-        if (newCategoryForAutoMove === "COMPLETED") {
-          finalPreviousSubtaskCompletions = { ...updatedInstance.subtaskCompletions };
-          if (definition.subTasks && definition.subTasks.length > 0) {
-            definition.subTasks.forEach(st => finalSubtaskCompletions[st.id] = true);
-          } else {
-            finalSubtaskCompletions = {};
-          }
-          finalOverallInstanceComplete = true;
-        } else if (oldCategoryForAutoMove === "COMPLETED" && newCategoryForAutoMove === "IN_PROGRESS") {
-          // This specific auto-move (COMPLETED -> IN_PROGRESS) is not typically triggered by subtask toggle,
-          // but by direct drag. Included for completeness if a subtask uncheck could trigger it.
-          if (updatedInstance.previousSubtaskCompletions) {
-            finalSubtaskCompletions = { ...updatedInstance.previousSubtaskCompletions };
-          }
-          finalPreviousSubtaskCompletions = undefined;
-          if (definition.subTasks && definition.subTasks.length > 0) {
-            finalOverallInstanceComplete = definition.subTasks.every(st => !!finalSubtaskCompletions[st.id]);
-          } else {
-            finalOverallInstanceComplete = false;
-          }
-        } else if (newCategoryForAutoMove === "TO_DO") { // Should not happen from subtask toggle if already in TO_DO or IN_PROGRESS
-            // This case is mostly for direct moves, but if logic leads here:
-            if (definition.subTasks && definition.subTasks.length > 0) {
-                definition.subTasks.forEach(st => finalSubtaskCompletions[st.id] = false);
-            } else {
-                finalSubtaskCompletions = {};
-            }
-            finalPreviousSubtaskCompletions = undefined;
-            finalOverallInstanceComplete = false;
-        } else if (newCategoryForAutoMove === "IN_PROGRESS") { // Moving from TO_DO
-            if (definition.subTasks && definition.subTasks.length > 0) {
-                finalOverallInstanceComplete = definition.subTasks.every(st => !!finalSubtaskCompletions[st.id]);
-            } else { // No subtasks, cannot be "complete by subtasks"
-                finalOverallInstanceComplete = false;
-            }
-        }
-
-        updatedInstance = {
-          ...updatedInstance,
-          categoryStatus: newCategoryForAutoMove,
-          subtaskCompletions: finalSubtaskCompletions,
-          previousSubtaskCompletions: finalPreviousSubtaskCompletions,
-          isComplete: finalOverallInstanceComplete,
-        };
-      } else { // No category change, but update isComplete if in IN_PROGRESS or TO_DO
-        if (updatedInstance.categoryStatus === "IN_PROGRESS") {
-          if (definition.subTasks && definition.subTasks.length > 0) {
-            updatedInstance.isComplete = definition.subTasks.every(st => !!updatedInstance.subtaskCompletions[st.id]);
-          } else { // No subtasks
-            updatedInstance.isComplete = false; // Not in COMPLETED category, so not "complete"
-          }
-        } else if (updatedInstance.categoryStatus === "TO_DO") {
-          updatedInstance.isComplete = false; // Always false in TO_DO
-        }
-        // If category is COMPLETED, isComplete is true and handled by direct moves or the allSubtasksComplete logic above.
-      }
+      // if (updatedInstance.categoryStatus !== "COMPLETED" && allSubtasksComplete) {
+      //   updatedInstance.isComplete = true; // Mark complete if all subtasks are done, unless already in COMPLETED
+      // } else if (updatedInstance.categoryStatus === "COMPLETED" && !allSubtasksComplete) {
+      //   updatedInstance.isComplete = false; // Mark incomplete if in COMPLETED but not all subtasks done
+      // } else if (updatedInstance.categoryStatus !== "COMPLETED") {
+      //   updatedInstance.isComplete = false; // Default for non-COMPLETED states if not all subtasks done
+      // }
+      // Auto-category change logic removed as per simplification instructions.
 
       const finalInstances = [...prevInstances];
       finalInstances[instanceIndex] = updatedInstance;
@@ -435,129 +362,34 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
 
   const updateChoreInstanceCategory = useCallback((
     instanceId: string,
-    newCategory: MatrixKanbanCategory,
+    newStatusId: string,
   ) => {
     setChoreInstances(prevInstances =>
       prevInstances.map(instance => {
         if (instance.id === instanceId) {
-          const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
-          if (!definition) {
-            console.warn(`Definition not found for instance ${instanceId} during category update.`);
-            return instance;
-          }
-          let updatedSubtaskCompletions = { ...instance.subtaskCompletions };
-          let updatedPreviousSubtaskCompletions = instance.previousSubtaskCompletions;
-          let overallInstanceComplete = instance.isComplete;
-
-          const oldCategory = instance.categoryStatus;
-
-          if (newCategory === "COMPLETED") {
-            updatedPreviousSubtaskCompletions = { ...instance.subtaskCompletions }; // Store current state
-            if (definition && definition.subTasks && definition.subTasks.length > 0) {
-              definition.subTasks.forEach(st => updatedSubtaskCompletions[st.id] = true);
-            } else { // No subtasks, chore is complete by moving to COMPLETED
-              updatedSubtaskCompletions = {}; // Ensure it's an object
-            }
-            overallInstanceComplete = true;
-          } else if (oldCategory === "COMPLETED" && newCategory === "IN_PROGRESS") {
-            if (instance.previousSubtaskCompletions) {
-              updatedSubtaskCompletions = { ...instance.previousSubtaskCompletions };
-            }
-            updatedPreviousSubtaskCompletions = undefined;
-            // Recalculate completion based on restored subtasks
-            if (definition && definition.subTasks && definition.subTasks.length > 0) {
-              overallInstanceComplete = definition.subTasks.every(st => !!updatedSubtaskCompletions[st.id]);
-            } else { // No subtasks
-              overallInstanceComplete = false; // Cannot be "complete" by subtask logic if not in COMPLETED category
-            }
-          } else if (newCategory === "TO_DO") {
-            if (definition && definition.subTasks && definition.subTasks.length > 0) {
-              definition.subTasks.forEach(st => updatedSubtaskCompletions[st.id] = false);
-            } else {
-              updatedSubtaskCompletions = {};
-            }
-            updatedPreviousSubtaskCompletions = undefined;
-            overallInstanceComplete = false;
-          } else if (newCategory === "IN_PROGRESS") {
-              // If moving to IN_PROGRESS (not from COMPLETED), isComplete depends on subtasks
-              if (definition && definition.subTasks && definition.subTasks.length > 0) {
-                  overallInstanceComplete = definition.subTasks.every(st => !!updatedSubtaskCompletions[st.id]);
-              } else { // No subtasks
-                  overallInstanceComplete = false; // Not in COMPLETED, and no subtasks to make it complete by that rule
-              }
-          }
-          // If it's none of the above specific category transitions,
-          // isComplete should ideally be re-evaluated based on subtasks for IN_PROGRESS,
-          // or remain as is if subtasks aren't the sole determinant.
-          // For now, the above conditions cover primary cases.
-          // An instance moved to IN_PROGRESS without subtasks is not 'isComplete'.
-          // An instance moved to TO_DO is not 'isComplete'.
-
+          // Simplified: Only update categoryStatus. Subtask and isComplete logic removed for now.
           return {
             ...instance,
-            categoryStatus: newCategory,
-            subtaskCompletions: updatedSubtaskCompletions,
-            previousSubtaskCompletions: updatedPreviousSubtaskCompletions,
-            isComplete: overallInstanceComplete,
+            categoryStatus: newStatusId,
+            // isComplete: should not change here based on simplification
           };
         }
         return instance;
       })
     );
-  }, [choreDefinitions, setChoreInstances]);
+  }, [setChoreInstances]);
 
-  // Helper function for single instance category update logic (extracted and adapted from existing updateChoreInstanceCategory)
+  // Simplified helper function for category update logic
   const applyCategoryUpdateToInstance = (
     instance: ChoreInstance,
-    newCategory: MatrixKanbanCategory,
-    definition?: ChoreDefinition
+    newStatusId: string,
+    // definition?: ChoreDefinition // Definition no longer needed for simplified version
   ): ChoreInstance => {
-    if (!definition) return instance; // Should not happen if called correctly
-
-    let updatedSubtaskCompletions = { ...instance.subtaskCompletions };
-    let updatedPreviousSubtaskCompletions = instance.previousSubtaskCompletions;
-    let overallInstanceComplete = instance.isComplete;
-    const oldCategory = instance.categoryStatus;
-
-    if (newCategory === "COMPLETED") {
-      updatedPreviousSubtaskCompletions = { ...instance.subtaskCompletions };
-      if (definition.subTasks && definition.subTasks.length > 0) {
-        definition.subTasks.forEach(st => updatedSubtaskCompletions[st.id] = true);
-      } else {
-        updatedSubtaskCompletions = {};
-      }
-      overallInstanceComplete = true;
-    } else if (oldCategory === "COMPLETED" && newCategory === "IN_PROGRESS") {
-      if (instance.previousSubtaskCompletions) {
-        updatedSubtaskCompletions = { ...instance.previousSubtaskCompletions };
-      }
-      updatedPreviousSubtaskCompletions = undefined;
-      if (definition.subTasks && definition.subTasks.length > 0) {
-        overallInstanceComplete = definition.subTasks.every(st => !!updatedSubtaskCompletions[st.id]);
-      } else {
-        overallInstanceComplete = false;
-      }
-    } else if (newCategory === "TO_DO") {
-      if (definition.subTasks && definition.subTasks.length > 0) {
-        definition.subTasks.forEach(st => updatedSubtaskCompletions[st.id] = false);
-      } else {
-        updatedSubtaskCompletions = {};
-      }
-      updatedPreviousSubtaskCompletions = undefined;
-      overallInstanceComplete = false;
-    } else if (newCategory === "IN_PROGRESS") {
-      if (definition.subTasks && definition.subTasks.length > 0) {
-        overallInstanceComplete = definition.subTasks.every(st => !!updatedSubtaskCompletions[st.id]);
-      } else {
-        overallInstanceComplete = false;
-      }
-    }
+    // Simplified: Only update categoryStatus. Subtask and isComplete logic removed.
     return {
       ...instance,
-      categoryStatus: newCategory,
-      subtaskCompletions: updatedSubtaskCompletions,
-      previousSubtaskCompletions: updatedPreviousSubtaskCompletions,
-      isComplete: overallInstanceComplete,
+      categoryStatus: newStatusId,
+      // isComplete: should not change here based on simplification
     };
   };
 
@@ -601,23 +433,11 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
           if (markAsComplete && !instance.isComplete && definition.assignedKidId && definition.rewardAmount && definition.rewardAmount > 0) {
             addKidReward(definition.assignedKidId, definition.rewardAmount, `${definition.title} (${instance.instanceDate})`);
           }
-          // This should ideally also update categoryStatus and subtasks like updateChoreInstanceCategory
-          // For simplicity now, just toggling 'isComplete'.
-          // A more robust solution would use applyCategoryUpdateToInstance if marking complete moves to 'COMPLETED' category.
+          // Simplified: Only toggle 'isComplete'. Category status change removed.
           if (markAsComplete) {
-             // If marking complete, and category is not 'COMPLETED', move to 'COMPLETED'
-            if (instance.categoryStatus !== 'COMPLETED') {
-                return applyCategoryUpdateToInstance(instance, 'COMPLETED', definition);
-            } else { // Already in COMPLETED, ensure isComplete is true
-                return { ...instance, isComplete: true };
-            }
-          } else { // Marking incomplete
-            // If marking incomplete, and category is 'COMPLETED', move to 'IN_PROGRESS' (or 'TO_DO')
-            if (instance.categoryStatus === 'COMPLETED') {
-                return applyCategoryUpdateToInstance(instance, 'IN_PROGRESS', definition); // Default to IN_PROGRESS
-            } else { // Already in TO_DO or IN_PROGRESS, ensure isComplete is false
-                 return { ...instance, isComplete: false };
-            }
+            return { ...instance, isComplete: true };
+          } else {
+            return { ...instance, isComplete: false };
           }
         }
         return instance;
@@ -625,21 +445,18 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     });
   }, [choreDefinitions, addKidReward, setChoreInstances]);
 
-  const batchUpdateChoreInstancesCategory = useCallback(async (instanceIds: string[], newCategory: MatrixKanbanCategory) => {
+  const batchUpdateChoreInstancesCategory = useCallback(async (instanceIds: string[], newStatusId: string) => {
     setChoreInstances(prevInstances =>
       prevInstances.map(instance => {
         if (instanceIds.includes(instance.id)) {
-          const definition = choreDefinitions.find(def => def.id === instance.choreDefinitionId);
-          if (!definition) {
-            console.warn(`Definition not found for instance ${instance.id} during batch category update.`);
-            return instance;
-          }
-          return applyCategoryUpdateToInstance(instance, newCategory, definition);
+          // Simplified: directly update categoryStatus.
+          // The 'definition' is not needed for this simplified update.
+          return { ...instance, categoryStatus: newStatusId };
         }
         return instance;
       })
     );
-  }, [choreDefinitions, setChoreInstances]);
+  }, [setChoreInstances]); // Removed choreDefinitions dependency as it's no longer needed here
 
   const batchAssignChoreDefinitionsToKid = useCallback(async (definitionIds: string[], newKidId: string | null) => {
     setChoreDefinitions(prevDefs =>
@@ -654,9 +471,9 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
 
   const updateChoreSeries = useCallback(async (
     definitionId: string,
-    updates: Partial<Pick<ChoreDefinition, 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'hour' | 'minute' | 'timeOfDay'>>,
+    updates: Partial<Pick<ChoreDefinition, 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'hour' | 'minute' | 'timeOfDay' | 'priority'>>,
     fromDate: string, // YYYY-MM-DD format
-    fieldName: 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'timeOfDay'
+    fieldName: 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'timeOfDay' | 'priority'
   ) => {
     setChoreDefinitions(prevDefs => {
       const definitionIndex = prevDefs.findIndex(d => d.id === definitionId);
@@ -720,9 +537,12 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
                 return {
                     ...rawInstance,
                     isComplete: false,
-                    categoryStatus: "TO_DO" as MatrixKanbanCategory, // Default for new series instances
+                    categoryStatus: "", // Default for new series instances, using empty string
                     subtaskCompletions: initialSubtaskCompletions,
                     previousSubtaskCompletions: undefined,
+                    priority: newDefinition.priority, // Carry over priority
+                    instanceComments: [], // Initialize as empty array
+                    isSkipped: false, // Initialize isSkipped for regenerated instances
                 };
             });
         }
@@ -732,6 +552,41 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       return newDefinitions;
     });
   }, [setChoreDefinitions, setChoreInstances]);
+
+  const addCommentToInstance = useCallback(async (instanceId: string, commentText: string, userId: string, userName: string) => {
+    setChoreInstances(prevInstances =>
+      prevInstances.map(instance => {
+        if (instance.id === instanceId) {
+          const newComment = {
+            id: `cmt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+            userId,
+            userName,
+            text: commentText,
+            createdAt: new Date().toISOString(),
+          };
+          return {
+            ...instance,
+            instanceComments: [...(instance.instanceComments || []), newComment],
+          };
+        }
+        return instance;
+      })
+    );
+  }, [setChoreInstances]);
+
+  const toggleSkipInstance = useCallback(async (instanceId: string) => {
+    setChoreInstances(prevInstances =>
+      prevInstances.map(instance => {
+        if (instance.id === instanceId) {
+          return {
+            ...instance,
+            isSkipped: !instance.isSkipped,
+          };
+        }
+        return instance;
+      })
+    );
+  }, [setChoreInstances]);
 
 
   const contextValue = useMemo(() => ({
@@ -754,6 +609,8 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     batchUpdateChoreInstancesCategory, // Added
     batchAssignChoreDefinitionsToKid, // Added
     updateChoreSeries, // Added new function
+    addCommentToInstance, // Added new function
+    toggleSkipInstance, // Added new function
   }), [
     choreDefinitions,
     choreInstances,
@@ -774,6 +631,8 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     batchUpdateChoreInstancesCategory, // Added
     batchAssignChoreDefinitionsToKid, // Added
     updateChoreSeries, // Added new function
+    addCommentToInstance, // Added new function
+    toggleSkipInstance, // Added new function
   ]);
   // Note on useCallback/useMemo: All functions (like addChoreDefinition, toggleChoreInstanceComplete)
   // are wrapped in useCallback to stabilize their references. The entire contextValue object
