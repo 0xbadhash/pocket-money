@@ -119,13 +119,103 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         setUser({ ...user, kids: user.kids.filter((kid: Kid) => kid.id !== kidId) });
       }
     },
-    getKanbanColumnConfigs: (_kidId: string) => {
+    getKanbanColumnConfigs: (kidId: string) => {
+      const kid = user?.kids.find(k => k.id === kidId);
+      if (kid && kid.kanbanColumnConfigs) {
+        return [...kid.kanbanColumnConfigs].sort((a, b) => a.order - b.order);
+      }
       return [];
     },
-    addKanbanColumnConfig: async (_kidId: string, _title: string, _color?: string) => {},
-    updateKanbanColumnConfig: async (_updatedConfig: KanbanColumnConfig) => {},
-    deleteKanbanColumnConfig: async (_kidId: string, _configId: string) => {},
-    reorderKanbanColumnConfigs: async (_kidId: string, _orderedConfigs: KanbanColumnConfig[]) => {},
+    addKanbanColumnConfig: async (kidId: string, title: string, color?: string) => {
+      if (!user) return;
+      const kidIndex = user.kids.findIndex(k => k.id === kidId);
+      if (kidIndex === -1) {
+        console.error(`Kid with id ${kidId} not found.`);
+        return;
+      }
+
+      const kid = user.kids[kidIndex];
+      const newOrder = kid.kanbanColumnConfigs ? Math.max(...kid.kanbanColumnConfigs.map(c => c.order), 0) + 1 : 0;
+
+      const newConfig: KanbanColumnConfig = {
+        id: `col_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        kidId,
+        title,
+        order: newOrder,
+        color,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      const updatedKids = [...user.kids];
+      updatedKids[kidIndex] = {
+        ...kid,
+        kanbanColumnConfigs: [...(kid.kanbanColumnConfigs || []), newConfig],
+      };
+      setUser({ ...user, kids: updatedKids });
+    },
+    updateKanbanColumnConfig: async (updatedConfig: KanbanColumnConfig) => {
+      if (!user) return;
+      const kidIndex = user.kids.findIndex(k => k.id === updatedConfig.kidId);
+      if (kidIndex === -1) {
+        console.error(`Kid with id ${updatedConfig.kidId} not found.`);
+        return;
+      }
+
+      const kid = user.kids[kidIndex];
+      const updatedConfigs = (kid.kanbanColumnConfigs || []).map(config =>
+        config.id === updatedConfig.id ? { ...updatedConfig, updatedAt: new Date().toISOString() } : config
+      );
+
+      const updatedKids = [...user.kids];
+      updatedKids[kidIndex] = {
+        ...kid,
+        kanbanColumnConfigs: updatedConfigs,
+      };
+      setUser({ ...user, kids: updatedKids });
+    },
+    deleteKanbanColumnConfig: async (kidId: string, configId: string) => {
+      if (!user) return;
+      const kidIndex = user.kids.findIndex(k => k.id === kidId);
+      if (kidIndex === -1) {
+        console.error(`Kid with id ${kidId} not found.`);
+        return;
+      }
+
+      const kid = user.kids[kidIndex];
+      const updatedConfigs = (kid.kanbanColumnConfigs || []).filter(config => config.id !== configId);
+      // Optional: Re-normalize order if necessary, but current approach is direct removal.
+      // The KanbanSettingsView should handle re-ordering if it provides full lists.
+
+      const updatedKids = [...user.kids];
+      updatedKids[kidIndex] = {
+        ...kid,
+        kanbanColumnConfigs: updatedConfigs,
+      };
+      setUser({ ...user, kids: updatedKids });
+    },
+    reorderKanbanColumnConfigs: async (kidId: string, orderedConfigs: KanbanColumnConfig[]) => {
+      if (!user) return;
+      const kidIndex = user.kids.findIndex(k => k.id === kidId);
+      if (kidIndex === -1) {
+        console.error(`Kid with id ${kidId} not found.`);
+        return;
+      }
+
+      const kid = user.kids[kidIndex];
+      // Ensure updatedAt is updated for all items, even if only order changed
+      const configsWithTimestamps = orderedConfigs.map(config => ({
+        ...config,
+        updatedAt: new Date().toISOString(),
+      }));
+
+      const updatedKids = [...user.kids];
+      updatedKids[kidIndex] = {
+        ...kid,
+        kanbanColumnConfigs: configsWithTimestamps,
+      };
+      setUser({ ...user, kids: updatedKids });
+    },
   }), [user, loading, error]);
 
   return (

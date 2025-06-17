@@ -7,6 +7,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { ChoreInstance, ChoreDefinition } from '../../types';
 import { useChoresContext } from '../../contexts/ChoresContext';
+import { useUserContext } from '../../contexts/UserContext'; // Added for user info
 import { useNotification } from '../../contexts/NotificationContext';
 import EditScopeModal from './EditScopeModal';
 import { useSortable } from '@dnd-kit/sortable';
@@ -53,7 +54,10 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
     updateChoreDefinition,
     updateChoreInstanceField,
     updateChoreSeries,
+    addCommentToInstance, // Added for comments
+    toggleSkipInstance, // Added for skip functionality
   } = useChoresContext();
+  const { user } = useUserContext(); // Added for user info
   const { addNotification } = useNotification(); // Destructure addNotification
 
   const [isEditingReward, setIsEditingReward] = useState(false);
@@ -67,6 +71,12 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitleValue, setEditingTitleValue] = useState('');
   const titleInputRef = useRef<HTMLInputElement>(null);
+
+  const [isEditingPriority, setIsEditingPriority] = useState(false);
+  const [editingPriorityValue, setEditingPriorityValue] = useState<'Low' | 'Medium' | 'High' | ''>('');
+
+  const [newCommentText, setNewCommentText] = useState('');
+
 
   // Ensure loadingStates includes 'title' and other relevant fields
   const [loadingStates, setLoadingStates] = useState({
@@ -83,11 +93,11 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
     setPendingEdit(undefined);
   };
   const [pendingEdit, setPendingEdit] = useState<{
-    fieldName: 'instanceDate' | 'rewardAmount',
+    fieldName: 'instanceDate' | 'rewardAmount' | 'priority', // Added 'priority'
     value: any,
     definitionId: string,
     instanceId: string,
-    fromDateForSeries: string // This is the instanceDate of the edited instance
+    fromDateForSeries: string
   } | undefined>(undefined);
 
   const handleConfirmEditScope = async (scope: 'instance' | 'series') => {
@@ -100,18 +110,20 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
         await updateChoreInstanceField(instanceId, 'instanceDate', value);
       } else if (fieldName === 'rewardAmount') {
         await updateChoreInstanceField(instanceId, 'overriddenRewardAmount', value);
+      } else if (fieldName === 'priority') {
+        await updateChoreInstanceField(instanceId, 'priority', value);
       }
     } else if (scope === 'series') {
       if (fieldName === 'instanceDate') {
         await updateChoreSeries(definitionId, { dueDate: value }, fromDateForSeries, 'dueDate');
       } else if (fieldName === 'rewardAmount') {
-        // For series reward edit, we also clear any instance-specific override on the current instance
-        // to ensure it reflects the new series value.
         await updateChoreInstanceField(instanceId, 'overriddenRewardAmount', undefined);
         await updateChoreSeries(definitionId, { rewardAmount: value }, fromDateForSeries, 'rewardAmount');
+      } else if (fieldName === 'priority') {
+        await updateChoreInstanceField(instanceId, 'priority', undefined); // Clear instance override
+        await updateChoreSeries(definitionId, { priority: value }, fromDateForSeries, 'priority');
       }
     }
-    // Add any user feedback (e.g., toast notification) here if desired
     closeEditScopeModal();
   };
 
@@ -288,7 +300,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging && !isOverlay ? 0.4 : 1, // Make original item more transparent if not the overlay itself
+    opacity: (isDragging && !isOverlay) || instance.isSkipped ? 0.4 : 1,
   };
 
   /**
@@ -313,6 +325,10 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   };
 
   const recurrenceInfo = formatRecurrenceInfoShort(definition);
+  const effectivePriority = instance.priority || definition.priority;
+  const assignedKid = definition.assignedKidId && user?.kids
+    ? user.kids.find(k => k.id === definition.assignedKidId)
+    : undefined;
 
   // Fix: Quick action menu state and handler
   const [showMenu, setShowMenu] = useState(false);
@@ -321,7 +337,6 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   React.useEffect(() => {
     if (!showMenu) return;
     function handleClick(e: MouseEvent) {
-      // Only close if click is outside the menu
       const menu = document.getElementById(`quick-action-menu-${instance.id}`);
       if (menu && !menu.contains(e.target as Node)) {
         setShowMenu(false);
@@ -331,22 +346,80 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showMenu, instance.id]);
 
+  const handleEditPriority = () => {
+    setEditingPriorityValue(effectivePriority || '');
+    setIsEditingPriority(true);
+  };
+
+  const handleSavePriority = async () => {
+    setIsEditingPriority(false);
+    const newPriority = editingPriorityValue || undefined; // Convert '' to undefined
+    const currentPriority = instance.priority || definition.priority;
+
+
+    if (newPriority === currentPriority) {
+      return; // No change
+    }
+
+    if (definition.recurrenceType && definition.recurrenceType !== null) {
+      setPendingEdit({
+        fieldName: 'priority',
+        value: newPriority, // Pass undefined if it was cleared, or the new value
+        definitionId: definition.id,
+        instanceId: instance.id,
+        fromDateForSeries: instance.instanceDate,
+      });
+      setIsEditScopeModalVisible(true);
+    } else {
+      // Not recurring or no actual change in value that needs series edit
+      await updateChoreInstanceField(instance.id, 'priority', newPriority);
+      addNotification({ message: 'Priority updated for this instance!', type: 'success', duration: 2000 });
+    }
+  };
+
+  const handlePrioritySelectKeyDown = (event: React.KeyboardEvent<HTMLSelectElement>) => {
+    if (event.key === 'Enter' || event.key === 'Escape') {
+      handleSavePriority();
+      (event.target as HTMLSelectElement).blur(); // Remove focus
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!newCommentText.trim()) return;
+    const currentUserId = user?.id || 'mockUserId';
+    const currentUserName = user?.username || 'Mock User';
+    try {
+      await addCommentToInstance(instance.id, newCommentText.trim(), currentUserId, currentUserName);
+      setNewCommentText('');
+      addNotification({ message: 'Comment added!', type: 'success', duration: 2000 });
+    } catch (error) {
+      console.error("Failed to add comment:", error);
+      addNotification({ message: 'Failed to add comment.', type: 'error' });
+    }
+  };
+
+  const getPriorityStyle = (priorityVal?: 'Low' | 'Medium' | 'High') => {
+    switch (priorityVal) {
+      case 'High': return { color: 'red', fontWeight: 'bold' };
+      case 'Medium': return { color: 'orange' };
+      case 'Low': return { color: 'green' };
+      default: return {};
+    }
+  };
+
+
   return (
     <div
       ref={setNodeRef}
       style={{
         ...style,
-        border: isSelected ? '2px solid var(--primary-color, #007bff)' : '1px solid #ccc', // Example selected style
+        border: isSelected ? '2px solid var(--primary-color, #007bff)' : '1px solid #ccc',
         boxShadow: isSelected ? '0 0 5px var(--primary-color-light, #7bceff)' : style.boxShadow,
+        // textDecoration: instance.isSkipped ? 'line-through' : 'none', // Strikethrough whole card might be too much
       }}
       {...attributes}
-      // Remove {...listeners} from here if the checkbox should be interactive without starting a drag
-      // Or, ensure the checkbox click stops propagation if it's part of the draggable area.
-      // For now, assuming the whole card is draggable, so checkbox interaction might be tricky.
-      // A common pattern is to have a drag handle and make other parts non-draggable.
-      // Let's keep listeners for now and address if checkbox interaction is an issue.
-      {...listeners}
-      className={`kanban-card ${instance.isComplete ? 'complete' : ''} ${isDragging && !isOverlay ? 'dragging' : ''} ${isOverlay ? 'is-overlay' : ''} ${isSelected ? 'selected' : ''}`}
+      {...(instance.isSkipped ? {} : listeners)} // Make card non-draggable if skipped
+      className={`kanban-card ${instance.isComplete ? 'complete' : ''} ${instance.isSkipped ? 'skipped' : ''} ${isDragging && !isOverlay ? 'dragging' : ''} ${isOverlay ? 'is-overlay' : ''} ${isSelected ? 'selected' : ''}`}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         {isEditingTitle ? (
@@ -363,13 +436,19 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
           />
         ) : (
           <>
-            <h4 style={{ margin: 0, flexGrow: 1, cursor: loadingStates.title ? 'default' : 'text' }}
-                onClick={!loadingStates.title ? handleEditTitle : undefined}>
-              {definition.title}
-              {/* Early start indicator logic would be here, ensure it's not hidden by isEditingTitle if desired */}
+            <h4
+              style={{
+                margin: 0,
+                flexGrow: 1,
+                cursor: (loadingStates.title || instance.isSkipped) ? 'default' : 'text',
+                textDecoration: instance.isSkipped && !instance.isComplete ? 'line-through' : 'none',
+              }}
+              onClick={!loadingStates.title && !instance.isSkipped ? handleEditTitle : undefined}
+            >
+              {definition.title} {instance.isSkipped && <span style={{fontSize: '0.8em', color: 'grey'}}>(Skipped)</span>}
             </h4>
             {loadingStates.title && <span role="status" aria-live="polite" style={{ fontSize: '0.8em', marginLeft: '8px', color: 'var(--text-color-secondary)' }}>Saving...</span>}
-            {!isEditingTitle && !loadingStates.title && ( // Ensure edit button is also hidden when editing title
+            {!isEditingTitle && !loadingStates.title && !instance.isSkipped && (
               <button
                 onClick={handleEditTitle}
                 className="edit-icon-button"
@@ -383,17 +462,18 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
           </>
         )}
 
-        {!isOverlay && typeof onToggleSelection === 'function' && !isEditingTitle && (
+        {!isOverlay && typeof onToggleSelection === 'function' && !isEditingTitle && !instance.isSkipped && (
           <input
             type="checkbox"
             checked={isSelected}
             onChange={(e) => {
-              e.stopPropagation(); // Prevent drag from starting on checkbox click
+              e.stopPropagation();
               onToggleSelection(instance.id, e.target.checked);
             }}
-            onClick={(e) => e.stopPropagation()} // Also stop propagation here for good measure
+            onClick={(e) => e.stopPropagation()}
             aria-label={`Select chore ${definition.title}`}
             style={{ marginLeft: '8px', cursor: 'pointer' }}
+            disabled={instance.isSkipped}
           />
         )}
       </div>
@@ -447,7 +527,53 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
 
       {definition.description && <p style={{ fontSize: '0.9em', color: 'var(--text-color-secondary)' }}>{definition.description}</p>}
 
-      <div style={{ fontSize: '0.9em', display: 'flex', alignItems: 'center', gap: '5px' }}>
+      {/* Assigned Kid Info */}
+      {assignedKid ? (
+        <div className="assigned-kid-info" style={{ marginTop: '8px', fontSize: '0.9em' }}>
+          <strong>Assigned to:</strong> {assignedKid.name}
+          {/* Optional: Avatar display logic
+          {assignedKid.avatarFilename && (
+            <img
+              src={`/avatars/${assignedKid.avatarFilename}`} // Assuming a path like public/avatars/
+              alt={`${assignedKid.name}'s avatar`}
+              style={{ width: '24px', height: '24px', borderRadius: '50%', marginLeft: '8px', verticalAlign: 'middle' }}
+            />
+          )}
+          */}
+        </div>
+      ) : (
+        <div className="assigned-kid-info" style={{ marginTop: '8px', fontSize: '0.9em', color: '#777' }}>
+          Unassigned
+        </div>
+      )}
+
+      {/* Priority Display and Edit */}
+      <div style={{ fontSize: '0.9em', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '4px' }}>
+        <span>Priority:</span>
+        {isEditingPriority ? (
+          <select
+            value={editingPriorityValue}
+            onChange={(e) => setEditingPriorityValue(e.target.value as 'Low' | 'Medium' | 'High' | '')}
+            onBlur={handleSavePriority}
+            onKeyDown={handlePrioritySelectKeyDown}
+            style={{ fontSize: 'inherit', padding: '2px' }}
+            autoFocus
+            disabled={instance.isSkipped}
+          >
+            <option value="">Default</option>
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+          </select>
+        ) : (
+          <>
+            <span style={getPriorityStyle(effectivePriority)}>{effectivePriority || 'Default'}</span>
+            {!instance.isSkipped && <button onClick={handleEditPriority} className="edit-icon-button" aria-label="Edit priority">✏️</button>}
+          </>
+        )}
+      </div>
+
+      <div style={{ fontSize: '0.9em', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '4px' }}>
         <span>Due:</span>
         {isEditingDate ? (
           <input
@@ -462,12 +588,12 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
         ) : (
           <>
             <span>{instance.instanceDate}</span>
-            <button onClick={handleEditDate} className="edit-icon-button" aria-label="Edit due date">✏️</button>
+            {!instance.isSkipped && <button onClick={handleEditDate} className="edit-icon-button" aria-label="Edit due date">✏️</button>}
           </>
         )}
       </div>
 
-      {definition.rewardAmount !== undefined && ( // Show reward even if 0, to allow editing to a non-zero value
+      {definition.rewardAmount !== undefined && (
         <div style={{ fontSize: '0.9em', display: 'flex', alignItems: 'center', gap: '5px' }}>
           <span>Reward:</span>
           {isEditingReward ? (
@@ -490,10 +616,10 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
                     : definition.rewardAmount
                   )?.toFixed(2) || '0.00'}
               </span>
-              {instance.overriddenRewardAmount != null && ( // Check for both undefined and null
+              {instance.overriddenRewardAmount != null && (
                 <span title={`Base: $${definition.rewardAmount?.toFixed(2) || '0.00'}`} style={{color: 'var(--text-color-secondary)', fontSize: '0.8em', marginLeft: '4px'}}>(edited)</span>
               )}
-              <button onClick={handleEditReward} className="edit-icon-button" aria-label="Edit reward amount">✏️</button>
+              {!instance.isSkipped && <button onClick={handleEditReward} className="edit-icon-button" aria-label="Edit reward amount">✏️</button>}
             </>
           )}
         </div>
@@ -524,12 +650,21 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
               <div key={subTask.id} className="sub-task" style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
                 <input
                   type="checkbox"
-                  id={`subtask-${instance.id}-${subTask.id}`} // Ensure unique ID using instance.id
+                  id={`subtask-${instance.id}-${subTask.id}`}
                   checked={isChecked}
-                  onChange={() => toggleSubtaskCompletionOnInstance(instance.id, subTask.id)}
-                  style={{ marginRight: '8px', cursor: 'pointer' }}
+                  onChange={() => !instance.isSkipped && toggleSubtaskCompletionOnInstance(instance.id, subTask.id)}
+                  style={{ marginRight: '8px', cursor: instance.isSkipped ? 'default' : 'pointer' }}
+                  disabled={instance.isSkipped}
                 />
-                <label htmlFor={`subtask-${instance.id}-${subTask.id}`} style={{ fontSize: '0.85em', textDecoration: isChecked ? 'line-through' : 'none', color: isChecked ? 'var(--text-color-secondary, #555)' : 'var(--text-color-primary, #333)', cursor: 'pointer' }}>
+                <label
+                  htmlFor={`subtask-${instance.id}-${subTask.id}`}
+                  style={{
+                    fontSize: '0.85em',
+                    textDecoration: isChecked ? 'line-through' : 'none',
+                    color: isChecked ? 'var(--text-color-secondary, #555)' : 'var(--text-color-primary, #333)',
+                    cursor: instance.isSkipped ? 'default' : 'pointer'
+                  }}
+                >
                   {subTask.title}
                 </label>
               </div>
@@ -540,11 +675,53 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
 
       {recurrenceInfo && <p style={{ fontStyle: 'italic', fontSize: '0.8em', color: 'var(--text-color-secondary)' }}>{recurrenceInfo}</p>}
       <p style={{ fontSize: '0.9em' }}>Status: {instance.isComplete ? 'Complete' : 'Incomplete'}</p>
-      <button onClick={() => toggleChoreInstanceComplete(instance.id)} style={{ padding: 'var(--spacing-xs) var(--spacing-sm)', fontSize: '0.9em', cursor: 'pointer' }} className="button-secondary">
-        {instance.isComplete ? 'Mark Incomplete' : 'Mark Complete'}
-      </button>
 
-      {onEditChore && (
+      {/* Comments Section */}
+      {instance.instanceComments && instance.instanceComments.length > 0 && (
+        <div className="comments-section" style={{ marginTop: '10px', borderTop: '1px solid var(--border-color, #eee)', paddingTop: '8px' }}>
+          <h5 style={{ fontSize: '0.9em', marginBottom: '5px', color: 'var(--text-color-secondary, #666)', marginTop: '0' }}>Comments:</h5>
+          {instance.instanceComments.map(comment => (
+            <div key={comment.id} className="comment-item" style={{ marginBottom: '4px', fontSize: '0.85em' }}>
+              <strong>{comment.userName}</strong> ({new Date(comment.createdAt).toLocaleDateString()}): {comment.text}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add Comment Form */}
+      <div className="add-comment-form" style={{ marginTop: '10px' }}>
+        <textarea
+          value={newCommentText}
+          onChange={(e) => setNewCommentText(e.target.value)}
+          placeholder="Add a comment..."
+          rows={2}
+          style={{ width: '100%', boxSizing: 'border-box', marginBottom: '4px', padding: '4px', border: '1px solid #ccc', borderRadius: '3px' }}
+          disabled={instance.isSkipped}
+        />
+        <button onClick={handleAddComment} disabled={!newCommentText.trim() || instance.isSkipped} className="button-primary" style={{ fontSize: '0.9em' }}>
+          Add Comment
+        </button>
+      </div>
+
+      {!instance.isSkipped && (
+        <button
+          onClick={() => toggleChoreInstanceComplete(instance.id)}
+          style={{ padding: 'var(--spacing-xs) var(--spacing-sm)', fontSize: '0.9em', cursor: 'pointer', marginTop: '10px' }}
+          className="button-secondary"
+          disabled={instance.isSkipped}
+        >
+          {instance.isComplete ? 'Mark Incomplete' : 'Mark Complete'}
+        </button>
+      )}
+
+      {instance.isSkipped ? (
+        <button onClick={() => toggleSkipInstance(instance.id)} style={{ marginTop: '10px' }} className="button-tertiary">Unskip</button>
+      ) : (
+        !instance.isComplete && <button onClick={() => toggleSkipInstance(instance.id)} style={{ marginTop: '10px', marginLeft: '8px' }} className="button-tertiary">Skip</button>
+      )}
+
+
+      {onEditChore && !instance.isSkipped && (
         <button
           type="button"
           onClick={e => {
@@ -605,12 +782,13 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
               }}
               onClick={() => {
                 setShowMenu(false);
-                if (onEditChore) onEditChore(definition);
+                if (onEditChore && !instance.isSkipped) onEditChore(definition);
               }}
+              disabled={instance.isSkipped}
             >
               Edit Chore
             </button>
-            {/* Add more quick actions here as needed */}
+            {/* Add more quick actions here as needed, ensure they respect isSkipped */}
           </div>
         )}
       </div>

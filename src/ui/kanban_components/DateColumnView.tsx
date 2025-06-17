@@ -2,36 +2,23 @@
 import React, { useMemo } from 'react';
 import KanbanCard from './KanbanCard';
 import { useChoresContext } from '../../contexts/ChoresContext';
-// useUserContext is not used in this component after changes.
-// import { useUserContext } from '../../contexts/UserContext';
-import type { MatrixKanbanCategory, ChoreInstance, ChoreDefinition } from '../../types';
+import type { ChoreInstance, ChoreDefinition, KanbanColumnConfig } from '../../types';
 import { useDroppable } from '@dnd-kit/core';
 
 interface DateColumnViewProps {
   date: Date;
-  category: MatrixKanbanCategory;
+  statusColumn: KanbanColumnConfig; // Changed from category to statusColumn
   onEditChore?: (chore: ChoreDefinition) => void;
   kidId?: string;
   selectedInstanceIds: string[];
   onToggleSelection: (instanceId: string, isSelected: boolean) => void;
 }
 
-const categoryDisplayTitles: Record<MatrixKanbanCategory, string> = {
-  TO_DO: "To Do",
-  IN_PROGRESS: "In Progress",
-  COMPLETED: "Completed"
-};
-
-const categoryStyles: Record<MatrixKanbanCategory, { backgroundColor: string; textColor: string; borderColor: string }> = {
-  TO_DO: { backgroundColor: '#FFEBEB', textColor: '#A31A1A', borderColor: '#FFC5C5' }, // Light Red
-  IN_PROGRESS: { backgroundColor: '#EBF5FF', textColor: '#1A57A3', borderColor: '#C5E0FF' }, // Light Blue
-  COMPLETED: { backgroundColor: '#EBFFF0', textColor: '#1A7A2E', borderColor: '#C5FFD6' }, // Light Green
-};
-
+// Removed categoryDisplayTitles and categoryStyles as they are now dynamic
 
 const DateColumnView: React.FC<DateColumnViewProps> = ({
   date,
-  category,
+  statusColumn, // Changed from category
   onEditChore,
   kidId,
   selectedInstanceIds,
@@ -39,9 +26,8 @@ const DateColumnView: React.FC<DateColumnViewProps> = ({
 }) => {
   const { choreInstances, choreDefinitions } = useChoresContext();
   const dateString = date.toISOString().split('T')[0];
-  const choreFilterKey = category; // Directly use the category prop
 
-  const droppableId = `${dateString}|${category}`;
+  const droppableId = `${dateString}|${statusColumn.id}`; // Use statusColumn.id
   const { setNodeRef, isOver } = useDroppable({ id: droppableId });
 
   const choresForThisDate = useMemo(
@@ -50,25 +36,34 @@ const DateColumnView: React.FC<DateColumnViewProps> = ({
         const def = choreDefinitions.find(d => d.id === instance.choreDefinitionId);
         return (
           def &&
-          (!def.isComplete) &&
-          (!kidId || def.assignedKidId === kidId) &&
-          instance.instanceDate === dateString &&
-          instance.categoryStatus === choreFilterKey
+          (!def.isComplete) && // Chore definition is active
+          (!kidId || def.assignedKidId === kidId) && // Belongs to the current kid (if kidId is provided)
+          instance.instanceDate === dateString && // Matches the current date column
+          instance.categoryStatus === statusColumn.id // Matches the current status column
         );
       }),
-    [choreInstances, dateString, kidId, choreDefinitions, choreFilterKey]
+    [choreInstances, dateString, kidId, choreDefinitions, statusColumn.id] // Depend on statusColumn.id
   );
 
-  const styles = categoryStyles[category] || { backgroundColor: '#FFFFFF', textColor: '#333333', borderColor: '#CCCCCC' };
+  // Define default styles and override with statusColumn.color if available
+  const defaultBackgroundColor = '#F0F0F0'; // A neutral default
+  const defaultTextColor = '#333333';
+  const defaultBorderColor = '#CCCCCC';
+
+  const columnStyle = {
+    backgroundColor: isOver ? '#D3D3D3' : (statusColumn.color || defaultBackgroundColor),
+    color: defaultTextColor, // Assuming text color doesn't change with column color for now
+    borderLeft: `4px solid ${statusColumn.color ? statusColumn.color : defaultBorderColor}`, // Use column color for border too, or a contrasting one
+    // ... other styles from original (borderRadius, marginBottom, padding, minHeight, boxShadow, transition)
+  };
+
 
   return (
     <div
       ref={setNodeRef}
-      className={`swimlane-view swimlane-${category.toLowerCase().replace(/_/g, '-')}`}
+      className={`swimlane-view swimlane-custom-${statusColumn.id}`} // More generic class name
       style={{
-        backgroundColor: isOver ? '#D3D3D3' : styles.backgroundColor, // Example hover effect
-        color: styles.textColor,
-        borderLeft: `4px solid ${styles.borderColor}`,
+        ...columnStyle, // Apply dynamic styles
         borderRadius: 6,
         marginBottom: 8,
         padding: '8px 6px 8px 12px',
@@ -78,10 +73,10 @@ const DateColumnView: React.FC<DateColumnViewProps> = ({
       }}
     >
       <div style={{ fontWeight: 'bold', marginBottom: 6, fontSize: '1em' }}>
-        {categoryDisplayTitles[category]}
+        {statusColumn.title} {/* Use statusColumn.title */}
       </div>
       {choresForThisDate.length === 0 ? (
-        <p style={{fontSize: '0.8em', color: styles.textColor === '#FFFFFF' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)', textAlign: 'center', marginTop: '20px' }}>
+        <p style={{fontSize: '0.8em', color: columnStyle.color === '#FFFFFF' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)', textAlign: 'center', marginTop: '20px' }}>
           No chores here for this date.
         </p>
       ) : (
