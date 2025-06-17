@@ -3,12 +3,10 @@
  * Main view for displaying and interacting with Kanban boards for kids' chores.
  * Allows users to select a kid to view their specific chore Kanban board.
  */
-import React from 'react'; // Removed useState, useContext, useMemo for simplification
-// import { useUserContext } from '../contexts/UserContext'; // Commented out
-// import { useChoresContext } from '../contexts/ChoresContext'; // Commented out
-// import type { Kid, ChoreInstance, ChoreDefinition } from '../types'; // Commented out
-// import KidKanbanBoard from './kanban_components/KidKanbanBoard'; // Commented out
-// import KanbanFilters from './kanban_components/KanbanFilters'; // Commented out
+import React, { useState, useEffect } from 'react';
+import { useUserContext } from '../contexts/UserContext';
+import KidKanbanBoard from './kanban_components/KidKanbanBoard';
+// import KanbanFilters from './kanban_components/KanbanFilters'; // If needed later
 
 /**
  * KanbanView component.
@@ -17,67 +15,63 @@ import React from 'react'; // Removed useState, useContext, useMemo for simplifi
  * @returns {JSX.Element} The KanbanView UI.
  */
 const KanbanView: React.FC = () => {
-  console.log('KanbanView function body executing'); // Diagnostic log
+  const [selectedKidId, setSelectedKidId] = useState<string | null>(null);
+  const { user, loading: userLoading } = useUserContext();
+  const kids = user?.kids || [];
 
-  // All hooks and logic commented out for diagnostics
-  // const { user, loading: userLoading } = useUserContext();
-  // const { choreInstances, choreDefinitions } = useChoresContext();
-  // const kids = user?.kids || [];
-  // const [selectedKidId, setSelectedKidId] = useState<string | null>(null);
+  // Automatically select the first kid if available and none is selected
+  useEffect(() => {
+    if (!selectedKidId && kids.length > 0) {
+      setSelectedKidId(kids[0].id);
+    }
+  }, [kids, selectedKidId]);
 
-  // const [filters, setFilters] = useState<{
-  //   tags: string[];
-  //   rewardStatus: 'any' | 'rewarded' | 'not_rewarded';
-  // }>({
-  //   tags: [],
-  //   rewardStatus: 'any',
-  // });
+  const handleKidSelection = (kidId: string) => {
+    setSelectedKidId(kidId);
+  };
 
-  // const [sortCriteria, setSortCriteria] = useState<{
-  //   field: string;
-  //   direction: 'asc' | 'desc';
-  // }>({
-  //   field: 'instanceDate',
-  //   direction: 'asc',
-  // });
+  if (userLoading) {
+    return <p style={{ textAlign: 'center', marginTop: '20px' }}>Loading user data...</p>;
+  }
 
-  // const allTags = useMemo(() => {
-  //   const tagsSet = new Set<string>();
-  //   choreDefinitions.forEach(def => {
-  //     def.tags?.forEach(tag => tagsSet.add(tag));
-  //   });
-  //   return Array.from(tagsSet).sort();
-  // }, [choreDefinitions]);
-
-  // const handleFilterChange = (filterName: 'tags' | 'rewardStatus', value: any) => {
-  //   setFilters(prevFilters => ({
-  //     ...prevFilters,
-  //     [filterName]: value,
-  //   }));
-  // };
-
-  // const handleSortChange = (field: string, direction: 'asc' | 'desc') => {
-  //   setSortCriteria({ field, direction });
-  // };
-
-  // const processedInstances = useMemo(() => {
-  //   let instancesToProcess = [...choreInstances];
-  //   // ... (filtering and sorting logic) ...
-  //   return instancesToProcess;
-  // }, [choreInstances, choreDefinitions, filters, sortCriteria]);
-
-
-  // if (userLoading) {
-  //   return <p>Loading user data...</p>;
-  // }
-
-  // const handleKidSelection = (kidId: string) => {
-  //   setSelectedKidId(kidId);
-  // };
+  if (!user || kids.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', marginTop: '20px' }}>
+        <p>No kids found. Please add kids in settings.</p>
+        {/* Optionally, add a link/button to settings page if available */}
+      </div>
+    );
+  }
 
   return (
     <div className="kanban-view" style={{ padding: '16px' }} data-testid="kanban-view-container">
-      Minimal KanbanView Render Test
+      <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        {kids.map(kid => (
+          <button
+            key={kid.id}
+            onClick={() => handleKidSelection(kid.id)}
+            style={{
+              padding: '10px 15px',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              backgroundColor: selectedKidId === kid.id ? '#007bff' : '#f8f9fa',
+              color: selectedKidId === kid.id ? 'white' : 'black',
+              fontWeight: selectedKidId === kid.id ? 'bold' : 'normal',
+            }}
+          >
+            {kid.name}
+          </button>
+        ))}
+      </div>
+
+      {selectedKidId ? (
+        <KidKanbanBoard kidId={selectedKidId} />
+      ) : (
+        <p style={{ textAlign: 'center', marginTop: '20px' }}>Select a kid to view their Kanban board.</p>
+      )}
+      {/* Future location for KanbanFilters if re-added */}
+      {/* {selectedKidId && <KanbanFilters ... />} */}
     </div>
   );
 };
