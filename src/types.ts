@@ -97,6 +97,7 @@ export interface ChoreInstance {
   instanceComments?: Array<{ id: string; userId: string; userName: string; text: string; createdAt: string; }>;
   isSkipped?: boolean;
   activityLog?: Array<{ timestamp: string; action: string; userId?: string; userName?: string; details?: string; }>;
+  instanceDescription?: string; // New field for instance-specific description
 }
 
 /**

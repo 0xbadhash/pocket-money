@@ -153,6 +153,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
         activityLog: [
           { timestamp: new Date().toISOString(), action: 'Instance Created', userId: 'system', userName: 'System' }
         ],
+        instanceDescription: undefined, // Initialize instanceDescription
       };
     });
 
@@ -342,6 +343,8 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
              const baseReward = definition?.rewardAmount ?? 0;
              const newReward = value !== undefined ? value : baseReward;
             updatedInst = logActivity(updatedInst, 'Reward Changed', currentUser?.id, currentUser?.username, `to $${Number(newReward).toFixed(2)}`);
+          } else if (fieldName === 'instanceDescription') {
+            updatedInst = logActivity(updatedInst, 'Instance Description Updated', currentUser?.id, currentUser?.username, value ? `to "${value.substring(0,30)}..."` : 'cleared');
           }
           return updatedInst;
         }
@@ -450,17 +453,18 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
             text: commentText,
             createdAt: new Date().toISOString(),
           };
-          // As per refined requirement, comments are NOT logged to activityLog here.
-          // They are stored in instanceComments and displayed separately.
-          return {
+          let updatedInst = {
             ...inst,
             instanceComments: [...(inst.instanceComments || []), newCommentEntry],
           };
+          // Log the comment addition to activityLog
+          updatedInst = logActivity(updatedInst, 'Comment Added', userId, userName, `"${commentText.substring(0, 30)}..."`);
+          return updatedInst;
         }
         return inst;
       })
     );
-  }, []); // Removed currentUser dependency as it's not used for logging here
+  }, [logActivity]); // Added logActivity dependency
 
   const toggleSkipInstance = useCallback(async (instanceId: string) => {
     setChoreInstances(prevInstances =>

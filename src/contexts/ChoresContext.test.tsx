@@ -453,3 +453,112 @@ describe('ChoresContext - updateChoreSeries', () => {
     expect(finalInstances.filter(i => i.choreDefinitionId === 'otherDef').length).toBe(2);
   });
 });
+
+describe('ChoresContext - Instance Description and Comments Activity Log', () => {
+  let testDefinitions: ChoreDefinition[];
+  let testInstances: ChoreInstance[];
+  const testUserId = 'userTest123';
+  const testUserName = 'User Tester';
+
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorageMock = localStorageMockFactory();
+    Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+    testDefinitions = [
+      { ...initialTestDefinitions[0], id: 'def_desc_comment', title: "Desc Comment Chore", assignedKidId: 'kid_A', rewardAmount: 10, updatedAt: new Date().toISOString(), createdAt: new Date().toISOString() },
+    ];
+    testInstances = [
+      { id: 'inst_desc_comment1', choreDefinitionId: 'def_desc_comment', instanceDate: '2024-03-01', categoryStatus: 'TO_DO', isComplete: false, subtaskCompletions: {}, instanceComments: [], activityLog: [] },
+    ];
+    localStorageMock.getItem.mockImplementation((key: string) => {
+        if (key === 'choreDefinitions') return JSON.stringify(testDefinitions);
+        if (key === 'choreInstances') return JSON.stringify(testInstances);
+        return null;
+    });
+     // Mock currentUser from UserContext for logActivity
+     const mockUserContextValue = { user: { id: testUserId, username: testUserName, kids:[], email:'' } };
+    (useUserContext as vi.Mock).mockReturnValue(mockUserContextValue);
+  });
+
+  test('generateInstancesForPeriod initializes instanceDescription as undefined', () => {
+    const { result } = renderHook(() => useChoresContext(), { wrapper });
+    // Clear initial instances loaded from localStorage for this specific test, to check generation logic
+    act(() => { result.current.choreInstances.length = 0; }); // A bit hacky, better to control initial load
+
+    localStorageMock.getItem.mockImplementation((key: string) => {
+        if (key === 'choreDefinitions') return JSON.stringify(testDefinitions);
+        if (key === 'choreInstances') return JSON.stringify([]); // Start with no instances
+        return null;
+    });
+     // Re-render or re-initialize if context relies on initial load.
+     // For this test, assuming generateInstancesForPeriod will create from scratch.
+     // This test is more about the shape of newly generated instances.
+
+    act(() => { result.current.generateInstancesForPeriod("2024-03-01", "2024-03-01"); });
+
+    const newInstance = result.current.choreInstances.find(inst => inst.choreDefinitionId === 'def_desc_comment');
+    expect(newInstance).toBeDefined();
+    expect(newInstance?.instanceDescription).toBeUndefined();
+  });
+
+  test('updateChoreInstanceField correctly updates instanceDescription and logs activity', async () => {
+    const { result } = renderHook(() => useChoresContext(), { wrapper });
+    const instanceId = 'inst_desc_comment1';
+    const newDescription = "This is a specific note for this instance.";
+
+    await act(async () => {
+      await result.current.updateChoreInstanceField(instanceId, 'instanceDescription', newDescription);
+    });
+
+    const updatedInstance = result.current.choreInstances.find(i => i.id === instanceId);
+    expect(updatedInstance?.instanceDescription).toBe(newDescription);
+    expect(updatedInstance?.activityLog).toBeDefined();
+    expect(updatedInstance?.activityLog?.length).toBeGreaterThan(0);
+    const logEntry = updatedInstance?.activityLog?.[0];
+    expect(logEntry?.action).toBe('Instance Description Updated');
+    expect(logEntry?.userName).toBe(testUserName); // From mocked UserContext
+    expect(logEntry?.details).toContain(newDescription.substring(0,30));
+  });
+
+  test('updateChoreInstanceField logs activity when instanceDescription is cleared', async () => {
+    const { result } = renderHook(() => useChoresContext(), { wrapper });
+    const instanceId = 'inst_desc_comment1';
+    // First set a description
+    await act(async () => { await result.current.updateChoreInstanceField(instanceId, 'instanceDescription', "Initial description"); });
+    // Then clear it
+    await act(async () => { await result.current.updateChoreInstanceField(instanceId, 'instanceDescription', ''); });
+
+    const updatedInstance = result.current.choreInstances.find(i => i.id === instanceId);
+    expect(updatedInstance?.instanceDescription).toBe('');
+    const logEntry = updatedInstance?.activityLog?.[0]; // Clearing adds a new log entry at the beginning
+    expect(logEntry?.action).toBe('Instance Description Updated');
+    expect(logEntry?.details).toBe('cleared');
+  });
+
+  test('addCommentToInstance adds a comment and logs activity', async () => {
+    const { result } = renderHook(() => useChoresContext(), { wrapper });
+    const instanceId = 'inst_desc_comment1';
+    const commentText = "This is a test comment.";
+
+    await act(async () => {
+      await result.current.addCommentToInstance(instanceId, commentText, testUserId, testUserName);
+    });
+
+    const updatedInstance = result.current.choreInstances.find(i => i.id === instanceId);
+    expect(updatedInstance?.instanceComments).toBeDefined();
+    expect(updatedInstance?.instanceComments?.length).toBe(1);
+    const addedComment = updatedInstance?.instanceComments?.[0];
+    expect(addedComment?.text).toBe(commentText);
+    expect(addedComment?.userId).toBe(testUserId);
+    expect(addedComment?.userName).toBe(testUserName);
+
+    expect(updatedInstance?.activityLog).toBeDefined();
+    expect(updatedInstance?.activityLog?.length).toBeGreaterThan(0);
+    const logEntry = updatedInstance?.activityLog?.[0];
+    expect(logEntry?.action).toBe('Comment Added');
+    expect(logEntry?.userId).toBe(testUserId);
+    expect(logEntry?.userName).toBe(testUserName);
+    expect(logEntry?.details).toContain(commentText.substring(0,30));
+  });
+});

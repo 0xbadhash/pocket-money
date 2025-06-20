@@ -8,6 +8,7 @@ import { useChoresContext } from '../../contexts/ChoresContext';
 import { useUserContext } from '../../contexts/UserContext';
 import type { ChoreDefinition, ChoreInstance, KanbanPeriod, Kid, ColumnThemeOption, MatrixKanbanCategory, KanbanColumnConfig } from '../../types';
 import KanbanCard from './KanbanCard';
+import InstanceDetailModal from './InstanceDetailModal'; // Import InstanceDetailModal
 import DateColumnView from './DateColumnView';
 import { useChoreSelection } from '../../hooks/useChoreSelection';
 import { useModalState } from '../../hooks/useModalState';
@@ -80,6 +81,11 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   const [addChoreDefaultDate, setAddChoreDefaultDate] = useState<Date | null>(null);
   const [editingChore, setEditingChore] = useState<ChoreDefinition | null>(null);
 
+  // State for InstanceDetailModal
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedInstance, setSelectedInstance] = useState<ChoreInstance | null>(null);
+  const [selectedDefinition, setSelectedDefinition] = useState<ChoreDefinition | null>(null);
+
   const todayString = getTodayDateString(); // Get today's date string
 
   useEffect(() => {
@@ -97,6 +103,19 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   useEffect(() => {
     setSelectedInstanceIds([]);
   }, [kidId, setSelectedInstanceIds]);
+
+  // Functions to open and close the detail modal
+  const openDetailModal = useCallback((instance: ChoreInstance, definition: ChoreDefinition) => {
+    setSelectedInstance(instance);
+    setSelectedDefinition(definition);
+    setIsDetailModalOpen(true);
+  }, []);
+
+  const closeDetailModal = useCallback(() => {
+    setIsDetailModalOpen(false);
+    setSelectedInstance(null);
+    setSelectedDefinition(null);
+  }, []);
 
   const currentPeriodDateRange = useMemo(() => {
     const today = new Date(currentVisibleStartDate);
@@ -430,6 +449,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
                     selectedInstanceIds={selectedInstanceIds}
                     onToggleSelection={handleToggleSelection}
                     onEditChore={handleEditChore}
+                    openDetailModal={openDetailModal} // Pass openDetailModal
                     isToday={isToday} // Pass isToday prop
                   />
                 ))}
@@ -471,6 +491,14 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
             </div>
           </div>
         )}
+
+        {/* Instance Detail Modal */}
+        <InstanceDetailModal
+          isOpen={isDetailModalOpen}
+          onClose={closeDetailModal}
+          choreInstance={selectedInstance}
+          choreDefinition={selectedDefinition}
+        />
       </div>
       <DragOverlay dropAnimation={null}>
         {activeDragItem ? (<KanbanCard instance={activeDragItem.instance} definition={activeDragItem.definition} isOverlay />) : null}
