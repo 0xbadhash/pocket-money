@@ -98,7 +98,8 @@ const renderCardWithSpecificDndState = ({
   isOverlay = false,
   isDraggingValue = false,
   isSelected = false,
-  onToggleSelection, // Removed default vi.fn() here
+  onToggleSelection,
+  openDetailModal, // Add openDetailModal to params
 } = {}) => {
   vi.mocked(useSortable).mockReturnValueOnce({
     attributes: { 'data-testid': 'sortable-attributes' },
@@ -117,6 +118,7 @@ const renderCardWithSpecificDndState = ({
         isOverlay={isOverlay}
         isSelected={isSelected}
         onToggleSelection={onToggleSelection}
+        openDetailModal={openDetailModal} // Pass to KanbanCard
       />
     </ChoresContext.Provider>
   );
@@ -503,5 +505,91 @@ describe('KanbanCard', () => {
       expect(cardElement).toHaveClass('selected');
       expect(cardElement).toHaveStyle('border: 2px solid var(--primary-color, #007bff)');
     });
+  });
+
+  // --- Tests for Instance Detail Modal Interaction ---
+  describe('Instance Detail Modal Interaction', () => {
+    const mockOpenDetailModal = vi.fn();
+
+    beforeEach(() => {
+      mockOpenDetailModal.mockClear();
+    });
+
+    test('clicking the main card area calls openDetailModal prop', async () => {
+      const user = userEvent.setup();
+      renderCardWithSpecificDndState({ openDetailModal: mockOpenDetailModal });
+
+      // Click on the card title, assuming it's part of the main clickable area
+      // and not an interactive element itself that stops propagation for this specific test.
+      // A more robust way might be to add a data-testid to the main div of KanbanCard.
+      const cardTitleElement = screen.getByText(mockDefinition.title);
+      await user.click(cardTitleElement.closest('.kanban-card')!); // Click the card container
+
+      expect(mockOpenDetailModal).toHaveBeenCalledTimes(1);
+      expect(mockOpenDetailModal).toHaveBeenCalledWith(mockInstance, mockDefinition);
+    });
+
+    test('clicking "Mark Complete" button does NOT call openDetailModal', async () => {
+      const user = userEvent.setup();
+      renderCardWithSpecificDndState({ openDetailModal: mockOpenDetailModal });
+
+      const completeButton = screen.getByRole('button', { name: 'Mark Complete' });
+      await user.click(completeButton);
+
+      expect(mockToggleChoreInstanceComplete).toHaveBeenCalled(); // Ensure original action still works
+      expect(mockOpenDetailModal).not.toHaveBeenCalled();
+    });
+
+    test('clicking edit title icon does NOT call openDetailModal', async () => {
+      const user = userEvent.setup();
+      renderCardWithSpecificDndState({ openDetailModal: mockOpenDetailModal });
+
+      // The title itself becomes clickable to edit.
+      // The actual edit icon button is also a target.
+      const editTitleButton = screen.getByLabelText(`Edit title for ${mockDefinition.title}`);
+      await user.click(editTitleButton);
+
+      expect(mockOpenDetailModal).not.toHaveBeenCalled();
+      // Further assertions could check if title editing mode was entered.
+    });
+
+    test('clicking a subtask checkbox does NOT call openDetailModal', async () => {
+      const user = userEvent.setup();
+      renderCardWithSpecificDndState({ openDetailModal: mockOpenDetailModal });
+
+      const subtask1Checkbox = screen.getByLabelText('Sub-task 1');
+      await user.click(subtask1Checkbox);
+
+      expect(mockToggleSubtaskCompletionOnInstance).toHaveBeenCalled();
+      expect(mockOpenDetailModal).not.toHaveBeenCalled();
+    });
+
+    test('clicking the selection checkbox does NOT call openDetailModal', async () => {
+      const user = userEvent.setup();
+      const mockOnToggleSelection = vi.fn();
+      renderCardWithSpecificDndState({
+        openDetailModal: mockOpenDetailModal,
+        onToggleSelection: mockOnToggleSelection
+      });
+
+      const selectionCheckbox = screen.getByLabelText(`Select chore ${mockDefinition.title}`);
+      await user.click(selectionCheckbox);
+
+      expect(mockOnToggleSelection).toHaveBeenCalled();
+      expect(mockOpenDetailModal).not.toHaveBeenCalled();
+    });
+
+    test('clicking "Quick actions" menu button does NOT call openDetailModal', async () => {
+      const user = userEvent.setup();
+      renderCardWithSpecificDndState({ openDetailModal: mockOpenDetailModal });
+
+      const quickActionsButton = screen.getByRole('button', { name: /Quick actions/i });
+      await user.click(quickActionsButton);
+
+      expect(mockOpenDetailModal).not.toHaveBeenCalled();
+      // Check if menu opened
+      expect(screen.getByRole('button', { name: /Edit Chore Def/i, hidden: false })).toBeInTheDocument(); // Menu item
+    });
+
   });
 });

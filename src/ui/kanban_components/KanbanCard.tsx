@@ -19,6 +19,7 @@ interface KanbanCardProps {
   onEditChore?: (chore: ChoreDefinition) => void;
   isSelected?: boolean;
   onToggleSelection?: (instanceId: string, isSelected: boolean) => void;
+  openDetailModal?: (instance: ChoreInstance, definition: ChoreDefinition) => void; // Added openDetailModal
 }
 
 const KanbanCard: React.FC<KanbanCardProps> = ({
@@ -28,6 +29,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   onEditChore,
   isSelected = false,
   onToggleSelection,
+  openDetailModal, // Destructure openDetailModal
 }) => {
   const {
     toggleChoreInstanceComplete,
@@ -219,126 +221,134 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
       {...attributes}
       {...(instance.isSkipped ? {} : listeners)}
       className={`kanban-card ${instance.isComplete ? 'complete' : ''} ${instance.isSkipped ? 'skipped' : ''} ${isOverdue ? 'kanban-card-overdue' : ''} ${isDragging && !isOverlay ? 'dragging' : ''} ${isOverlay ? 'is-overlay' : ''} ${isSelected ? 'selected' : ''}`}
+      onClick={() => {
+        if (!isOverlay && !isDragging && openDetailModal) {
+          openDetailModal(instance, definition);
+        }
+      }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        {isEditingTitle ? ( <input ref={titleInputRef} type="text" value={editingTitleValue} onChange={(e) => setEditingTitleValue(e.target.value)} onBlur={handleSaveTitle} onKeyDown={handleTitleInputKeyDown} style={{ flexGrow: 1, marginRight: '8px' }} disabled={loadingStates.title} /> ) : (
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }} onClick={(e) => e.stopPropagation()}> {/* Stop propagation for inner clicks */}
+        {isEditingTitle ? ( <input ref={titleInputRef} type="text" value={editingTitleValue} onChange={(e) => setEditingTitleValue(e.target.value)} onBlur={handleSaveTitle} onKeyDown={handleTitleInputKeyDown} style={{ flexGrow: 1, marginRight: '8px' }} disabled={loadingStates.title} onClick={(e) => e.stopPropagation()} /> ) : (
           <>
-            <h4 style={{ margin: 0, flexGrow: 1, cursor: (loadingStates.title || instance.isSkipped) ? 'default' : 'text', textDecoration: instance.isSkipped && !instance.isComplete ? 'line-through' : 'none' }} onClick={!loadingStates.title && !instance.isSkipped ? handleEditTitle : undefined}>
+            <h4 style={{ margin: 0, flexGrow: 1, cursor: (loadingStates.title || instance.isSkipped) ? 'default' : 'text', textDecoration: instance.isSkipped && !instance.isComplete ? 'line-through' : 'none' }} onClick={(e) => { e.stopPropagation(); if(!loadingStates.title && !instance.isSkipped) handleEditTitle(); }}>
               {definition.title} {instance.isSkipped && <span style={{fontSize: '0.8em', color: 'grey'}}>(Skipped)</span>}
             </h4>
             {loadingStates.title && <span style={{fontSize: '0.8em'}}>Saving...</span>}
-            {!isEditingTitle && !loadingStates.title && !instance.isSkipped && (<button onClick={handleEditTitle} className="edit-icon-button">✏️</button>)}
+            {!isEditingTitle && !loadingStates.title && !instance.isSkipped && (<button onClick={(e) => { e.stopPropagation(); handleEditTitle();}} className="edit-icon-button">✏️</button>)}
           </>
         )}
         {!isOverlay && typeof onToggleSelection === 'function' && !isEditingTitle && !instance.isSkipped && (<input type="checkbox" checked={isSelected} onChange={(e) => { e.stopPropagation(); onToggleSelection(instance.id, e.target.checked); }} onClick={(e) => e.stopPropagation()} style={{ marginLeft: '8px' }} disabled={instance.isSkipped} /> )}
       </div>
 
+      {/* Ensure other interactive elements also stop propagation */}
       {definition.subTasks && definition.subTasks.length > 0 && ( /* Progress Bar */
-        <div style={{ margin: '8px 0' }}><div style={{ backgroundColor: '#e9ecef', borderRadius: '4px', padding: '2px', height: '12px' }}>
+        <div style={{ margin: '8px 0' }} onClick={(e) => e.stopPropagation()}><div style={{ backgroundColor: '#e9ecef', borderRadius: '4px', padding: '2px', height: '12px' }}>
           <div style={{ width: `${(definition.subTasks.filter(st => !!instance.subtaskCompletions?.[st.id]).length / definition.subTasks.length) * 100}%`, height: '100%', backgroundColor: '#28a745', borderRadius: '2px' }} />
         </div></div>
       )}
 
-      {definition.description && <p style={{ fontSize: '0.9em' }}>{definition.description}</p>}
-      {assignedKid && <div style={{fontSize: '0.9em'}}><strong>Assigned to:</strong> {assignedKid.name}</div>}
+      {definition.description && <p style={{ fontSize: '0.9em' }} onClick={(e) => e.stopPropagation()}>{definition.description}</p>}
+      {assignedKid && <div style={{fontSize: '0.9em'}} onClick={(e) => e.stopPropagation()}><strong>Assigned to:</strong> {assignedKid.name}</div>}
 
-      <div style={{ fontSize: '0.9em', display: 'flex', gap: '5px', alignItems: 'center', marginTop: '4px' }}> {/* Priority */}
+      <div style={{ fontSize: '0.9em', display: 'flex', gap: '5px', alignItems: 'center', marginTop: '4px' }} onClick={(e) => e.stopPropagation()}> {/* Priority */}
         <span>Priority:</span>
-        {isEditingPriority ? (<select value={editingPriorityValue} onChange={(e) => setEditingPriorityValue(e.target.value as any)} onBlur={handleSavePriority} onKeyDown={handlePrioritySelectKeyDown} autoFocus disabled={instance.isSkipped}><option value="">Default</option><option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option></select>) : (<><span style={getPriorityStyle(effectivePriority)}>{effectivePriority || 'Default'}</span>{!instance.isSkipped && <button onClick={handleEditPriority} className="edit-icon-button">✏️</button>}</>)}
+        {isEditingPriority ? (<select value={editingPriorityValue} onChange={(e) => setEditingPriorityValue(e.target.value as any)} onBlur={handleSavePriority} onKeyDown={handlePrioritySelectKeyDown} autoFocus disabled={instance.isSkipped} onClick={(e) => e.stopPropagation()}><option value="">Default</option><option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option></select>) : (<><span style={getPriorityStyle(effectivePriority)}>{effectivePriority || 'Default'}</span>{!instance.isSkipped && <button onClick={(e) => { e.stopPropagation(); handleEditPriority();}} className="edit-icon-button">✏️</button>}</>)}
       </div>
-      <div style={{ fontSize: '0.9em', display: 'flex', gap: '5px', alignItems: 'center', marginTop: '4px' }}> {/* Due Date */}
+      <div style={{ fontSize: '0.9em', display: 'flex', gap: '5px', alignItems: 'center', marginTop: '4px' }} onClick={(e) => e.stopPropagation()}> {/* Due Date */}
         <span>Due:</span>
-        {isEditingDate ? (<input ref={dateInputRef} type="date" value={editingDateValue} onChange={(e) => setEditingDateValue(e.target.value)} onBlur={handleSaveDate} onKeyDown={handleDateInputKeyDown} disabled={instance.isSkipped} />) : (<><span>{instance.instanceDate}</span>{!instance.isSkipped && <button onClick={handleEditDate} className="edit-icon-button">✏️</button>}</>)}
+        {isEditingDate ? (<input ref={dateInputRef} type="date" value={editingDateValue} onChange={(e) => setEditingDateValue(e.target.value)} onBlur={handleSaveDate} onKeyDown={handleDateInputKeyDown} disabled={instance.isSkipped} onClick={(e) => e.stopPropagation()} />) : (<><span>{instance.instanceDate}</span>{!instance.isSkipped && <button onClick={(e) => { e.stopPropagation(); handleEditDate();}} className="edit-icon-button">✏️</button>}</>)}
       </div>
       {definition.rewardAmount !== undefined && ( /* Reward */
-        <div style={{ fontSize: '0.9em', display: 'flex', gap: '5px', alignItems: 'center' }}><span>Reward:</span>
-        {isEditingReward ? (<input ref={rewardInputRef} type="number" value={editingRewardValue} onChange={(e) => setEditingRewardValue(e.target.value)} onBlur={handleSaveReward} onKeyDown={handleRewardInputKeyDown} min="0" step="0.01" disabled={instance.isSkipped} />) : (<>$ {(instance.overriddenRewardAmount ?? definition.rewardAmount)?.toFixed(2) || '0.00'}{instance.overriddenRewardAmount != null && <span style={{fontSize:'0.8em', color: 'grey'}}>(edited)</span>}{!instance.isSkipped && <button onClick={handleEditReward} className="edit-icon-button">✏️</button>}</>)}
+        <div style={{ fontSize: '0.9em', display: 'flex', gap: '5px', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}><span>Reward:</span>
+        {isEditingReward ? (<input ref={rewardInputRef} type="number" value={editingRewardValue} onChange={(e) => setEditingRewardValue(e.target.value)} onBlur={handleSaveReward} onKeyDown={handleRewardInputKeyDown} min="0" step="0.01" disabled={instance.isSkipped} onClick={(e) => e.stopPropagation()} />) : (<>$ {(instance.overriddenRewardAmount ?? definition.rewardAmount)?.toFixed(2) || '0.00'}{instance.overriddenRewardAmount != null && <span style={{fontSize:'0.8em', color: 'grey'}}>(edited)</span>}{!instance.isSkipped && <button onClick={(e) => { e.stopPropagation(); handleEditReward();}} className="edit-icon-button">✏️</button>}</>)}
         </div>
       )}
 
       {/* Tags Display and Edit */}
       {isEditingTags && !instance.isSkipped ? (
-        <div style={{ marginTop: '8px', marginBottom: '8px' }}>
-          <input type="text" value={editingTagsValue} onChange={(e) => setEditingTagsValue(e.target.value)} placeholder="Tags, comma-separated" style={{width: 'calc(100% - 120px)'}} autoFocus />
-          <button onClick={async () => { setLoadingStates(p=>({...p, tags:true})); await updateChoreDefinition(definition.id, { tags: editingTagsValue.split(',').map(t => t.trim()).filter(Boolean) }); addNotification({message:'Tags updated!', type:'success'}); setLoadingStates(p=>({...p, tags:false})); setIsEditingTags(false); }} className="button-primary" disabled={loadingStates.tags}>Save</button>
-          <button onClick={() => setIsEditingTags(false)} className="button-secondary" disabled={loadingStates.tags}>Cancel</button>
+        <div style={{ marginTop: '8px', marginBottom: '8px' }} onClick={(e) => e.stopPropagation()}>
+          <input type="text" value={editingTagsValue} onChange={(e) => setEditingTagsValue(e.target.value)} placeholder="Tags, comma-separated" style={{width: 'calc(100% - 120px)'}} autoFocus onClick={(e) => e.stopPropagation()} />
+          <button onClick={(e) => { e.stopPropagation(); async () => { setLoadingStates(p=>({...p, tags:true})); await updateChoreDefinition(definition.id, { tags: editingTagsValue.split(',').map(t => t.trim()).filter(Boolean) }); addNotification({message:'Tags updated!', type:'success'}); setLoadingStates(p=>({...p, tags:false})); setIsEditingTags(false); }}()} className="button-primary" disabled={loadingStates.tags}>Save</button>
+          <button onClick={(e) => { e.stopPropagation(); setIsEditingTags(false);}} className="button-secondary" disabled={loadingStates.tags}>Cancel</button>
         </div>
       ) : (
         (definition.tags && definition.tags.length > 0) || !instance.isSkipped ? (
-          <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
-            {definition.tags && definition.tags.length > 0 ? definition.tags.map(tag => (<span key={tag} className="chore-tag">{tag}</span>)) : <span style={{fontSize:'0.8em', color:'#777'}}>No tags.</span>}
-            {!instance.isSkipped && <button onClick={() => { setEditingTagsValue(definition.tags?.join(', ') || ''); setIsEditingTags(true); }} className="edit-icon-button" aria-label="Edit tags">✏️</button>}
+          <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
+            {definition.tags && definition.tags.length > 0 ? definition.tags.map(tag => (<span key={tag} className="chore-tag" onClick={(e) => e.stopPropagation()}>{tag}</span>)) : <span style={{fontSize:'0.8em', color:'#777'}}>No tags.</span>}
+            {!instance.isSkipped && <button onClick={(e) => { e.stopPropagation(); setEditingTagsValue(definition.tags?.join(', ') || ''); setIsEditingTags(true); }} className="edit-icon-button" aria-label="Edit tags">✏️</button>}
           </div>
         ) : null
       )}
 
       {definition.subTasks && definition.subTasks.length > 0 && ( /* Subtasks */
-        <div style={{ marginTop: '10px', borderTop: '1px solid #eee', paddingTop: '8px' }}>
+        <div style={{ marginTop: '10px', borderTop: '1px solid #eee', paddingTop: '8px' }} onClick={(e) => e.stopPropagation()}>
           <h5 style={{fontSize:'0.9em', margin:'0 0 5px 0'}}>Sub-tasks:</h5>
-          {definition.subTasks.map(st => (<div key={st.id} style={{display:'flex', alignItems:'center'}}><input type="checkbox" id={`st-${instance.id}-${st.id}`} checked={!!instance.subtaskCompletions?.[st.id]} onChange={() => !instance.isSkipped && toggleSubtaskCompletionOnInstance(instance.id, st.id)} disabled={instance.isSkipped} /><label htmlFor={`st-${instance.id}-${st.id}`} style={{textDecoration:instance.subtaskCompletions?.[st.id]?'line-through':'none', cursor: instance.isSkipped?'default':'pointer'}}>{st.title}</label></div>))}
+          {definition.subTasks.map(st => (<div key={st.id} style={{display:'flex', alignItems:'center'}} onClick={(e) => e.stopPropagation()}><input type="checkbox" id={`st-${instance.id}-${st.id}`} checked={!!instance.subtaskCompletions?.[st.id]} onChange={() => !instance.isSkipped && toggleSubtaskCompletionOnInstance(instance.id, st.id)} disabled={instance.isSkipped} onClick={(e) => e.stopPropagation()} /><label htmlFor={`st-${instance.id}-${st.id}`} style={{textDecoration:instance.subtaskCompletions?.[st.id]?'line-through':'none', cursor: instance.isSkipped?'default':'pointer'}}>{st.title}</label></div>))}
         </div>
       )}
 
-      {recurrenceInfo && <p style={{ fontStyle: 'italic', fontSize: '0.8em' }}>{recurrenceInfo}</p>}
-      <p style={{ fontSize: '0.9em' }}>Status: {instance.isComplete ? 'Complete' : 'Incomplete'}</p>
+      {recurrenceInfo && <p style={{ fontStyle: 'italic', fontSize: '0.8em' }} onClick={(e) => e.stopPropagation()}>{recurrenceInfo}</p>}
+      <p style={{ fontSize: '0.9em' }} onClick={(e) => e.stopPropagation()}>Status: {instance.isComplete ? 'Complete' : 'Incomplete'}</p>
 
       {/* User Comments Section */}
-      <div style={{ marginTop: '10px', marginBottom: '10px' }}>
-        <button onClick={() => setShowComments(!showComments)} className="button-link">
+      <div style={{ marginTop: '10px', marginBottom: '10px' }} onClick={(e) => e.stopPropagation()}>
+        <button onClick={(e) => { e.stopPropagation(); setShowComments(!showComments);}} className="button-link">
           {showComments ? 'Hide Comments' : 'View Comments'} ({instance.instanceComments?.length || 0})
         </button>
         {showComments && (
-          <div className="comments-section" style={{ marginTop: '8px', borderTop: '1px solid var(--border-color, #eee)', paddingTop: '8px' }}>
+          <div className="comments-section" style={{ marginTop: '8px', borderTop: '1px solid var(--border-color, #eee)', paddingTop: '8px' }} onClick={(e) => e.stopPropagation()}>
             <h5 style={{ fontSize: '0.9em', marginBottom: '5px', color: 'var(--text-color-secondary, #666)', marginTop: '0' }}>User Comments</h5>
             {instance.instanceComments && instance.instanceComments.length > 0 ? (
               instance.instanceComments.map(comment => (
-                <div key={comment.id} className="comment-item" style={{ marginBottom: '4px', fontSize: '0.85em', borderBottom: '1px dotted #eee', paddingBottom: '4px' }}>
+                <div key={comment.id} className="comment-item" style={{ marginBottom: '4px', fontSize: '0.85em', borderBottom: '1px dotted #eee', paddingBottom: '4px' }} onClick={(e) => e.stopPropagation()}>
                   <span style={{fontWeight: 'bold'}}>{comment.userName}</span> <span style={{fontSize: '0.8em', color: '#777'}}>({new Date(comment.createdAt).toLocaleString()}):</span>
                   <p style={{margin: '2px 0 0 0', whiteSpace: 'pre-wrap'}}>{comment.text}</p>
                 </div>
               ))
-            ) : (<p style={{fontSize: '0.8em', color: '#777'}}>No comments yet.</p>)}
-            <div className="add-comment-form" style={{ marginTop: '10px' }}>
-              <textarea value={newCommentText} onChange={(e) => setNewCommentText(e.target.value)} placeholder="Add a comment..." rows={2} style={{ width: '100%', boxSizing: 'border-box', marginBottom: '4px' }} disabled={instance.isSkipped} />
-              <button onClick={handleAddComment} disabled={!newCommentText.trim() || instance.isSkipped} className="button-primary">Add Comment</button>
+            ) : (<p style={{fontSize: '0.8em', color: '#777'}} onClick={(e) => e.stopPropagation()}>No comments yet.</p>)}
+            <div className="add-comment-form" style={{ marginTop: '10px' }} onClick={(e) => e.stopPropagation()}>
+              <textarea value={newCommentText} onChange={(e) => setNewCommentText(e.target.value)} placeholder="Add a comment..." rows={2} style={{ width: '100%', boxSizing: 'border-box', marginBottom: '4px' }} disabled={instance.isSkipped} onClick={(e) => e.stopPropagation()} />
+              <button onClick={(e) => { e.stopPropagation(); handleAddComment();}} disabled={!newCommentText.trim() || instance.isSkipped} className="button-primary">Add Comment</button>
             </div>
           </div>
         )}
       </div>
 
       {/* Activity Log Section */}
-      <div style={{ marginTop: '10px' }}>
-        <button onClick={() => setShowActivityLog(!showActivityLog)} className="button-link">
+      <div style={{ marginTop: '10px' }} onClick={(e) => e.stopPropagation()}>
+        <button onClick={(e) => { e.stopPropagation(); setShowActivityLog(!showActivityLog);}} className="button-link">
           {showActivityLog ? 'Hide Activity' : 'View Activity'} ({instance.activityLog?.length || 0})
         </button>
         {showActivityLog && (
-          <div className="activity-log-section" style={{ marginTop: '8px', maxHeight: '150px', overflowY: 'auto', border: '1px solid #eee', padding: '8px', fontSize: '0.8em', backgroundColor: '#f9f9f9' }}>
+          <div className="activity-log-section" style={{ marginTop: '8px', maxHeight: '150px', overflowY: 'auto', border: '1px solid #eee', padding: '8px', fontSize: '0.8em', backgroundColor: '#f9f9f9' }} onClick={(e) => e.stopPropagation()}>
             <h5 style={{ fontSize: '0.9em', marginBottom: '5px', color: 'var(--text-color-secondary, #666)', marginTop: '0' }}>Activity Log</h5>
             {instance.activityLog && instance.activityLog.length > 0 ? (
               instance.activityLog.map(log => (
-                <div key={log.timestamp + log.action + (log.details || '')} className="activity-log-entry" style={{ marginBottom: '4px', borderBottom: '1px dotted #ddd', paddingBottom: '4px' }}>
+                <div key={log.timestamp + log.action + (log.details || '')} className="activity-log-entry" style={{ marginBottom: '4px', borderBottom: '1px dotted #ddd', paddingBottom: '4px' }} onClick={(e) => e.stopPropagation()}>
                   <span style={{ fontWeight: 'bold' }}>{new Date(log.timestamp).toLocaleString()}</span> -
                   <span style={{ color: '#555', marginLeft: '4px' }}>{log.userName || log.userId || 'System'}</span>:
                   <span style={{ marginLeft: '4px', fontWeight: '500' }}>{log.action}</span>
                   {log.details && <span style={{ marginLeft: '4px', color: '#777' }}>({log.details})</span>}
                 </div>
               ))
-            ) : (<p style={{fontSize: '0.8em', color: '#777', marginTop: '4px'}}>No activity yet.</p>)}
+            ) : (<p style={{fontSize: '0.8em', color: '#777', marginTop: '4px'}} onClick={(e) => e.stopPropagation()}>No activity yet.</p>)}
           </div>
         )}
       </div>
 
-      {!instance.isSkipped && (<button onClick={() => toggleChoreInstanceComplete(instance.id)} style={{ marginTop: '10px' }} className="button-secondary" disabled={instance.isSkipped}>{instance.isComplete ? 'Mark Incomplete' : 'Mark Complete'}</button>)}
-      {instance.isSkipped ? (<button onClick={() => toggleSkipInstance(instance.id)} style={{ marginTop: '10px' }} className="button-tertiary">Unskip</button>) : (!instance.isComplete && <button onClick={() => toggleSkipInstance(instance.id)} style={{ marginTop: '10px', marginLeft: '8px' }} className="button-tertiary">Skip</button>)}
-      {onEditChore && !instance.isSkipped && (<button type="button" onClick={e => { e.stopPropagation(); onEditChore(definition); }} style={{ marginTop: '10px', marginLeft: '8px' }} className="button-edit">Edit Chore Def</button>)}
+      <div onClick={(e) => e.stopPropagation()}> {/* Wrapper for bottom buttons */}
+        {!instance.isSkipped && (<button onClick={(e) => { e.stopPropagation(); toggleChoreInstanceComplete(instance.id);}} style={{ marginTop: '10px' }} className="button-secondary" disabled={instance.isSkipped}>{instance.isComplete ? 'Mark Incomplete' : 'Mark Complete'}</button>)}
+        {instance.isSkipped ? (<button onClick={(e) => { e.stopPropagation(); toggleSkipInstance(instance.id);}} style={{ marginTop: '10px' }} className="button-tertiary">Unskip</button>) : (!instance.isComplete && <button onClick={(e) => { e.stopPropagation(); toggleSkipInstance(instance.id);}} style={{ marginTop: '10px', marginLeft: '8px' }} className="button-tertiary">Skip</button>)}
+        {onEditChore && !instance.isSkipped && (<button type="button" onClick={e => { e.stopPropagation(); onEditChore(definition); }} style={{ marginTop: '10px', marginLeft: '8px' }} className="button-edit">Edit Chore Def</button>)}
 
-      <div style={{ position: 'relative', display: 'inline-block', marginLeft: '8px' }}>
-        <button aria-label="Quick actions" onClick={e => { e.stopPropagation(); setShowMenu(v => !v); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2em', padding: 0, color: '#888' }}>⋮</button>
-        {showMenu && (
-          <div id={`quick-action-menu-${instance.id}`} style={{position: 'absolute', top: 24, right: 0, background: '#fff', border: '1px solid #ccc', borderRadius: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', zIndex: 100, minWidth: 120}} onClick={e => e.stopPropagation()}>
-            <button style={{display:'block', width:'100%', background:'none', border:'none', padding:'8px 12px', textAlign:'left', cursor:'pointer'}} onClick={() => { setShowMenu(false); if (onEditChore && !instance.isSkipped) onEditChore(definition); }} disabled={instance.isSkipped}>Edit Chore Def</button>
-          </div>
-        )}
+        <div style={{ position: 'relative', display: 'inline-block', marginLeft: '8px' }}>
+          <button aria-label="Quick actions" onClick={e => { e.stopPropagation(); setShowMenu(v => !v); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2em', padding: 0, color: '#888' }}>⋮</button>
+          {showMenu && (
+            <div id={`quick-action-menu-${instance.id}`} style={{position: 'absolute', top: 24, right: 0, background: '#fff', border: '1px solid #ccc', borderRadius: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', zIndex: 100, minWidth: 120}} onClick={e => e.stopPropagation()}>
+              <button style={{display:'block', width:'100%', background:'none', border:'none', padding:'8px 12px', textAlign:'left', cursor:'pointer'}} onClick={(e) => { e.stopPropagation(); setShowMenu(false); if (onEditChore && !instance.isSkipped) onEditChore(definition); }} disabled={instance.isSkipped}>Edit Chore Def</button>
+            </div>
+          )}
+        </div>
       </div>
 
       {isEditScopeModalVisible && pendingEdit && (<EditScopeModal isVisible={isEditScopeModalVisible} onClose={closeEditScopeModal} onConfirmScope={handleConfirmEditScope} fieldName={pendingEdit.fieldName} newValue={pendingEdit.value} /> )}

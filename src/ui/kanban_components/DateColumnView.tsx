@@ -12,6 +12,7 @@ interface DateColumnViewProps {
   kidId?: string;
   selectedInstanceIds: string[];
   onToggleSelection: (instanceId: string, isSelected: boolean) => void;
+  openDetailModal: (instance: ChoreInstance, definition: ChoreDefinition) => void; // Added openDetailModal
   isToday?: boolean; // Added isToday prop
 }
 
@@ -24,6 +25,7 @@ const DateColumnView: React.FC<DateColumnViewProps> = ({
   kidId,
   selectedInstanceIds,
   onToggleSelection,
+  openDetailModal, // Destructure openDetailModal
   isToday = false, // Default to false
 }) => {
   const { choreInstances, choreDefinitions } = useChoresContext();
@@ -101,6 +103,7 @@ const DateColumnView: React.FC<DateColumnViewProps> = ({
               onEditChore={onEditChore}
               isSelected={selectedInstanceIds.includes(instance.id)}
               onToggleSelection={onToggleSelection}
+              openDetailModal={openDetailModal} // Pass openDetailModal
             />
           );
         })
