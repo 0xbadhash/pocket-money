@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChoreInstance, ChoreDefinition, KanbanColumnConfig } from '../../types';
+import type { ChoreInstance, ChoreDefinition, KanbanColumnConfig } from '../../types';
 import { useUserContext } from '../../contexts/UserContext';
 import { useChoresContext } from '../../contexts/ChoresContext';
 
@@ -79,7 +79,7 @@ const InstanceDetailModal: React.FC<InstanceDetailModalProps> = ({
 
   const getAssignedKidName = (kidId?: string): string => {
     if (!kidId || !user || !user.kids) return 'N/A';
-    const kid = user.kids.find(k => k.id === kidId);
+    const kid = user.kids.find((k: { id: string }) => k.id === kidId);
     return kid ? kid.name : 'Unknown Kid';
   };
 
@@ -296,7 +296,7 @@ const InstanceDetailModal: React.FC<InstanceDetailModalProps> = ({
                 <option value="default">Default ({choreDefinition.priority || 'N/A'})</option>
                 <option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option>
               </select>
-              <button onClick={() => handleSaveField('priority', editablePriority === 'default' ? undefined : editablePriority)} style={saveButtonStyle}>Save</option>
+              <button onClick={() => handleSaveField('priority', editablePriority === 'default' ? undefined : editablePriority)} style={saveButtonStyle}>Save</button>
               {saveFeedback['priority'] && <span style={saveFeedback['priority'] === 'Saved!' ? feedbackStyle : errorFeedbackStyle}>{saveFeedback['priority']}</span>}
             </div>
           </div>
