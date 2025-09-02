@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, act as reactAct } from '../../../src/test-utils'; // Use customRender
+import { render, screen, fireEvent, act as reactAct, cleanup } from '../../../src/test-utils'; // Use customRender
 import KidAssignmentModal from './KidAssignmentModal';
 // Import hooks to mock
 import { useUserContext } from '../../contexts/UserContext';
@@ -74,6 +74,8 @@ describe('KidAssignmentModal Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
+
+  afterEach(cleanup);
 
   test('does not render when isVisible is false', () => {
     render(<KidAssignmentModal {...defaultProps} isVisible={false} />);

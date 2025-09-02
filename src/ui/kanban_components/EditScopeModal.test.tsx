@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import EditScopeModal from './EditScopeModal'; // Adjust path as necessary
 import { describe, it, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 
@@ -18,6 +18,8 @@ describe('EditScopeModal Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
+
+  afterEach(cleanup);
 
   test('does not render when isVisible is false', () => {
     render(<EditScopeModal {...defaultProps} isVisible={false} />);

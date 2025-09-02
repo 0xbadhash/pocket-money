@@ -4,7 +4,7 @@ let mockKanbanCard: any;
 let mockSortableContextFn: any;
 
 // mockKanbanCard and mockSortableContextFn must be declared before imports for Vitest hoisting
-import { render, screen } from '@testing-library/react';
+import { render, screen, cleanup } from '@testing-library/react';
 import KanbanColumn from './KanbanColumn';
 import type { KanbanColumn as KanbanColumnType, ChoreInstance, ChoreDefinition } from '../../types';
 import { describe, it, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
@@ -72,6 +72,8 @@ describe('KanbanColumn', () => {
     ));
     mockSortableContextFn = vi.fn(({ children }) => <>{children}</>);
   });
+
+  afterEach(cleanup);
 
   test('renders column title and applies ARIA attributes', () => {
     const { container } = render(

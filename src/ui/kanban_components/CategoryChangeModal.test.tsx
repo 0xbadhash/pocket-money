@@ -1,5 +1,6 @@
 import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
+import { render as customRender } from '../../test-utils';
 import CategoryChangeModal from './CategoryChangeModal';
 import { ChoresContext, ChoresContextType } from '../../contexts/ChoresContext';
 import { describe, it, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
@@ -11,9 +12,11 @@ const mockChoresContextValue: Partial<ChoresContextType> = {
   batchUpdateChoreInstancesCategory: mockBatchUpdateChoreInstancesCategory,
 };
 
+afterEach(cleanup);
+
 // Helper to wrap component with context provider
 const renderWithContext = (ui: React.ReactElement) => {
-  return render(
+  return customRender(
     <ChoresContext.Provider value={mockChoresContextValue as ChoresContextType}>
       {ui}
     </ChoresContext.Provider>

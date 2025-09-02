@@ -3,7 +3,7 @@
  * Represents a single chore card within a Kanban column.
  */
 import React, { useState, useEffect, useRef } from 'react';
-import type { ChoreInstance, ChoreDefinition, KanbanColumnConfig } from '../../types'; // Added KanbanColumnConfig
+import type { ChoreInstance, ChoreDefinition } from '../../types';
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { useUserContext } from '../../contexts/UserContext';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -77,8 +77,10 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
     setIsEditScopeModalVisible(false);
     setPendingEdit(undefined);
   };
+  // Fix: Only use valid ChoreInstance keys for updateChoreInstanceField
+  // Update pendingEdit type and logic to use 'overriddenRewardAmount' for instance-level reward override
   const [pendingEdit, setPendingEdit] = useState<{
-    fieldName: 'instanceDate' | 'rewardAmount' | 'priority',
+    fieldName: 'instanceDate' | 'overriddenRewardAmount' | 'priority',
     value: any,
     definitionId: string,
     instanceId: string,
@@ -91,10 +93,12 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
     if (scope === 'instance') {
       await updateChoreInstanceField(instanceId, fieldName, value);
     } else if (scope === 'series') {
-      if (fieldName === 'rewardAmount' || fieldName === 'priority') {
+      if (fieldName === 'overriddenRewardAmount' || fieldName === 'priority') {
         await updateChoreInstanceField(instanceId, fieldName, undefined); // Clear instance override
       }
-      await updateChoreSeries(definitionId, { [fieldName]: value } as any, fromDateForSeries, fieldName as any);
+      // For reward, updateChoreSeries expects 'rewardAmount' as the key
+      const defField = fieldName === 'overriddenRewardAmount' ? 'rewardAmount' : fieldName;
+      await updateChoreSeries(definitionId, { [defField]: value } as any, fromDateForSeries, defField as any);
     }
     closeEditScopeModal();
   };
@@ -107,14 +111,14 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
     setEditingRewardValue((instance.overriddenRewardAmount ?? definition.rewardAmount)?.toString() || '0');
     setIsEditingReward(true);
   };
-  const handleSaveReward = async () => { /* ... (implementation from previous subtasks) ... */
+  const handleSaveReward = async () => {
     setIsEditingReward(false);
     const newAmount = parseFloat(editingRewardValue as string);
     if (isNaN(newAmount) || newAmount < 0) return;
     const currentEffectiveReward = instance.overriddenRewardAmount ?? definition.rewardAmount;
     if (currentEffectiveReward === newAmount) return;
     if (definition.recurrenceType) {
-      setPendingEdit({ fieldName: 'rewardAmount', value: newAmount, definitionId: definition.id, instanceId: instance.id, fromDateForSeries: instance.instanceDate });
+      setPendingEdit({ fieldName: 'overriddenRewardAmount', value: newAmount, definitionId: definition.id, instanceId: instance.id, fromDateForSeries: instance.instanceDate });
       setIsEditScopeModalVisible(true);
     } else {
       await updateChoreDefinition(definition.id, { rewardAmount: newAmount }); // For non-recurring, update definition
@@ -171,7 +175,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   };
   const recurrenceInfo = formatRecurrenceInfoShort(definition);
   const effectivePriority = instance.priority || definition.priority;
-  const assignedKid = definition.assignedKidId && user?.kids ? user.kids.find(k => k.id === definition.assignedKidId) : undefined;
+  const assignedKid = definition.assignedKidId && user?.kids ? user.kids.find((k: any) => k.id === definition.assignedKidId) : undefined;
   const [showMenu, setShowMenu] = useState(false);
   useEffect(() => { /* ... (menu closing logic from previous subtasks) ... */
       if (!showMenu) return;
@@ -268,11 +272,24 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
       {isEditingTags && !instance.isSkipped ? (
         <div style={{ marginTop: '8px', marginBottom: '8px' }} onClick={(e) => e.stopPropagation()}>
           <input type="text" value={editingTagsValue} onChange={(e) => setEditingTagsValue(e.target.value)} placeholder="Tags, comma-separated" style={{width: 'calc(100% - 120px)'}} autoFocus onClick={(e) => e.stopPropagation()} />
-          <button onClick={(e) => { e.stopPropagation(); async () => { setLoadingStates(p=>({...p, tags:true})); await updateChoreDefinition(definition.id, { tags: editingTagsValue.split(',').map(t => t.trim()).filter(Boolean) }); addNotification({message:'Tags updated!', type:'success'}); setLoadingStates(p=>({...p, tags:false})); setIsEditingTags(false); }}()} className="button-primary" disabled={loadingStates.tags}>Save</button>
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              setLoadingStates(p => ({ ...p, tags: true }));
+              await updateChoreDefinition(definition.id, { tags: editingTagsValue.split(',').map(t => t.trim()).filter(Boolean) });
+              addNotification({ message: 'Tags updated!', type: 'success' });
+              setLoadingStates(p => ({ ...p, tags: false }));
+              setIsEditingTags(false);
+            }}
+            className="button-primary"
+            disabled={loadingStates.tags}
+          >
+            Save
+          </button>
           <button onClick={(e) => { e.stopPropagation(); setIsEditingTags(false);}} className="button-secondary" disabled={loadingStates.tags}>Cancel</button>
         </div>
       ) : (
-        (definition.tags && definition.tags.length > 0) || !instance.isSkipped ? (
+        ((definition.tags && definition.tags.length > 0) || !instance.isSkipped) ? (
           <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
             {definition.tags && definition.tags.length > 0 ? definition.tags.map(tag => (<span key={tag} className="chore-tag" onClick={(e) => e.stopPropagation()}>{tag}</span>)) : <span style={{fontSize:'0.8em', color:'#777'}}>No tags.</span>}
             {!instance.isSkipped && <button onClick={(e) => { e.stopPropagation(); setEditingTagsValue(definition.tags?.join(', ') || ''); setIsEditingTags(true); }} className="edit-icon-button" aria-label="Edit tags">✏️</button>}

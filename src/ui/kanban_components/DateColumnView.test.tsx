@@ -1,10 +1,11 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import DateColumnView from './DateColumnView';
 import { useChoresContext } from '../../contexts/ChoresContext';
 import type { ChoreInstance, ChoreDefinition, MatrixKanbanCategory } from '../../types';
 import { useDroppable } from '@dnd-kit/core';
+import { customRender } from '../../test-utils';
 
 // Mock KanbanCard
 vi.mock('./KanbanCard', () => ({
@@ -23,18 +24,19 @@ vi.mock('@dnd-kit/core', async (importOriginal) => {
   };
 });
 
+// Fix ChoreDefinition and ChoreInstance test data
 const mockChoreDefinitions: ChoreDefinition[] = [
-  { id: 'def1', title: 'Chore 1', description: '', assignedKidId: 'kid1', recurrenceType: 'daily', pointValue: 10, isComplete: false, enableSubtasks: false, subtasks: [] },
-  { id: 'def2', title: 'Chore 2', description: '', assignedKidId: 'kid1', recurrenceType: 'daily', pointValue: 20, isComplete: false, enableSubtasks: false, subtasks: [] },
-  { id: 'def3', title: 'Chore 3', description: '', assignedKidId: 'kid2', recurrenceType: 'daily', pointValue: 10, isComplete: false, enableSubtasks: false, subtasks: [] },
+  { id: 'def1', title: 'Chore 1', description: '', assignedKidId: 'kid1', recurrenceType: 'daily', rewardAmount: 10, isComplete: false, enableSubtasks: false, subtasks: [], createdAt: '', updatedAt: '' },
+  { id: 'def2', title: 'Chore 2', description: '', assignedKidId: 'kid1', recurrenceType: 'daily', rewardAmount: 20, isComplete: false, enableSubtasks: false, subtasks: [], createdAt: '', updatedAt: '' },
+  { id: 'def3', title: 'Chore 3', description: '', assignedKidId: 'kid2', recurrenceType: 'daily', rewardAmount: 10, isComplete: false, enableSubtasks: false, subtasks: [], createdAt: '', updatedAt: '' },
 ];
 
 const mockChoreInstances: ChoreInstance[] = [
-  { id: 'inst1', choreDefinitionId: 'def1', instanceDate: '2023-10-26', categoryStatus: 'TO_DO', isCompleted: false },
-  { id: 'inst2', choreDefinitionId: 'def2', instanceDate: '2023-10-26', categoryStatus: 'IN_PROGRESS', isCompleted: false },
-  { id: 'inst3', choreDefinitionId: 'def1', instanceDate: '2023-10-27', categoryStatus: 'TO_DO', isCompleted: false }, // Different date
-  { id: 'inst4', choreDefinitionId: 'def3', instanceDate: '2023-10-26', categoryStatus: 'TO_DO', isCompleted: false }, // Different kid
-  { id: 'inst5', choreDefinitionId: 'def2', instanceDate: '2023-10-26', categoryStatus: 'TO_DO', isCompleted: false }, // Same kid, date, category as inst1 (but def2)
+  { id: 'inst1', choreDefinitionId: 'def1', instanceDate: '2023-10-26', categoryStatus: 'TO_DO', isComplete: false, subtaskCompletions: {} },
+  { id: 'inst2', choreDefinitionId: 'def2', instanceDate: '2023-10-26', categoryStatus: 'IN_PROGRESS', isComplete: false, subtaskCompletions: {} },
+  { id: 'inst3', choreDefinitionId: 'def1', instanceDate: '2023-10-27', categoryStatus: 'TO_DO', isComplete: false, subtaskCompletions: {} }, // Different date
+  { id: 'inst4', choreDefinitionId: 'def3', instanceDate: '2023-10-26', categoryStatus: 'TO_DO', isComplete: false, subtaskCompletions: {} }, // Different kid
+  { id: 'inst5', choreDefinitionId: 'def2', instanceDate: '2023-10-26', categoryStatus: 'TO_DO', isComplete: false, subtaskCompletions: {} }, // Same kid, date, category as inst1 (but def2)
 ];
 
 const mockUseChoresContext = useChoresContext as vi.Mock;
@@ -63,6 +65,8 @@ describe('DateColumnView', () => {
       isOver: mockIsOver,
     });
   });
+
+  afterEach(cleanup);
 
   it('renders the correct title based on category', () => {
     render(<DateColumnView {...defaultProps} category="TO_DO" />);
@@ -138,7 +142,7 @@ describe('DateColumnView', () => {
         { id: 'inst-archived-def', choreDefinitionId: 'def-archived', instanceDate: '2023-10-26', categoryStatus: 'TO_DO', isCompleted: false }
       ],
       choreDefinitions: [
-        { id: 'def-archived', title: 'Archived Chore', assignedKidId: 'kid1', recurrenceType: 'daily', pointValue: 0, isComplete: true, enableSubtasks: false, subtasks: [] }
+        { id: 'def-archived', title: 'Archived Chore', assignedKidId: 'kid1', recurrenceType: 'daily', rewardAmount: 0, isComplete: true, enableSubtasks: false, subtasks: [] }
       ],
     });
     render(<DateColumnView {...defaultProps} category="TO_DO" />);

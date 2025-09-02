@@ -1,6 +1,7 @@
 // src/contexts/UserContext.tsx
-import React, { createContext, useState, useEffect, ReactNode, useContext, useMemo } from 'react';
-import type { User, Kid, KanbanColumnConfig } from '../types'; // Import Kid and KanbanColumnConfig types
+import React, { createContext, useState, useEffect, useContext, useMemo } from 'react';
+import type { ReactNode } from 'react';
+import type { Kid, KanbanColumnConfig } from '../types';
 
 export interface User {
   id: string;
@@ -146,7 +147,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       }
     },
     getKanbanColumnConfigs: (kidId: string) => {
-      const kid = user?.kids.find(k => k.id === kidId);
+      const kid = user?.kids.find((k: Kid) => k.id === kidId);
       if (kid && kid.kanbanColumnConfigs) {
         return [...kid.kanbanColumnConfigs].sort((a, b) => a.order - b.order);
       }

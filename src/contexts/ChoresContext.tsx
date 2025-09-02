@@ -1,8 +1,7 @@
 // src/contexts/ChoresContext.tsx
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
-// Ensure KanbanColumnConfig is imported if it's replacing MatrixKanbanCategory in some contexts
-import type { ChoreDefinition, ChoreInstance, KanbanColumnConfig } from '../types';
+import type { ChoreDefinition, ChoreInstance } from '../types';
 import { useFinancialContext } from '../contexts/FinancialContext';
 import { useUserContext } from './UserContext'; // Import useUserContext
 import { generateChoreInstances } from '../utils/choreUtils';
@@ -26,9 +25,9 @@ interface ChoresContextType {
   batchAssignChoreDefinitionsToKid: (definitionIds: string[], newKidId: string | null) => Promise<void>;
   updateChoreSeries: (
     definitionId: string,
-    updates: Partial<Pick<ChoreDefinition, 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'hour' | 'minute' | 'timeOfDay' | 'priority'>>,
+    updates: Partial<Pick<ChoreDefinition, 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'priority'>>,
     fromDate: string,
-    fieldName: 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'timeOfDay' | 'priority'
+    fieldName: 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'priority'
   ) => Promise<void>;
   addCommentToInstance: (instanceId: string, commentText: string, userId: string, userName: string) => Promise<void>;
   toggleSkipInstance: (instanceId: string) => Promise<void>;
@@ -54,7 +53,6 @@ const defaultInitialDefinitions: ChoreDefinition[] = [
     rewardAmount: 1, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: '2023-12-05',
     tags: ['cleaning', 'indoor'], subTasks: [ { id: 'st1_1', title: 'Make bed', isComplete: false } ],
     priority: 'Medium', definitionComments: [],
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
   }
 ];
 
@@ -212,7 +210,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
                 updatedInst.categoryStatus = firstNonDoneColumn.id;
                 if (updatedInst.previousSubtaskCompletions) {
                   updatedInst.subtaskCompletions = { ...updatedInst.previousSubtaskCompletions };
-                  updatedInstance.previousSubtaskCompletions = undefined;
+                  updatedInst.previousSubtaskCompletions = undefined;
                 }
                 updatedInst = logActivity(updatedInst, 'Status Changed (Auto)', currentUser?.id, currentUser?.username, `to '${firstNonDoneColumn.title}' due to uncompletion`);
               }
@@ -455,11 +453,11 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
           };
           let updatedInst = {
             ...inst,
-            instanceComments: [...(inst.instanceComments || []), newCommentEntry],
+            instanceComments: [...(inst.instanceComments ?? []), newCommentEntry],
           };
-          // Log the comment addition to activityLog
-          updatedInst = logActivity(updatedInst, 'Comment Added', userId, userName, `"${commentText.substring(0, 30)}..."`);
-          return updatedInst;
+          // Ensure instanceComments is always an array after logActivity
+          const logged = logActivity(updatedInst, 'Comment Added', userId, userName, `"${commentText.substring(0, 30)}..."`);
+          return { ...logged, instanceComments: [...(logged.instanceComments ?? [])] };
         }
         return inst;
       })
@@ -471,8 +469,9 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       prevInstances.map(inst => {
         if (inst.id === instanceId) {
           let updatedInst = { ...inst, isSkipped: !inst.isSkipped };
-          updatedInst = logActivity(updatedInst, updatedInst.isSkipped ? 'Instance Skipped' : 'Instance Unskipped', currentUser?.id, currentUser?.username);
-          return updatedInst;
+          updatedInst.isSkipped = !!updatedInst.isSkipped;
+          const logged = logActivity(updatedInst, updatedInst.isSkipped ? 'Instance Skipped' : 'Instance Unskipped', currentUser?.id, currentUser?.username);
+          return { ...logged, isSkipped: !!logged.isSkipped };
         }
         return inst;
       })
@@ -481,9 +480,9 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
 
   const updateChoreSeries = useCallback(async (
     definitionId: string,
-    updates: Partial<Pick<ChoreDefinition, 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'hour' | 'minute' | 'timeOfDay' | 'priority'>>,
+    updates: Partial<Pick<ChoreDefinition, 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'priority'>>,
     fromDate: string,
-    fieldName: 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'timeOfDay' | 'priority'
+    fieldName: 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'priority'
   ) => {
     setChoreDefinitions(prevDefs => {
       const definitionIndex = prevDefs.findIndex(d => d.id === definitionId);
@@ -491,10 +490,14 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
 
       const originalDefinition = prevDefs[definitionIndex];
       let updatedDefinitionFields = { ...updates };
+      // Fix: Only assign id if not present, and don't duplicate id property
       if (updates.subTasks) {
-        updatedDefinitionFields.subTasks = updates.subTasks.map((st, index) => ({ id: st.id || `st_${Date.now()}_${index}`, ...st }));
+        updatedDefinitionFields.subTasks = updates.subTasks.map((st, index) => {
+          return { ...st, id: st.id || `st_${Date.now()}_${index}` };
+        });
       }
-      const newDefinition: ChoreDefinition = { ...originalDefinition, ...updatedDefinitionFields, updatedAt: new Date().toISOString() };
+      // Remove updatedAt from ChoreDefinition assignment
+      const newDefinition: ChoreDefinition = { ...originalDefinition, ...updatedDefinitionFields };
       const newDefinitions = [...prevDefs];
       newDefinitions[definitionIndex] = newDefinition;
 
