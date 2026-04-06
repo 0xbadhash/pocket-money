@@ -1,10 +1,9 @@
 // src/contexts/ChoresContext.tsx
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
-// Ensure KanbanColumnConfig is imported if it's replacing MatrixKanbanCategory in some contexts
-import type { ChoreDefinition, ChoreInstance, KanbanColumnConfig } from '../types';
+import type { ChoreDefinition, ChoreInstance } from '../types';
 import { useFinancialContext } from '../contexts/FinancialContext';
-import { useUserContext } from './UserContext'; // Import useUserContext
+import { useUserContext } from './UserContext';
 import { generateChoreInstances } from '../utils/choreUtils';
 
 export type KanbanChoreOrders = Record<string, string[]>;
@@ -20,7 +19,7 @@ interface ChoresContextType {
   toggleChoreDefinitionActiveState: (definitionId: string) => void;
   updateChoreInstanceCategory: (instanceId: string, newStatusId: string) => void;
   updateChoreDefinition: (definitionId: string, updates: Partial<ChoreDefinition>) => Promise<void>;
-  updateChoreInstanceField: (instanceId: string, fieldName: keyof ChoreInstance, value: any) => Promise<void>;
+  updateChoreInstanceField: (instanceId: string, fieldName: keyof ChoreInstance, value: ChoreInstance[keyof ChoreInstance]) => Promise<void>;
   batchToggleCompleteChoreInstances: (instanceIds: string[], markAsComplete: boolean) => Promise<void>;
   batchUpdateChoreInstancesCategory: (instanceIds: string[], newStatusId: string) => Promise<void>;
   batchAssignChoreDefinitionsToKid: (definitionIds: string[], newKidId: string | null) => Promise<void>;
@@ -137,7 +136,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     const rawNewInstances = generateChoreInstances(definitionsForGeneration, periodStartDate, periodEndDate);
     const newInstancesWithFields = rawNewInstances.map(rawInstance => {
       const definition = choreDefinitions.find(def => def.id === rawInstance.choreDefinitionId);
-      let initialSubtaskCompletions: Record<string, boolean> = {};
+      const initialSubtaskCompletions: Record<string, boolean> = {};
       if (definition?.subTasks) {
         definition.subTasks.forEach(st => { initialSubtaskCompletions[st.id] = st.isComplete || false; });
       }
@@ -329,7 +328,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     );
   }, [choreDefinitions, getKanbanColumnConfigs, logActivity, currentUser]);
 
-  const updateChoreInstanceField = useCallback(async (instanceId: string, fieldName: keyof ChoreInstance, value: any) => {
+  const updateChoreInstanceField = useCallback(async (instanceId: string, fieldName: keyof ChoreInstance, value: ChoreInstance[keyof ChoreInstance]) => {
     setChoreInstances(prevInstances =>
       prevInstances.map(inst => {
         if (inst.id === instanceId) {
@@ -490,7 +489,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       if (definitionIndex === -1) return prevDefs;
 
       const originalDefinition = prevDefs[definitionIndex];
-      let updatedDefinitionFields = { ...updates };
+      const updatedDefinitionFields = { ...updates };
       if (updates.subTasks) {
         updatedDefinitionFields.subTasks = updates.subTasks.map((st, index) => ({ id: st.id || `st_${Date.now()}_${index}`, ...st }));
       }
@@ -510,7 +509,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
         if (newDefinition.recurrenceType && !newDefinition.isComplete) {
             const rawNewFutureInstances = generateChoreInstances([newDefinition], fromDate, regenerationEndDate);
             newFutureInstances = rawNewFutureInstances.map(rawInstance => {
-                let initialSubtaskCompletions: Record<string, boolean> = {};
+                const initialSubtaskCompletions: Record<string, boolean> = {};
                 if (newDefinition.subTasks) {
                     newDefinition.subTasks.forEach(st => { initialSubtaskCompletions[st.id] = st.isComplete || false; });
                 }

@@ -40,7 +40,7 @@ export function generateChoreInstances(
     // Start date for iteration: Max of definition start date or period start date
     const definitionStartDate = def.dueDate ? new Date(def.dueDate) : null;
     if(definitionStartDate) definitionStartDate.setUTCHours(0,0,0,0);
-    let currentDate = definitionStartDate && definitionStartDate > periodStart ? new Date(definitionStartDate) : new Date(periodStart);
+    const currentDate = definitionStartDate && definitionStartDate > periodStart ? new Date(definitionStartDate) : new Date(periodStart);
     currentDate.setUTCHours(0,0,0,0);
 
     while (currentDate <= periodEnd) {
