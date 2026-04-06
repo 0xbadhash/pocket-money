@@ -268,7 +268,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
       {isEditingTags && !instance.isSkipped ? (
         <div style={{ marginTop: '8px', marginBottom: '8px' }} onClick={(e) => e.stopPropagation()}>
           <input type="text" value={editingTagsValue} onChange={(e) => setEditingTagsValue(e.target.value)} placeholder="Tags, comma-separated" style={{width: 'calc(100% - 120px)'}} autoFocus onClick={(e) => e.stopPropagation()} />
-          <button onClick={(e) => { e.stopPropagation(); async () => { setLoadingStates(p=>({...p, tags:true})); await updateChoreDefinition(definition.id, { tags: editingTagsValue.split(',').map(t => t.trim()).filter(Boolean) }); addNotification({message:'Tags updated!', type:'success'}); setLoadingStates(p=>({...p, tags:false})); setIsEditingTags(false); }}()} className="button-primary" disabled={loadingStates.tags}>Save</button>
+          <button onClick={async (e) => { e.stopPropagation(); setLoadingStates(p=>({...p, tags:true})); await updateChoreDefinition(definition.id, { tags: editingTagsValue.split(',').map(t => t.trim()).filter(Boolean) }); addNotification({message:'Tags updated!', type:'success'}); setLoadingStates(p=>({...p, tags:false})); setIsEditingTags(false); }} className="button-primary" disabled={loadingStates.tags}>Save</button>
           <button onClick={(e) => { e.stopPropagation(); setIsEditingTags(false);}} className="button-secondary" disabled={loadingStates.tags}>Cancel</button>
         </div>
       ) : (

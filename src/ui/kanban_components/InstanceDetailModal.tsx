@@ -296,7 +296,7 @@ const InstanceDetailModal: React.FC<InstanceDetailModalProps> = ({
                 <option value="default">Default ({choreDefinition.priority || 'N/A'})</option>
                 <option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option>
               </select>
-              <button onClick={() => handleSaveField('priority', editablePriority === 'default' ? undefined : editablePriority)} style={saveButtonStyle}>Save</option>
+              <button onClick={() => handleSaveField('priority', editablePriority === 'default' ? undefined : editablePriority)} style={saveButtonStyle}>Save</button>
               {saveFeedback['priority'] && <span style={saveFeedback['priority'] === 'Saved!' ? feedbackStyle : errorFeedbackStyle}>{saveFeedback['priority']}</span>}
             </div>
           </div>
