@@ -172,7 +172,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       });
       return [...outsideOfPeriod, ...updatedGeneratedForPeriod];
     });
-  }, [choreDefinitions, logActivity]); // logActivity added to dependencies if used here, but it's for modifications
+  }, [choreDefinitions]); // logActivity is not used in this callback
 
   const toggleChoreInstanceComplete = useCallback((instanceId: string) => {
     setChoreInstances(prevInstances =>
@@ -211,7 +211,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
                 updatedInst.categoryStatus = firstNonDoneColumn.id;
                 if (updatedInst.previousSubtaskCompletions) {
                   updatedInst.subtaskCompletions = { ...updatedInst.previousSubtaskCompletions };
-                  updatedInstance.previousSubtaskCompletions = undefined;
+                  updatedInst.previousSubtaskCompletions = undefined;
                 }
                 updatedInst = logActivity(updatedInst, 'Status Changed (Auto)', currentUser?.id, currentUser?.username, `to '${firstNonDoneColumn.title}' due to uncompletion`);
               }
@@ -539,7 +539,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       });
       return newDefinitions;
     });
-  }, [choreDefinitions, logActivity, currentUser]);
+  }, [logActivity, currentUser]); // choreDefinitions is accessed via setChoreDefinitions callback
 
   // Add missing updateChoreDefinition implementation (fixed syntax)
   const updateChoreDefinition = useCallback(async (definitionId: string, updates: Partial<ChoreDefinition>) => {
