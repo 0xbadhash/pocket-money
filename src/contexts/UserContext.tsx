@@ -1,6 +1,6 @@
 // src/contexts/UserContext.tsx
-import React, { createContext, useState, useEffect, ReactNode, useContext, useMemo } from 'react';
-import type { User, Kid, KanbanColumnConfig } from '../types'; // Import Kid and KanbanColumnConfig types
+import React, { createContext, useState, useEffect, type ReactNode, useContext, useMemo } from 'react';
+import type { Kid, KanbanColumnConfig } from '../types'; // Import Kid and KanbanColumnConfig types
 import { vi } from 'vitest'; // Import vi for mocking functions
 
 export interface User {
@@ -33,8 +33,10 @@ export interface UserContextType {
   reorderKanbanColumnConfigs: (kidId: string, orderedConfigs: KanbanColumnConfig[]) => Promise<void>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const UserContext = createContext<UserContextType | undefined>(undefined);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useUserContext = (): UserContextType => {
   const context = useContext(UserContext);
   if (!context) {
@@ -122,22 +124,16 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         setUser({ ...user, kids: user.kids.filter(kid => kid.id !== kidId) });
       }
     }),
-    getKanbanColumnConfigs: vi.fn((kidId: string) => {
-      // console.log('Mock getKanbanColumnConfigs called for kidId:', kidId); // Optional: for debugging
-      // KidKanbanBoard no longer relies on this for matrix rows, but it might be called.
+    getKanbanColumnConfigs: vi.fn(() => {
       return [];
     }),
-    addKanbanColumnConfig: vi.fn(async (kidId: string, title: string, color?: string) => {
-      // console.log('Mock addKanbanColumnConfig called with:', kidId, title, color); // Optional: for debugging
+    addKanbanColumnConfig: vi.fn(async () => {
     }),
-    updateKanbanColumnConfig: vi.fn(async (updatedConfig: KanbanColumnConfig) => {
-      // console.log('Mock updateKanbanColumnConfig called with:', updatedConfig); // Optional: for debugging
+    updateKanbanColumnConfig: vi.fn(async () => {
     }),
-    deleteKanbanColumnConfig: vi.fn(async (kidId: string, configId: string) => {
-      // console.log('Mock deleteKanbanColumnConfig called with:', kidId, configId); // Optional: for debugging
+    deleteKanbanColumnConfig: vi.fn(async () => {
     }),
-    reorderKanbanColumnConfigs: vi.fn(async (kidId: string, orderedConfigs: KanbanColumnConfig[]) => {
-      // console.log('Mock reorderKanbanColumnConfigs called with:', kidId, orderedConfigs); // Optional: for debugging
+    reorderKanbanColumnConfigs: vi.fn(async () => {
     }),
   }), [user, loading, error]);
 

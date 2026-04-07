@@ -1,5 +1,5 @@
 // src/contexts/NotificationContext.tsx
-import React, { createContext, useState, useContext, useCallback, ReactNode } from 'react';
+import React, { createContext, useState, useContext, useCallback, type ReactNode } from 'react';
 import type { NotificationMessage } from '../types'; // Assuming NotificationMessage is in types.ts
 
 interface NotificationContextType {
@@ -10,6 +10,7 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
+ 
 export const NotificationProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const [notifications, setNotifications] = useState<NotificationMessage[]>([]);
 
@@ -38,6 +39,7 @@ export const NotificationProvider: React.FC<{children: ReactNode}> = ({ children
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useNotification = (): NotificationContextType => {
   const context = useContext(NotificationContext);
   if (context === undefined) {

@@ -1,8 +1,7 @@
 // src/contexts/AppNotificationContext.tsx
-import React, { createContext, useState, useContext, useCallback, useEffect, ReactNode } from 'react';
-import type { AppNotification } from '../types'; // Assuming AppNotification is in types.ts
+import React, { createContext, useState, useContext, useCallback, useEffect, type ReactNode } from 'react';
+import type { AppNotification, ChoreInstance, ChoreDefinition } from '../types'; // Assuming AppNotification is in types.ts
 import { useChoresContext } from './ChoresContext'; // Dependency
-import { ChoreInstance, ChoreDefinition } from '../types';
 
 interface AppNotificationContextType {
   appNotifications: AppNotification[];
@@ -13,6 +12,7 @@ interface AppNotificationContextType {
 
 const AppNotificationContext = createContext<AppNotificationContextType | undefined>(undefined);
 
+ 
 export const AppNotificationProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const [appNotifications, setAppNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
@@ -105,6 +105,7 @@ export const AppNotificationProvider: React.FC<{children: ReactNode}> = ({ child
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAppNotification = (): AppNotificationContextType => {
   const context = useContext(AppNotificationContext);
   if (context === undefined) {

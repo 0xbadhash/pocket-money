@@ -1,9 +1,9 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, expect, vi, beforeEach } from 'vitest';
 import DateColumnView from './DateColumnView';
 import { useChoresContext } from '../../contexts/ChoresContext';
-import type { ChoreInstance, ChoreDefinition, MatrixKanbanCategory } from '../../types';
+import type { ChoreInstance, ChoreDefinition } from '../../types';
 import { useDroppable } from '@dnd-kit/core';
 
 // Mock KanbanCard

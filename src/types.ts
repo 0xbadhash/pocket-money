@@ -50,6 +50,16 @@ export interface ChoreDefinition {
   recurrenceEndDate?: string | null; // Date after which no more instances are generated
   tags?: string[]; // New field for tags
   subTasks?: SubTask[]; // New field for sub-tasks
+  /** Timestamp for when this definition was created */
+  createdAt?: string;
+  /** Timestamp for when this definition was last updated */
+  updatedAt?: string;
+  /** Time of day when the chore should be done (optional) */
+  hour?: number;
+  /** Minute of the hour (optional) */
+  minute?: number;
+  /** Human-readable time of day (e.g., "morning", "afternoon", "evening") */
+  timeOfDay?: string;
 }
 
 export interface ChoreInstance {

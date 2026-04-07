@@ -4,8 +4,7 @@
  */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useChoresContext } from '../../contexts/ChoresContext';
-import { useUserContext } from '../../contexts/UserContext';
-import type { ChoreDefinition, ChoreInstance, KanbanPeriod, Kid, ColumnThemeOption, MatrixKanbanCategory } from '../../types';
+import type { ChoreDefinition, ChoreInstance, KanbanPeriod, ColumnThemeOption, MatrixKanbanCategory } from '../../types';
 import KanbanCard from './KanbanCard';
 import DateColumnView from './DateColumnView';
 import { useChoreSelection } from '../../hooks/useChoreSelection';
@@ -23,8 +22,8 @@ import {
   DragOverlay,
 } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
-import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'; // Removed arrayMove as it's not used
-import { getTodayDateString, getWeekRange, getMonthRange } from '../../utils/dateUtils';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { getWeekRange, getMonthRange } from '../../utils/dateUtils';
 import AddChoreForm from '../../components/AddChoreForm';
 
 interface ActiveDragItem {
@@ -42,13 +41,9 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     choreInstances,
     generateInstancesForPeriod,
     updateChoreInstanceCategory,
-    updateChoreInstanceField, // Added updateChoreInstanceField
+    updateChoreInstanceField,
     batchToggleCompleteChoreInstances,
-    batchUpdateChoreInstancesCategory,
-    batchAssignChoreDefinitionsToKid,
   } = useChoresContext();
-  // const { user } = useUserContext(); // user object not directly needed here anymore
-  // const allKids = user?.kids || []; // allKids not needed for switcher
 
   // Custom Hooks for selection and modal states
   const {
@@ -61,12 +56,10 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   const categoryModal = useModalState();
   const kidAssignmentModal = useModalState();
 
-  const [selectedPeriod, setSelectedPeriod] = useState<KanbanPeriod>('daily');
+  const [selectedPeriod] = useState<KanbanPeriod>('daily');
   const [activeDragItem, setActiveDragItem] = useState<ActiveDragItem | null>(null);
   const [actionFeedbackMessage, setActionFeedbackMessage] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<SortByOption>('instanceDate'); // Assuming SortByOption is defined elsewhere
-  const [sortDirection, setSortDirection] = useState<SortDirectionOption>('asc'); // Assuming SortDirectionOption is defined elsewhere
-  const [selectedColumnTheme, setSelectedColumnTheme] = useState<ColumnThemeOption>(() => {
+  const [selectedColumnTheme] = useState<ColumnThemeOption>(() => {
     const storedTheme = localStorage.getItem('kanban_columnTheme') as ColumnThemeOption | null;
     return storedTheme || 'default';
   });

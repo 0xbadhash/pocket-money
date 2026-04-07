@@ -1,5 +1,5 @@
 // src/contexts/FinancialContext.tsx
-import React, { createContext, useState, ReactNode, useContext, useCallback, useMemo } from 'react';
+import React, { createContext, useState, type ReactNode, useContext, useCallback, useMemo } from 'react';
 
 // Define shapes for our financial data
 export interface Transaction { // Exporting for potential use in other files
@@ -25,9 +25,11 @@ interface FinancialContextType {
 }
 
 // Create the context
+// eslint-disable-next-line react-refresh/only-export-components
 export const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
 
 // Custom hook for easier context consumption
+// eslint-disable-next-line react-refresh/only-export-components
 export const useFinancialContext = () => {
   const context = useContext(FinancialContext);
   if (context === undefined) {

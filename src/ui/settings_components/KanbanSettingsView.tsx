@@ -3,9 +3,9 @@
  * Component for managing custom Kanban swimlane configurations for each kid.
  * Allows creating, reading, updating, deleting, and reordering Kanban swimlanes.
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useUserContext } from '../../contexts/UserContext';
-import type { Kid, KanbanColumnConfig } from '../../types';
+import type { KanbanColumnConfig } from '../../types';
 import * as DndKit from '@dnd-kit/core';
 import {
   SortableContext,
