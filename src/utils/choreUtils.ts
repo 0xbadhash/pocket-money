@@ -1,7 +1,13 @@
 // src/utils/choreUtils.ts
 import type { ChoreDefinition, ChoreInstance } from '../types';
-import { getTodayDateString } from './dateUtils'; // Assuming you might need this or other date functions
 
+/**
+ * Generates chore instances for all active chore definitions within a given date range.
+ * @param definitions - Array of chore definitions to generate instances for
+ * @param periodStartDateStr - Start date of the period (YYYY-MM-DD)
+ * @param periodEndDateStr - End date of the period (YYYY-MM-DD)
+ * @returns Array of generated chore instances
+ */
 export function generateChoreInstances(
   definitions: ChoreDefinition[],
   periodStartDateStr: string,
@@ -9,27 +15,31 @@ export function generateChoreInstances(
 ): ChoreInstance[] {
   const instances: ChoreInstance[] = [];
   const periodStart = new Date(periodStartDateStr);
-  periodStart.setUTCHours(0,0,0,0); // Normalize to start of day UTC
+  periodStart.setUTCHours(0, 0, 0, 0);
   const periodEnd = new Date(periodEndDateStr);
-  periodEnd.setUTCHours(0,0,0,0); // Normalize to start of day UTC
+  periodEnd.setUTCHours(0, 0, 0, 0);
 
-  definitions.forEach(def => {
-    if (def.isComplete) return; // Skip archived/disabled definitions
+  definitions.forEach((def) => {
+    if (def.isComplete) return;
 
-    const recurrenceEndDate = def.recurrenceEndDate ? new Date(def.recurrenceEndDate) : null;
-    if (recurrenceEndDate) recurrenceEndDate.setUTCHours(0,0,0,0);
+    const recurrenceEndDate = def.recurrenceEndDate
+      ? new Date(def.recurrenceEndDate)
+      : null;
+    if (recurrenceEndDate) recurrenceEndDate.setUTCHours(0, 0, 0, 0);
 
     // Non-recurring chores
     if (!def.recurrenceType || def.recurrenceType === null) {
       if (def.dueDate) {
         const dueDate = new Date(def.dueDate);
-        dueDate.setUTCHours(0,0,0,0);
+        dueDate.setUTCHours(0, 0, 0, 0);
         if (dueDate >= periodStart && dueDate <= periodEnd) {
           instances.push({
             id: `${def.id}_${def.dueDate}`,
             choreDefinitionId: def.id,
             instanceDate: def.dueDate,
-            isComplete: false, // Default new instances to incomplete
+            isComplete: false,
+            categoryStatus: 'TO_DO',
+            subtaskCompletions: {},
           });
         }
       }
@@ -37,21 +47,25 @@ export function generateChoreInstances(
     }
 
     // Recurring chores
-    // Start date for iteration: Max of definition start date or period start date
-    const definitionStartDate = def.dueDate ? new Date(def.dueDate) : null;
-    if(definitionStartDate) definitionStartDate.setUTCHours(0,0,0,0);
-    let currentDate = definitionStartDate && definitionStartDate > periodStart ? new Date(definitionStartDate) : new Date(periodStart);
-    currentDate.setUTCHours(0,0,0,0);
+    const definitionStartDate = def.dueDate
+      ? new Date(def.dueDate)
+      : null;
+    if (definitionStartDate) definitionStartDate.setUTCHours(0, 0, 0, 0);
+
+    const currentDate =
+      definitionStartDate && definitionStartDate > periodStart
+        ? new Date(definitionStartDate)
+        : new Date(periodStart);
+    currentDate.setUTCHours(0, 0, 0, 0);
 
     while (currentDate <= periodEnd) {
-      // Ensure current date is not before the definition's overall start date
+      // Skip if before definition's start date
       if (definitionStartDate && currentDate < definitionStartDate) {
-        if (def.recurrenceType === 'daily') { currentDate.setUTCDate(currentDate.getUTCDate() + 1); continue; }
-        if (def.recurrenceType === 'weekly') { currentDate.setUTCDate(currentDate.getUTCDate() + 1); continue; } // Check next day for weekly
-        if (def.recurrenceType === 'monthly') { currentDate.setUTCDate(currentDate.getUTCDate() + 1); continue; } // Check next day for monthly
+        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+        continue;
       }
 
-      // Stop if recurrence end date is passed
+      // Stop if recurrence end date has passed
       if (recurrenceEndDate && currentDate > recurrenceEndDate) {
         break;
       }
@@ -60,18 +74,23 @@ export function generateChoreInstances(
       if (def.recurrenceType === 'daily') {
         shouldCreateInstance = true;
       } else if (def.recurrenceType === 'weekly') {
-        if (currentDate.getUTCDay() === def.recurrenceDay) {
-          shouldCreateInstance = true;
-        }
+        shouldCreateInstance = currentDate.getUTCDay() === def.recurrenceDay;
       } else if (def.recurrenceType === 'monthly') {
         const dayOfMonth = currentDate.getUTCDate();
         if (dayOfMonth === def.recurrenceDay) {
           shouldCreateInstance = true;
         } else {
-          // Handle recurrenceDay (e.g., 31st) for months with fewer days.
-          // Create instance on the last day of the month if recurrenceDay is beyond month length.
-          const lastDayOfMonth = new Date(currentDate.getUTCFullYear(), currentDate.getUTCMonth() + 1, 0).getUTCDate();
-          if (def.recurrenceDay && def.recurrenceDay > lastDayOfMonth && dayOfMonth === lastDayOfMonth) {
+          // Handle months with fewer days than recurrenceDay
+          const lastDayOfMonth = new Date(
+            currentDate.getUTCFullYear(),
+            currentDate.getUTCMonth() + 1,
+            0
+          ).getUTCDate();
+          if (
+            def.recurrenceDay &&
+            def.recurrenceDay > lastDayOfMonth &&
+            dayOfMonth === lastDayOfMonth
+          ) {
             shouldCreateInstance = true;
           }
         }
@@ -83,21 +102,15 @@ export function generateChoreInstances(
           id: `${def.id}_${instanceDateStr}`,
           choreDefinitionId: def.id,
           instanceDate: instanceDateStr,
-          isComplete: false, // Default new instances to incomplete
+          isComplete: false,
+          categoryStatus: 'TO_DO',
+          subtaskCompletions: {},
         });
       }
 
-      // Advance currentDate
-      if (def.recurrenceType === 'daily') {
-        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
-      } else if (def.recurrenceType === 'weekly') {
-        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
-      } else if (def.recurrenceType === 'monthly') {
-        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
-      } else {
-        break; // Should not happen
-      }
+      currentDate.setUTCDate(currentDate.getUTCDate() + 1);
     }
   });
+
   return instances;
 }

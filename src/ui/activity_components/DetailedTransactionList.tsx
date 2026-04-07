@@ -7,9 +7,10 @@ import { UserContext, UserContextType } from '../../contexts/UserContext';
 // For now, assuming UserProvider is self-contained for these tests.
 import type { Kid, KanbanColumnConfig } from '../../types';
 import type { ReactNode } from 'react'; // Import ReactNode for wrapper type
+import type { DragEndEvent, Active, Over } from '@dnd-kit/core';
 
 // Mock dnd-kit
-let dndContextProps: any = {}; // To capture DndContext props like onDragEnd
+let dndContextProps: { onDragEnd?: (event: DragEndEvent) => void } = {}; // To capture DndContext props like onDragEnd
 vi.mock('@dnd-kit/core', async (importOriginal) => {
     const actual = await importOriginal() as object;
     return {
@@ -250,11 +251,11 @@ describe('KanbanSettingsView', () => {
 
     // Simulate drag end: move Column C (cfgC) to the position of Column A (cfgA)
     // Original order: A, B, C. New order: C, A, B
-    const dragEndEvent: DragEndEvent = { // Type DragEndEvent from @dnd-kit/core
-      active: { id: 'cfgC', data: { current: { sortable: { index: 2, containerId: kid1Id } } } } as any,
-      over: { id: 'cfgA', data: { current: { sortable: { index: 0, containerId: kid1Id } } } } as any,
+    const dragEndEvent: DragEndEvent = {
+      active: { id: 'cfgC', data: { current: { sortable: { index: 2, containerId: kid1Id } } } } as Active,
+      over: { id: 'cfgA', data: { current: { sortable: { index: 0, containerId: kid1Id } } } } as Over,
       delta: {x:0, y:0}, collisions: null,
-    };
+    } as DragEndEvent;
 
     // Manually call onDragEnd captured from DndContext mock
     // Ensure onDragEnd is defined before calling

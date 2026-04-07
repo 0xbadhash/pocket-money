@@ -2,9 +2,7 @@
 import React, { useMemo } from 'react';
 import KanbanCard from './KanbanCard';
 import { useChoresContext } from '../../contexts/ChoresContext';
-// useUserContext is not used in this component after changes.
-// import { useUserContext } from '../../contexts/UserContext';
-import type { MatrixKanbanCategory, ChoreInstance, ChoreDefinition } from '../../types';
+import type { MatrixKanbanCategory, ChoreDefinition } from '../../types';
 import { useDroppable } from '@dnd-kit/core';
 
 interface DateColumnViewProps {

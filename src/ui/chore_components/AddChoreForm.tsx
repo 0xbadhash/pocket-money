@@ -2,28 +2,22 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { UserContext } from '../../contexts/UserContext';
-import type { Kid, SubTask } from '../../types';
+import type { Kid, SubTask, ChoreDefinition } from '../../types';
 
 const AddChoreForm = ({
   initialChore,
   defaultKidId,
   defaultDueDate,
-  defaultCategoryStatus,
   onSuccess,
   onCancel,
   enableSubtasks,
-  enableRecurrence,
-  defaultIsRecurring,
 }: {
-  initialChore?: any;
+  initialChore?: ChoreDefinition | null;
   defaultKidId?: string;
   defaultDueDate?: Date;
-  defaultCategoryStatus?: string;
   onSuccess?: () => void;
   onCancel?: () => void;
   enableSubtasks?: boolean;
-  enableRecurrence?: boolean;
-  defaultIsRecurring?: boolean;
 }) => {
   // --- Use effect to populate state when editing ---
   const [title, setTitle] = useState(initialChore?.title || '');

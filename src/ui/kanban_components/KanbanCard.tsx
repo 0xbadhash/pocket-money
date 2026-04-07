@@ -84,7 +84,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   };
   const [pendingEdit, setPendingEdit] = useState<{
     fieldName: 'instanceDate' | 'rewardAmount',
-    value: any,
+    value: string | number,
     definitionId: string,
     instanceId: string,
     fromDateForSeries: string // This is the instanceDate of the edited instance
@@ -103,12 +103,12 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
       }
     } else if (scope === 'series') {
       if (fieldName === 'instanceDate') {
-        await updateChoreSeries(definitionId, { dueDate: value }, fromDateForSeries, 'dueDate');
+        await updateChoreSeries(definitionId, { dueDate: value }, fromDateForSeries);
       } else if (fieldName === 'rewardAmount') {
         // For series reward edit, we also clear any instance-specific override on the current instance
         // to ensure it reflects the new series value.
         await updateChoreInstanceField(instanceId, 'overriddenRewardAmount', undefined);
-        await updateChoreSeries(definitionId, { rewardAmount: value }, fromDateForSeries, 'rewardAmount');
+        await updateChoreSeries(definitionId, { rewardAmount: value }, fromDateForSeries);
       }
     }
     // Add any user feedback (e.g., toast notification) here if desired
@@ -304,7 +304,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
     if (def.recurrenceEndDate) {
       try {
         info += ` until ${new Date(def.recurrenceEndDate).toISOString().split('T')[0]}`;
-      } catch (e) {
+      } catch {
         console.warn(`Invalid recurrenceEndDate format for chore definition ${def.id}: ${def.recurrenceEndDate}`);
         info += ` until (invalid date)`;
       }

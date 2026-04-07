@@ -7,7 +7,7 @@ interface EditScopeModalProps {
   onClose: () => void;
   onConfirmScope: (scope: EditScope) => void;
   fieldName?: string;
-  newValue?: any;
+  newValue?: string | number;
 }
 
 // Basic styling (can be moved to a CSS file or use a global modal style)

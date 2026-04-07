@@ -3,7 +3,7 @@
  * Main view for displaying and interacting with Kanban boards for kids' chores.
  * Allows users to select a kid to view their specific chore Kanban board.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useUserContext } from '../contexts/UserContext';
 import KidKanbanBoard from './kanban_components/KidKanbanBoard';
 // import KanbanFilters from './kanban_components/KanbanFilters'; // If needed later
@@ -17,7 +17,7 @@ import KidKanbanBoard from './kanban_components/KidKanbanBoard';
 const KanbanView: React.FC = () => {
   const [selectedKidId, setSelectedKidId] = useState<string | null>(null);
   const { user, loading: userLoading } = useUserContext();
-  const kids = user?.kids || [];
+  const kids = useMemo(() => user?.kids || [], [user?.kids]);
 
   // Automatically select the first kid if available and none is selected
   useEffect(() => {

@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import KidKanbanBoard from './KidKanbanBoard';
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { useUserContext } from '../../contexts/UserContext';
-import type { ChoreInstance, ChoreDefinition, MatrixKanbanCategory, User, Kid } from '../../types';
+import type { ChoreInstance, ChoreDefinition, MatrixKanbanCategory, User } from '../../types';
 import { DndContext } from '@dnd-kit/core'; // Import DndContext for wrapping
 
 // Mock DateColumnView
@@ -61,8 +61,8 @@ const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 
 
 describe('KidKanbanBoard', () => {
-  let mockChoresContextValue: any;
-  let mockUserContextValue: any;
+  let mockChoresContextValue: Record<string, unknown>;
+  let mockUserContextValue: Record<string, unknown>;
 
   beforeEach(() => {
     vi.useFakeTimers(); // Use fake timers for testing timeouts (e.g., feedback message)
@@ -129,7 +129,7 @@ describe('KidKanbanBoard', () => {
       }
     });
 
-    it('passes the correct kidId prop to DateColumnView components', () => {
+    it('passes the correct kidId prop to DateColumnView components', async () => {
       const testKidId = 'kidTest123';
       renderBoard(testKidId);
       // Assuming DateColumnView mock would receive kidId and we could check it,
@@ -137,7 +137,7 @@ describe('KidKanbanBoard', () => {
       // To explicitly test, the mock DateColumnView would need to display/store the kidId prop.
       // For this test, we'll assume the structure and previous DateColumnView tests cover kidId usage.
       // A more direct way:
-      const DateColumnViewMock = vi.mocked(require('./DateColumnView').default);
+      const DateColumnViewMock = vi.mocked((await import('./DateColumnView')).default);
       expect(DateColumnViewMock.mock.calls[0][0].kidId).toBe(testKidId);
     });
   });
@@ -211,7 +211,7 @@ describe('KidKanbanBoard', () => {
     // A more direct test of handleDragEnd would involve exporting it or a more complex DND setup.
     // This helper function tries to get the props of the KidKanbanBoard component from the rendered output.
     // It assumes KidKanbanBoard is a direct child of the DndContext provider in this test setup.
-    const getKidKanbanBoardPropsFromWrapper = (wrapper: HTMLElement) => {
+    const getKidKanbanBoardPropsFromWrapper = () => {
        // The structure might be DndContext -> KidKanbanBoard directly, or DndContext -> SomeInternalWrapper -> KidKanbanBoard
        // This depends on how DndContext is implemented and if it adds layers.
        // For this test, we are wrapping KidKanbanBoard directly in DndContext via TestWrapper.
@@ -281,12 +281,12 @@ describe('KidKanbanBoard', () => {
       // This is the most robust way without refactoring KidKanbanBoard for testability.
       const MockDndContext = vi.mocked(DndContext);
       const dndContextProps = MockDndContext.mock.calls[MockDndContext.mock.calls.length - 1][0];
-      return dndContextProps.onDragEnd as (event: any) => void;
+      return dndContextProps.onDragEnd as (event: DragEndEvent) => void;
     };
 
     it('calls updateChoreInstanceCategory when category changes', () => {
       renderBoard(); // Renders KidKanbanBoard which renders DndContext
-      const capturedOnDragEnd = getKidKanbanBoardPropsFromWrapper(document.body);
+      const capturedOnDragEnd = getKidKanbanBoardPropsFromWrapper();
 
       const active = { id: 'inst1' };
       const over = { id: '2023-10-26|IN_PROGRESS' };
