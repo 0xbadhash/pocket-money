@@ -82,6 +82,7 @@ const mockChoresContextValue: AppChoresContextType = {
   batchToggleCompleteChoreInstances: vi.fn(),
   batchUpdateChoreInstancesCategory: vi.fn(),
   batchAssignChoreDefinitionsToKid: vi.fn(),
+  updateChoreSeries: vi.fn(),
 };
 
 

@@ -1,9 +1,9 @@
 // src/contexts/ChoresContext.test.tsx
 import { renderHook, act } from '@testing-library/react';
 import { ChoresProvider, useChoresContext } from './ChoresContext';
-import React, { ReactNode } from 'react';
+import React, { type ReactNode } from 'react';
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { FinancialContext, FinancialContextType } from './FinancialContext';
+import { FinancialContext, type FinancialContextType } from './FinancialContext';
 import type { ChoreInstance, ChoreDefinition } from '../types';
 
 // Mock localStorage
@@ -21,11 +21,10 @@ let localStorageMock = localStorageMockFactory();
 // Mock FinancialContext as ChoresProvider uses it
 const mockAddKidReward = vi.fn();
 const mockFinancialContextValue: FinancialContextType = {
-  transactions: [],
+  financialData: { currentBalance: 0, transactions: [] },
   addTransaction: vi.fn(),
+  addFunds: vi.fn(),
   addKidReward: mockAddKidReward,
-  getTransactionsForKid: vi.fn(() => []),
-  getFundsForKid: vi.fn(() => 0),
   loading: false,
   error: null,
 };

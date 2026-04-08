@@ -2,77 +2,9 @@
 # Dependencies
 node_modules/
 
-# Build artifacts
-dist/
-build/
-*.js.map
+# TypeScript build artifacts
 *.tsbuildinfo
 
-# Environment
-.env
-.env.local
-*.env.*
-
-# Editors
-.vscode/
-.idea/
-
-# Logs
-*.log
-
-# OS
-.DS_Store
-Thumbs.db
-
 # Temporary files
-*.tmp
-*.swp
-*.swo
-
-# Coverage
-coverage/
-htmlcov/
-.coverage
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
-
-# Compiled
-*.o
-*.obj
-*.a
-*.lib
-*.dll
-*.dylib
-*.exe
-
-# Archives
-*.zip
-*.tar
-*.gz
-*.tgz
-*.rar
-*.7z
-*.bz2
-*.xz
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
-
+.tmp/
 ```

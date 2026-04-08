@@ -8,24 +8,16 @@ interface AddChoreFormProps {
   initialChore?: ChoreDefinition | null;
   defaultKidId?: string;
   defaultDueDate?: Date;
-  defaultCategoryStatus?: string;
   onSuccess?: () => void;
   onCancel?: () => void;
-  enableSubtasks?: boolean;
-  enableRecurrence?: boolean;
-  defaultIsRecurring?: boolean;
 }
 
 const AddChoreForm = ({
   initialChore,
   defaultKidId,
   defaultDueDate,
-  defaultCategoryStatus,
   onSuccess,
   onCancel,
-  enableSubtasks,
-  enableRecurrence,
-  defaultIsRecurring,
 }: AddChoreFormProps) => {
   // --- Use effect to populate state when editing ---
   const [title, setTitle] = useState(initialChore?.title || '');
