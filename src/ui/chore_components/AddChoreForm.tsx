@@ -8,22 +8,16 @@ const AddChoreForm = ({
   initialChore,
   defaultKidId,
   defaultDueDate,
-  defaultCategoryStatus,
   onSuccess,
   onCancel,
   enableSubtasks,
-  enableRecurrence,
-  defaultIsRecurring,
 }: {
-  initialChore?: any;
+  initialChore?: unknown;
   defaultKidId?: string;
   defaultDueDate?: Date;
-  defaultCategoryStatus?: string;
   onSuccess?: () => void;
   onCancel?: () => void;
   enableSubtasks?: boolean;
-  enableRecurrence?: boolean;
-  defaultIsRecurring?: boolean;
 }) => {
   // --- Use effect to populate state when editing ---
   const [title, setTitle] = useState(initialChore?.title || '');

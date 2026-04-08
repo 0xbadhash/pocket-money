@@ -1,10 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, act as reactAct } from '../../../src/test-utils'; // Use customRender
 import KidAssignmentModal from './KidAssignmentModal';
-// Import hooks to mock
-import { useUserContext } from '../../contexts/UserContext';
-import { useChoresContext } from '../../contexts/ChoresContext';
-import { describe, it, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { describe, test, expect, vi, beforeEach } from 'vitest';
 import type { Kid } from '../../types';
 
 const mockBatchAssignChoreDefinitionsToKid = vi.fn();
@@ -15,7 +12,7 @@ const mockUserKids: Kid[] = [
 
 // Mock the hooks
 vi.mock('../../contexts/UserContext', async () => {
-  const actual = await vi.importActual('../../contexts/UserContext') as any;
+  const actual = await vi.importActual('../../contexts/UserContext') as unknown;
   return {
     ...actual,
     useUserContext: vi.fn(() => ({ // Default mock, can be overridden in tests
@@ -36,7 +33,7 @@ vi.mock('../../contexts/UserContext', async () => {
 });
 
 vi.mock('../../contexts/ChoresContext', async () => {
-  const actual = await vi.importActual('../../contexts/ChoresContext') as any;
+  const actual = await vi.importActual('../../contexts/ChoresContext') as unknown;
   return {
     ...actual,
     useChoresContext: vi.fn(() => ({

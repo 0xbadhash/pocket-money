@@ -6,7 +6,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom'; // Import Link
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { useUserContext } from '../../contexts/UserContext';
-import type { ChoreDefinition, ChoreInstance, KanbanPeriod, Kid, ColumnThemeOption, MatrixKanbanCategory, KanbanColumnConfig } from '../../types';
+import type { ChoreDefinition, ChoreInstance, KanbanPeriod, ColumnThemeOption } from '../../types';
 import KanbanCard from './KanbanCard';
 import DateColumnView from './DateColumnView';
 import { useChoreSelection } from '../../hooks/useChoreSelection';
@@ -28,9 +28,6 @@ import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { getTodayDateString, getWeekRange, getMonthRange } from '../../utils/dateUtils';
 import AddChoreForm from '../../components/AddChoreForm';
 import InstanceDetailModal from './InstanceDetailModal'; // Import the modal
-  instance: ChoreInstance;
-  definition: ChoreDefinition;
-}
 
 interface KidKanbanBoardProps {
   kidId: string;
@@ -45,7 +42,6 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     updateChoreInstanceField, // Added updateChoreInstanceField
     batchToggleCompleteChoreInstances,
     // batchUpdateChoreInstancesCategory, // This will be updated later if still needed with new types
-    batchAssignChoreDefinitionsToKid,
   } = useChoresContext();
   const { getKanbanColumnConfigs, user } = useUserContext(); // Ensure user is destructured
   // const allKids = user?.kids || []; // allKids not needed for switcher
@@ -61,12 +57,10 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   const categoryModal = useModalState();
   const kidAssignmentModal = useModalState();
 
-  const [selectedPeriod, setSelectedPeriod] = useState<KanbanPeriod>('daily');
+  const [selectedPeriod] = useState<KanbanPeriod>('daily');
   const [activeDragItem, setActiveDragItem] = useState<ActiveDragItem | null>(null);
   const [actionFeedbackMessage, setActionFeedbackMessage] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<SortByOption>('instanceDate'); // Assuming SortByOption is defined elsewhere
-  const [sortDirection, setSortDirection] = useState<SortDirectionOption>('asc'); // Assuming SortDirectionOption is defined elsewhere
-  const [selectedColumnTheme, setSelectedColumnTheme] = useState<ColumnThemeOption>(() => {
+  const [selectedColumnTheme] = useState<ColumnThemeOption>(() => {
     const storedTheme = localStorage.getItem('kanban_columnTheme') as ColumnThemeOption | null;
     return storedTheme || 'default';
   });
@@ -337,15 +331,15 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     return <div>Loading kid information...</div>;
   }
 
-  const handleOpenInstanceModal = useCallback((instance: ChoreInstance, definition: ChoreDefinition) => {
+  const handleOpenInstanceModal = (instance: ChoreInstance, definition: ChoreDefinition) => {
     setModalInstance(instance);
     setModalDefinition(definition);
-  }, []);
+  };
 
-  const handleCloseInstanceModal = useCallback(() => {
+  const handleCloseInstanceModal = () => {
     setModalInstance(null);
     setModalDefinition(null);
-  }, []);
+  };
 
 
   return (

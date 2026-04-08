@@ -2,16 +2,16 @@
 import { render, screen, act, waitFor, fireEvent } from '@testing-library/react'; // Added fireEvent
 import userEvent from '@testing-library/user-event';
 import KanbanSettingsView from './KanbanSettingsView'; // Uncommented import
-import { UserContext, UserContextType, User } from '../../contexts/UserContext';
+import { UserContext, UserContextType } from '../../contexts/UserContext';
 // ChoresContext is not directly used by KanbanSettingsView, so a minimal or no mock is needed unless UserProvider depends on it.
 // For now, assuming UserProvider is self-contained for these tests.
 import type { Kid, KanbanColumnConfig } from '../../types';
-import { describe, it, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { describe, test, expect, vi, beforeEach } from 'vitest';
 import type { DragEndEvent } from '@dnd-kit/core';
 import type { ReactNode } from 'react'; // Import as type only
 
 // Mock dnd-kit
-let dndContextProps: any = {}; // To capture DndContext props like onDragEnd
+let dndContextProps: { onDragEnd?: (event: DragEndEvent) => void } = {}; // To capture DndContext props like onDragEnd
 vi.mock('@dnd-kit/core', async (importOriginal) => {
     const actual = await importOriginal() as object;
     return {
@@ -261,10 +261,10 @@ describe('KanbanSettingsView', () => {
     });
 
     const dragEndEvent: DragEndEvent = {
-      active: { id: 'cfgC', data: { current: { sortable: { index: 2, containerId: kid1Id } } } } as any,
-      over: { id: 'cfgA', data: { current: { sortable: { index: 0, containerId: kid1Id } } } } as any,
+      active: { id: 'cfgC', data: { current: { sortable: { index: 2, containerId: kid1Id } } } },
+      over: { id: 'cfgA', data: { current: { sortable: { index: 0, containerId: kid1Id } } } },
       delta: {x:0, y:0}, collisions: null,
-      activatorEvent: {} as any,
+      activatorEvent: null,
     };
 
     if (dndContextProps.onDragEnd) {

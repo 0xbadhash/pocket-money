@@ -3,7 +3,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { UserProvider, useUserContext, User, UserContextType } from './UserContext';
 import type { Kid, KanbanColumnConfig } from '../types';
 import React, { ReactNode } from 'react';
-import { describe, it, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { describe, test, expect, vi, beforeEach } from 'vitest';
 
 const localStorageMockFactory = () => {
   let store: Record<string, string> = {};
@@ -79,7 +79,7 @@ describe('UserContext', () => {
   });
 
   describe('Kanban Column Config Management', () => {
-    let hookResult: { result: { current: UserContextType }, rerender: (props?: any) => void };
+    let hookResult: { result: { current: UserContextType }, rerender: (props?: unknown) => void };
     let newKidId: string;
 
     beforeEach(async () => {
@@ -155,7 +155,7 @@ describe('UserContext', () => {
     });
 
     test('updateKanbanColumnConfig updates a column title and color', async () => {
-      let configs = hookResult.result.current.getKanbanColumnConfigs(newKidId);
+      const configs = hookResult.result.current.getKanbanColumnConfigs(newKidId);
       const firstConfig = configs[0];
       expect(firstConfig).toBeDefined();
 
@@ -176,7 +176,7 @@ describe('UserContext', () => {
     });
 
     test('deleteKanbanColumnConfig removes a column and re-calculates order', async () => {
-      let configs = hookResult.result.current.getKanbanColumnConfigs(newKidId);
+      const configs = hookResult.result.current.getKanbanColumnConfigs(newKidId);
       const configToDelete = configs[1];
       expect(configToDelete).toBeDefined();
 
@@ -194,7 +194,7 @@ describe('UserContext', () => {
     });
 
     test('reorderKanbanColumnConfigs updates column orders', async () => {
-      let originalConfigs = hookResult.result.current.getKanbanColumnConfigs(newKidId);
+      const originalConfigs = hookResult.result.current.getKanbanColumnConfigs(newKidId);
       const reorderedState: KanbanColumnConfig[] = [
         originalConfigs.find(c => c.title === 'Done')!,
         originalConfigs.find(c => c.title === 'To Do')!,

@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import BatchActionsToolbar from './BatchActionsToolbar';
-import { describe, it, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { describe, test, expect, vi, beforeEach } from 'vitest';
 
 describe('BatchActionsToolbar Component', () => {
   const mockOnClearSelection = vi.fn();
