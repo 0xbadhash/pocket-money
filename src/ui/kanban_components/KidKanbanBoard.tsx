@@ -6,7 +6,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom'; // Import Link
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { useUserContext } from '../../contexts/UserContext';
-import type { ChoreDefinition, ChoreInstance, KanbanPeriod, Kid, ColumnThemeOption, MatrixKanbanCategory, KanbanColumnConfig } from '../../types';
+import type { ChoreDefinition, ChoreInstance, KanbanPeriod } from '../../types';
 import KanbanCard from './KanbanCard';
 import InstanceDetailModal from './InstanceDetailModal'; // Import InstanceDetailModal
 import DateColumnView from './DateColumnView';
@@ -46,8 +46,6 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     updateChoreInstanceCategory,
     updateChoreInstanceField, // Added updateChoreInstanceField
     batchToggleCompleteChoreInstances,
-    // batchUpdateChoreInstancesCategory, // This will be updated later if still needed with new types
-    batchAssignChoreDefinitionsToKid,
   } = useChoresContext();
   const { getKanbanColumnConfigs, user } = useUserContext(); // Ensure user is destructured
   // const allKids = user?.kids || []; // allKids not needed for switcher
@@ -63,15 +61,9 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   const categoryModal = useModalState();
   const kidAssignmentModal = useModalState();
 
-  const [selectedPeriod, setSelectedPeriod] = useState<KanbanPeriod>('daily');
+  const [selectedPeriod] = useState<KanbanPeriod>('daily');
   const [activeDragItem, setActiveDragItem] = useState<ActiveDragItem | null>(null);
   const [actionFeedbackMessage, setActionFeedbackMessage] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<SortByOption>('instanceDate'); // Assuming SortByOption is defined elsewhere
-  const [sortDirection, setSortDirection] = useState<SortDirectionOption>('asc'); // Assuming SortDirectionOption is defined elsewhere
-  const [selectedColumnTheme, setSelectedColumnTheme] = useState<ColumnThemeOption>(() => {
-    const storedTheme = localStorage.getItem('kanban_columnTheme') as ColumnThemeOption | null;
-    return storedTheme || 'default';
-  });
   const [currentVisibleStartDate, setCurrentVisibleStartDate] = useState(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -87,10 +79,6 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   const [selectedDefinition, setSelectedDefinition] = useState<ChoreDefinition | null>(null);
 
   const todayString = getTodayDateString(); // Get today's date string
-
-  useEffect(() => {
-    localStorage.setItem('kanban_columnTheme', selectedColumnTheme);
-  }, [selectedColumnTheme]);
 
   useEffect(() => {
     if (actionFeedbackMessage) {

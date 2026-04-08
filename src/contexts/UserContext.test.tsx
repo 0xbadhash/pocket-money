@@ -3,7 +3,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { UserProvider, useUserContext, User, UserContextType } from './UserContext';
 import type { Kid, KanbanColumnConfig } from '../types';
 import React, { ReactNode } from 'react';
-import { describe, it, test, expect, vi, beforeEach } from 'vitest';
+import { describe, test, expect, vi, beforeEach } from 'vitest';
 
 const localStorageMockFactory = () => {
   let store: Record<string, string> = {};
