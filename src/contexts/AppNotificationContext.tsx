@@ -105,6 +105,7 @@ export const AppNotificationProvider: React.FC<{children: ReactNode}> = ({ child
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAppNotification = (): AppNotificationContextType => {
   const context = useContext(AppNotificationContext);
   if (context === undefined) {

@@ -1,15 +1,14 @@
-// src/ui/settings_components/KanbanSettingsView.test.tsx
+// src/ui/activity_components/DetailedTransactionList.tsx
 import { render, screen, act, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-// import KanbanSettingsView from './KanbanSettingsView'; // Removed import as the file does not exist
+import KanbanSettingsView from '../settings_components/KanbanSettingsView';
 import { UserContext, UserContextType } from '../../contexts/UserContext';
-// ChoresContext is not directly used by KanbanSettingsView, so a minimal or no mock is needed unless UserProvider depends on it.
-// For now, assuming UserProvider is self-contained for these tests.
 import type { Kid, KanbanColumnConfig } from '../../types';
-import type { ReactNode } from 'react'; // Import ReactNode for wrapper type
+import type { ReactNode } from 'react';
+import type { DragEndEvent } from '@dnd-kit/core';
 
 // Mock dnd-kit
-let dndContextProps: any = {}; // To capture DndContext props like onDragEnd
+let dndContextProps: { onDragEnd?: (event: DragEndEvent) => void } = {};
 vi.mock('@dnd-kit/core', async (importOriginal) => {
     const actual = await importOriginal() as object;
     return {
@@ -251,8 +250,8 @@ describe('KanbanSettingsView', () => {
     // Simulate drag end: move Column C (cfgC) to the position of Column A (cfgA)
     // Original order: A, B, C. New order: C, A, B
     const dragEndEvent: DragEndEvent = { // Type DragEndEvent from @dnd-kit/core
-      active: { id: 'cfgC', data: { current: { sortable: { index: 2, containerId: kid1Id } } } } as any,
-      over: { id: 'cfgA', data: { current: { sortable: { index: 0, containerId: kid1Id } } } } as any,
+      active: { id: 'cfgC', data: { current: { sortable: { index: 2, containerId: kid1Id } } } } as unknown as DragEndEvent['active'],
+      over: { id: 'cfgA', data: { current: { sortable: { index: 0, containerId: kid1Id } } } } as unknown as DragEndEvent['over'],
       delta: {x:0, y:0}, collisions: null,
     };
 

@@ -1,6 +1,6 @@
 // src/ui/kanban_components/InstanceDetailModal.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import type { ChoreInstance, ChoreDefinition, KanbanColumnConfig } from '../../types';
+import type { ChoreInstance, ChoreDefinition } from '../../types';
 import { useUserContext } from '../../contexts/UserContext';
 import { useChoresContext } from '../../contexts/ChoresContext';
 

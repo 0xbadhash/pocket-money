@@ -1,7 +1,7 @@
 // src/contexts/ChoresContext.tsx
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
-import type { ChoreDefinition, ChoreInstance, KanbanColumnConfig } from '../types';
+import type { ChoreDefinition, ChoreInstance } from '../types';
 import { useFinancialContext } from '../contexts/FinancialContext';
 import { useUserContext } from './UserContext';
 import { generateChoreInstances } from '../utils/choreUtils';
@@ -19,7 +19,7 @@ interface ChoresContextType {
   toggleChoreDefinitionActiveState: (definitionId: string) => void;
   updateChoreInstanceCategory: (instanceId: string, newStatusId: string) => void;
   updateChoreDefinition: (definitionId: string, updates: Partial<ChoreDefinition>) => Promise<void>;
-  updateChoreInstanceField: (instanceId: string, fieldName: keyof ChoreInstance, value: any) => Promise<void>;
+  updateChoreInstanceField: (instanceId: string, fieldName: keyof ChoreInstance, value: unknown) => Promise<void>;
   batchToggleCompleteChoreInstances: (instanceIds: string[], markAsComplete: boolean) => Promise<void>;
   batchUpdateChoreInstancesCategory: (instanceIds: string[], newStatusId: string) => Promise<void>;
   batchAssignChoreDefinitionsToKid: (definitionIds: string[], newKidId: string | null) => Promise<void>;
@@ -111,12 +111,12 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     const rawNew = generateChoreInstances(defsForGen, startDate, endDate);
     const newInstances = rawNew.map(raw => {
       const def = choreDefinitions.find(d => d.id === raw.choreDefinitionId);
-      let subCompletions: Record<string,boolean> = {};
+      const subCompletions: Record<string,boolean> = {};
       def?.subTasks?.forEach(st => { subCompletions[st.id] = st.isComplete || false; });
       return {
         ...raw, isComplete: false, categoryStatus: defaultKanbanColumnId || "",
         subtaskCompletions: subCompletions, previousSubtaskCompletions: undefined,
-        priority: def?.priority, instanceComments: [], instanceDescription: undefined, // Added instanceDescription
+        priority: def?.priority, instanceComments: [], instanceDescription: undefined,
         isSkipped: false, activityLog: [{ timestamp: new Date().toISOString(), action: 'Instance Created', userId:'system', userName:'System' }]
       };
     });
@@ -125,7 +125,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       const updated = newInstances.map(ni => prev.find(oi => oi.id === ni.id) ? { ...ni, ...prev.find(oi => oi.id === ni.id) } : ni);
       return [...outside, ...updated];
     });
-  }, [choreDefinitions]); // Removed logActivity from deps as it's not directly used here for now
+  }, [choreDefinitions]);
 
   const toggleChoreInstanceComplete = useCallback((instanceId: string) => {
     setChoreInstances(prev => prev.map(inst => {
@@ -240,17 +240,20 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     }));
   }, [choreDefinitions, getKanbanColumnConfigs, logActivity, currentUser]);
 
-  const updateChoreInstanceField = useCallback(async (instanceId: string, fieldName: keyof ChoreInstance, value: any) => {
+  const updateChoreInstanceField = useCallback(async (instanceId: string, fieldName: keyof ChoreInstance, value: unknown) => {
     setChoreInstances(prev => prev.map(inst => {
       if (inst.id === instanceId) {
-        let updated = { ...inst, [fieldName]: value };
-        if (fieldName === 'priority') updated = logActivity(updated, 'Priority Changed', currentUser?.id, currentUser?.username, `to ${value || 'Default'}`);
-        else if (fieldName === 'instanceDate') updated = logActivity(updated, 'Date Changed', currentUser?.id, currentUser?.username, `to ${value}`);
-        else if (fieldName === 'overriddenRewardAmount') {
+        const updated = { ...inst, [fieldName]: value };
+        if (fieldName === 'priority') {
+          updated.activityLog = logActivity(updated, 'Priority Changed', currentUser?.id, currentUser?.username, `to ${value || 'Default'}`).activityLog;
+        } else if (fieldName === 'instanceDate') {
+          updated.activityLog = logActivity(updated, 'Date Changed', currentUser?.id, currentUser?.username, `to ${value}`).activityLog;
+        } else if (fieldName === 'overriddenRewardAmount') {
           const def = choreDefinitions.find(d => d.id === inst.choreDefinitionId);
-          updated = logActivity(updated, 'Reward Changed', currentUser?.id, currentUser?.username, `to $${Number(value !== undefined ? value : (def?.rewardAmount ?? 0)).toFixed(2)}`);
+          updated.activityLog = logActivity(updated, 'Reward Changed', currentUser?.id, currentUser?.username, `to $${Number(value !== undefined ? value : (def?.rewardAmount ?? 0)).toFixed(2)}`).activityLog;
         } else if (fieldName === 'instanceDescription') {
-            updated = logActivity(updated, 'Instance Description Changed', currentUser?.id, currentUser?.username, value ? `to "${value.substring(0,30)}..."` : "cleared");
+          const descValue = value as string | undefined;
+          updated.activityLog = logActivity(updated, 'Instance Description Changed', currentUser?.id, currentUser?.username, descValue ? `to "${descValue.substring(0,30)}..."` : "cleared").activityLog;
         }
         return updated;
       }
@@ -336,7 +339,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       const defIdx = prevDefs.findIndex(d => d.id === definitionId);
       if (defIdx === -1) return prevDefs;
       const origDef = prevDefs[defIdx];
-      let updatedDefFields = { ...updates };
+      const updatedDefFields = { ...updates };
       if (updates.subTasks) updatedDefFields.subTasks = updates.subTasks.map((st, i) => ({ id: st.id || `st_${Date.now()}_${i}`, ...st }));
       const newDef: ChoreDefinition = { ...origDef, ...updatedDefFields, updatedAt: new Date().toISOString() };
       const newDefs = [...prevDefs];
@@ -350,19 +353,15 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
         if (newDef.recurrenceType && !newDef.isComplete) {
           const rawNew = generateChoreInstances([newDef], fromDate, regenEndDate);
           futureInsts = rawNew.map(raw => {
-            let subComp:Record<string,boolean>={}; newDef.subTasks?.forEach(st => subComp[st.id]=st.isComplete||false);
+            const subComp:Record<string,boolean>={}; newDef.subTasks?.forEach(st => subComp[st.id]=st.isComplete||false);
             return { ...raw, isComplete:false, categoryStatus:"", subtaskCompletions:subComp, previousSubtaskCompletions:undefined, priority:newDef.priority, instanceComments:[], instanceDescription: undefined, isSkipped:false, activityLog:[] };
           });
         }
         const firstAffected = prevInsts.find(i => i.choreDefinitionId === definitionId && i.instanceDate === fromDate);
         if (firstAffected) {
             const loggedFirst = logActivity(firstAffected, `Series Updated: ${fieldName}`, currentUser?.id, currentUser?.username, `Field '${fieldName}' for series from ${fromDate}`);
-            const idx = toKeep.findIndex(i => i.id === loggedFirst.id); // This might be -1 if firstAffected was not in toKeep
+            const idx = toKeep.findIndex(i => i.id === loggedFirst.id);
             if (idx !== -1) toKeep[idx] = loggedFirst;
-            // If not found in toKeep (because its instanceDate was >= fromDate), it will be replaced by newFutureInstances if applicable
-            // or simply removed if it's a non-recurring chore whose date was changed.
-            // This specific logging on 'firstAffected' might be lost if it's part of the instances being replaced.
-            // A more robust way for series logging might be needed if this single-instance log is insufficient.
         }
         return [...toKeep, ...futureInsts];
       });
@@ -390,10 +389,3 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
 
   return <ChoresContext.Provider value={contextValue}>{children}</ChoresContext.Provider>;
 };
-
-// Note for future: The dependencies array for useCallback/useMemo for functions that use `logActivity`
-// should include `logActivity` if it's not stable (i.e. if `currentUser` changes often).
-// However, `logActivity` is memoized with `currentUser` as a dependency, and `contextValue` is memoized
-// with all its functions. This setup should generally be stable.
-// The main `ChoreProvider`'s `useEffect` hooks for localStorage do not depend on `logActivity`.
-// Functions passed in contextValue are already memoized with useCallback.

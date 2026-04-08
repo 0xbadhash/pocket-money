@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import KanbanCard from './KanbanCard';
 import { ChoresContext, ChoresContextType } from '../../contexts/ChoresContext';
 import type { ChoreInstance, ChoreDefinition } from '../../types';
-import { describe, it, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { useSortable } from '@dnd-kit/sortable'; // Import the actual hook
 
 // Mock the @dnd-kit/sortable module
@@ -439,7 +439,7 @@ describe('KanbanCard', () => {
     });
 
      test('displays definition reward amount when instance.overriddenRewardAmount is null (though undefined is preferred for clearing)', () => {
-      const instanceWithNullOverride: ChoreInstance = { ...mockInstance, overriddenRewardAmount: null as any }; // Using null
+      const instanceWithNullOverride: ChoreInstance = { ...mockInstance, overriddenRewardAmount: null as unknown as number | undefined }; // Using null
       renderCardWithSpecificDndState({ instance: instanceWithNullOverride });
 
       const rewardContainer = screen.getByText('Reward:').parentElement;

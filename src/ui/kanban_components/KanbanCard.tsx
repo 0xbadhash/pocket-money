@@ -3,7 +3,7 @@
  * Represents a single chore card within a Kanban column.
  */
 import React, { useState, useEffect, useRef } from 'react';
-import type { ChoreInstance, ChoreDefinition, KanbanColumnConfig } from '../../types'; // Added KanbanColumnConfig
+import type { ChoreInstance, ChoreDefinition } from '../../types';
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { useUserContext } from '../../contexts/UserContext';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -79,7 +79,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   };
   const [pendingEdit, setPendingEdit] = useState<{
     fieldName: 'instanceDate' | 'rewardAmount' | 'priority',
-    value: any,
+    value: string | number | undefined,
     definitionId: string,
     instanceId: string,
     fromDateForSeries: string
@@ -94,7 +94,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
       if (fieldName === 'rewardAmount' || fieldName === 'priority') {
         await updateChoreInstanceField(instanceId, fieldName, undefined); // Clear instance override
       }
-      await updateChoreSeries(definitionId, { [fieldName]: value } as any, fromDateForSeries, fieldName as any);
+      await updateChoreSeries(definitionId, { [fieldName]: value } as Partial<Pick<import('../../types').ChoreDefinition, 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'hour' | 'minute' | 'timeOfDay' | 'priority'>>, fromDateForSeries, fieldName);
     }
     closeEditScopeModal();
   };
@@ -130,7 +130,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
       try {
         await updateChoreDefinition(definition.id, { title: newTitle });
         addNotification({ message: 'Title updated!', type: 'success' });
-      } catch (e) { addNotification({ message: 'Failed to update title.', type: 'error' }); }
+      } catch { addNotification({ message: 'Failed to update title.', type: 'error' }); }
       finally { setLoadingStates(prev => ({ ...prev, title: false }));}
     }
   };
@@ -257,7 +257,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
 
       <div style={{ fontSize: '0.9em', display: 'flex', gap: '5px', alignItems: 'center', marginTop: '4px' }}> {/* Priority */}
         <span>Priority:</span>
-        {isEditingPriority ? (<select value={editingPriorityValue} onChange={(e) => setEditingPriorityValue(e.target.value as any)} onBlur={handleSavePriority} onKeyDown={handlePrioritySelectKeyDown} autoFocus disabled={instance.isSkipped} onClick={(e) => e.stopPropagation()}><option value="">Default</option><option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option></select>) : (<><span style={getPriorityStyle(effectivePriority)}>{effectivePriority || 'Default'}</span>{!instance.isSkipped && <button onClick={(e) => { e.stopPropagation(); handleEditPriority();}} className="edit-icon-button">✏️</button>}</>)}
+        {isEditingPriority ? (<select value={editingPriorityValue} onChange={(e) => setEditingPriorityValue(e.target.value as '' | 'Low' | 'Medium' | 'High')} onBlur={handleSavePriority} onKeyDown={handlePrioritySelectKeyDown} autoFocus disabled={instance.isSkipped} onClick={(e) => e.stopPropagation()}><option value="">Default</option><option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option></select>) : (<><span style={getPriorityStyle(effectivePriority)}>{effectivePriority || 'Default'}</span>{!instance.isSkipped && <button onClick={(e) => { e.stopPropagation(); handleEditPriority();}} className="edit-icon-button">✏️</button>}</>)}
       </div>
       <div style={{ fontSize: '0.9em', display: 'flex', gap: '5px', alignItems: 'center', marginTop: '4px' }}> {/* Due Date */}
         <span>Due:</span>

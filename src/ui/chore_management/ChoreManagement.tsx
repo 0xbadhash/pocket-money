@@ -8,7 +8,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { useUserContext } from '../../contexts/UserContext';
-import type { ChoreDefinition, ChoreInstance, KanbanPeriod, KanbanColumn as KanbanColumnType, ColumnThemeOption, MatrixKanbanCategory } from '../../types';
+import type { ChoreDefinition, ChoreInstance, KanbanPeriod, ColumnThemeOption } from '../../types';
 import KanbanCard from './KanbanCard';
 import DateColumnView from './DateColumnView';
 import {
@@ -21,8 +21,8 @@ import {
   DragOverlay,
 } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
-import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { getTodayDateString, getWeekRange, getMonthRange } from '../../utils/dateUtils';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { getWeekRange, getMonthRange } from '../../utils/dateUtils';
 import AddChoreForm from '../../components/AddChoreForm';
 
 // Types for filter and sort state
@@ -80,16 +80,16 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   const [actionFeedbackMessage, setActionFeedbackMessage] = useState<string | null>(null);
 
   /** State for filtering chores by reward status. */
-  const [rewardFilter, setRewardFilter] = useState<RewardFilterOption>('any');
+  const [rewardFilter] = useState<RewardFilterOption>('any');
   /**
    * State for the criteria used to sort chores.
    * 'instanceDate' also serves as the "My Order" option, respecting drag-and-drop persisted order.
    */
-  const [sortBy, setSortBy] = useState<SortByOption>('instanceDate');
+  const [sortBy] = useState<SortByOption>('instanceDate');
   /** State for the direction of sorting (ascending or descending). */
-  const [sortDirection, setSortDirection] = useState<SortDirectionOption>('asc');
+  const [sortDirection] = useState<SortDirectionOption>('asc');
   /** State for the selected visual theme for Kanban columns. Persisted in localStorage. */
-  const [selectedColumnTheme, setSelectedColumnTheme] = useState<ColumnThemeOption>(() => {
+  const [selectedColumnTheme] = useState<ColumnThemeOption>(() => {
     const storedTheme = localStorage.getItem('kanban_columnTheme') as ColumnThemeOption | null;
     return storedTheme || 'default';
   });
@@ -423,7 +423,6 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   };
 
   // Handler to open edit modal
-  const handleEditChore = (chore: ChoreDefinition) => setEditingChore(chore);
   const handleCloseEditChore = () => setEditingChore(null);
 
   return (
