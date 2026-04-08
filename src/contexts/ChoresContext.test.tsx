@@ -2,7 +2,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { ChoresProvider, useChoresContext } from './ChoresContext';
 import React, { ReactNode } from 'react';
-import { describe, it, test, expect, vi, beforeEach } from 'vitest';
+import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { FinancialContext, FinancialContextType } from './FinancialContext';
 import type { ChoreInstance, ChoreDefinition } from '../types';
 

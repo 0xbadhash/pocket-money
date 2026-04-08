@@ -1,6 +1,5 @@
 // src/utils/choreUtils.ts
 import type { ChoreDefinition, ChoreInstance } from '../types';
-import { getTodayDateString } from './dateUtils'; // Assuming you might need this or other date functions
 
 export function generateChoreInstances(
   definitions: ChoreDefinition[],

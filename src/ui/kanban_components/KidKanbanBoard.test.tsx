@@ -5,10 +5,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import KidKanbanBoard from './KidKanbanBoard';
 import { useChoresContext, ChoresContextType } from '../../contexts/ChoresContext';
 import { useUserContext, UserContextType } from '../../contexts/UserContext';
-import type { ChoreInstance, ChoreDefinition, User, Kid, KanbanColumnConfig } from '../../types';
+import type { ChoreInstance, ChoreDefinition, User, KanbanColumnConfig } from '../../types';
 
 // --- Mocking Setup ---
-let capturedDndOnDragEnd: ((event: any) => void) | null = null;
+let capturedDndOnDragEnd: ((event: unknown) => void) | null = null;
 let mockOpenDetailModalPropCaptured: ((instance: ChoreInstance, definition: ChoreDefinition) => void) | null = null;
 
 vi.mock('@dnd-kit/core', async () => {

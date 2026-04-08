@@ -5,7 +5,7 @@ import '@testing-library/jest-dom';
 import InstanceDetailModal from './InstanceDetailModal';
 import { ChoresContext, ChoresContextType } from '../../contexts/ChoresContext';
 import { UserContext, UserContextType } from '../../contexts/UserContext';
-import { ChoreInstance, ChoreDefinition, User, Kid, KanbanColumnConfig, SubTask } from '../../types';
+import { ChoreInstance, ChoreDefinition, User, Kid } from '../../types';
 
 // Mock data
 const mockChoreDefinition: ChoreDefinition = {
@@ -66,7 +66,7 @@ const mockUpdateChoreInstanceField = jest.fn();
 const mockToggleSubtaskCompletionOnInstance = jest.fn();
 const mockAddCommentToInstance = jest.fn();
 
-const MockChoresProvider: React.FC<{ children: React.ReactNode, instance?: ChoreInstance }> = ({ children, instance }) => {
+const MockChoresProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const choresContextValue: Partial<ChoresContextType> = {
     updateChoreInstanceField: mockUpdateChoreInstanceField,
     toggleSubtaskCompletionOnInstance: mockToggleSubtaskCompletionOnInstance,
@@ -105,7 +105,7 @@ const renderModal = (props: Partial<React.ComponentProps<typeof InstanceDetailMo
   };
   return render(
     <MockUserProvider>
-      <MockChoresProvider instance={instanceData}>
+      <MockChoresProvider>
         <InstanceDetailModal {...defaultProps} />
       </MockChoresProvider>
     </MockUserProvider>
