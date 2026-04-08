@@ -45,9 +45,9 @@ export interface ChoreDefinition {
   /** Whether the chore definition is archived/inactive */
   isComplete: boolean;
   /** Type of recurrence: daily, weekly, monthly, or null for non-recurring */
-  recurrenceType?: 'daily' | 'weekly' | 'monthly' | null;
-  /** For weekly: 0 (Sun) to 6 (Sat). For monthly: 1 to 31 */
-  recurrenceDay?: number | null;
+  recurrenceType?: 'daily' | 'weekly' | 'monthly' | 'none' | null;
+  /** For weekly: 0 (Sun) to 6 (Sat). For monthly: 1 to 31. Can be array for multiple days in week */
+  recurrenceDay?: number | number[] | null;
   /** Date after which no more instances are generated */
   recurrenceEndDate?: string | null;
   /** Tags for categorization and filtering */

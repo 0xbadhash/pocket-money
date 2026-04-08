@@ -9,8 +9,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { useUserContext } from '../../contexts/UserContext';
 import type { ChoreDefinition, ChoreInstance, KanbanPeriod, ColumnThemeOption, MatrixKanbanCategory } from '../../types';
-import KanbanCard from './KanbanCard';
-import DateColumnView from './DateColumnView';
+import KanbanCard from '../kanban_components/KanbanCard';
+import DateColumnView from '../kanban_components/DateColumnView';
 import {
   DndContext,
   PointerSensor,
@@ -21,8 +21,10 @@ import {
   DragOverlay,
 } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { getWeekRange, getMonthRange } from '../../utils/dateUtils';
-import AddChoreForm from '../../components/AddChoreForm';
+import AddChoreForm from '../chore_components/AddChoreForm';
+import type { RewardFilterOption, SortByOption, SortDirectionOption } from '../chore_management/ChoreManagement';
 
 /**
  * @interface ActiveDragItem

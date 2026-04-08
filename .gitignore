@@ -8,25 +8,71 @@ build/
 *.js.map
 *.tsbuildinfo
 
-# Environment variables
+# Environment
 .env
 .env.local
 *.env.*
 
-# IDE files
+# Editors
 .vscode/
 .idea/
-*.swp
-*.swo
 
 # Logs
 *.log
 
-# Coverage reports
-coverage/
-htmlcov/
-*.coverage
+# OS
+.DS_Store
+Thumbs.db
 
 # Temporary files
 *.tmp
+*.swp
+*.swo
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Compiled
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+*.dylib
+*.exe
+
+# Archives
+*.zip
+*.tar
+*.gz
+*.tgz
+*.rar
+*.7z
+*.bz2
+*.xz
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
+
 ```

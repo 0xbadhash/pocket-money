@@ -16,7 +16,7 @@ import { CSS } from '@dnd-kit/utilities';
  * @interface KanbanCardProps
  * Props for the KanbanCard component.
  */
-interface KanbanCardProps {
+export interface KanbanCardProps {
   /** The specific instance of the chore to display. */
   instance: ChoreInstance;
   /** The definition (template) of the chore. */

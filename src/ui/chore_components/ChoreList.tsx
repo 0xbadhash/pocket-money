@@ -27,9 +27,15 @@ const ChoreList: React.FC<ChoreListProps> = ({ choresToDisplay }) => {
     let info = `Repeats ${chore.recurrenceType}`;
     if (chore.recurrenceType === 'weekly' && chore.recurrenceDay !== null && chore.recurrenceDay !== undefined) {
       const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-      info += ` on ${days[chore.recurrenceDay]}`;
+      const dayValue = Array.isArray(chore.recurrenceDay) ? chore.recurrenceDay[0] : chore.recurrenceDay;
+      if (typeof dayValue === 'number') {
+        info += ` on ${days[dayValue]}`;
+      }
     } else if (chore.recurrenceType === 'monthly' && chore.recurrenceDay) {
-      info += ` on day ${chore.recurrenceDay}`;
+      const dayValue = Array.isArray(chore.recurrenceDay) ? chore.recurrenceDay[0] : chore.recurrenceDay;
+      if (typeof dayValue === 'number') {
+        info += ` on day ${dayValue}`;
+      }
     }
     if (chore.recurrenceEndDate) {
       info += ` until ${chore.recurrenceEndDate}`;
