@@ -20,7 +20,7 @@ export type KanbanChoreOrders = Record<string, string[]>;
  * Includes state for chore definitions, instances, custom Kanban orders,
  * and functions to manage them.
  */
-interface ChoresContextType {
+export interface ChoresContextType {
   /** Array of all defined chore templates. */
   choreDefinitions: ChoreDefinition[];
   /** Array of all generated chore instances for various periods. */

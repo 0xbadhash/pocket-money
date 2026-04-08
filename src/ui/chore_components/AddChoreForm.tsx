@@ -4,21 +4,29 @@ import { useChoresContext } from '../../contexts/ChoresContext';
 import { UserContext } from '../../contexts/UserContext';
 import type { Kid, SubTask, ChoreDefinition } from '../../types';
 
+interface AddChoreFormProps {
+  initialChore?: ChoreDefinition | null;
+  defaultKidId?: string;
+  defaultDueDate?: Date;
+  defaultCategoryStatus?: string;
+  onSuccess?: () => void;
+  onCancel?: () => void;
+  enableSubtasks?: boolean;
+  enableRecurrence?: boolean;
+  defaultIsRecurring?: boolean;
+}
+
 const AddChoreForm = ({
   initialChore,
   defaultKidId,
   defaultDueDate,
+  defaultCategoryStatus,
   onSuccess,
   onCancel,
   enableSubtasks,
-}: {
-  initialChore?: ChoreDefinition | null;
-  defaultKidId?: string;
-  defaultDueDate?: Date;
-  onSuccess?: () => void;
-  onCancel?: () => void;
-  enableSubtasks?: boolean;
-}) => {
+  enableRecurrence,
+  defaultIsRecurring,
+}: AddChoreFormProps) => {
   // --- Use effect to populate state when editing ---
   const [title, setTitle] = useState(initialChore?.title || '');
   const [description, setDescription] = useState(initialChore?.description || '');
@@ -38,7 +46,7 @@ const AddChoreForm = ({
   );
   const [recurrenceDayOfMonth, setRecurrenceDayOfMonth] = useState<number | ''>(
     initialChore?.recurrenceType === 'monthly' && initialChore?.recurrenceDay
-      ? initialChore.recurrenceDay
+      ? (Array.isArray(initialChore.recurrenceDay) ? initialChore.recurrenceDay[0] : (typeof initialChore.recurrenceDay === 'number' ? initialChore.recurrenceDay : ''))
       : ''
   );
   const [recurrenceEndDate, setRecurrenceEndDate] = useState(
@@ -64,7 +72,7 @@ const AddChoreForm = ({
       );
       setRecurrenceDayOfMonth(
         initialChore.recurrenceType === 'monthly' && initialChore.recurrenceDay
-          ? initialChore.recurrenceDay
+          ? (Array.isArray(initialChore.recurrenceDay) ? initialChore.recurrenceDay[0] : (typeof initialChore.recurrenceDay === 'number' ? initialChore.recurrenceDay : ''))
           : ''
       );
       setRecurrenceEndDate(initialChore.recurrenceEndDate || '');
@@ -298,4 +306,5 @@ const AddChoreForm = ({
   );
 };
 
+export type { AddChoreFormProps };
 export default AddChoreForm;

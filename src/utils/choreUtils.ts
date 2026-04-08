@@ -88,7 +88,8 @@ export function generateChoreInstances(
           ).getUTCDate();
           if (
             def.recurrenceDay &&
-            def.recurrenceDay > lastDayOfMonth &&
+            ((Array.isArray(def.recurrenceDay) && def.recurrenceDay[0] > lastDayOfMonth) ||
+             (!Array.isArray(def.recurrenceDay) && typeof def.recurrenceDay === 'number' && def.recurrenceDay > lastDayOfMonth)) &&
             dayOfMonth === lastDayOfMonth
           ) {
             shouldCreateInstance = true;

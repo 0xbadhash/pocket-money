@@ -4,7 +4,12 @@
  */
 
 import type { ChoreInstance } from './chore';
-import type { MatrixKanbanCategory } from '../types';
+
+/**
+ * Defines the fixed categories for the Matrix Kanban board.
+ * These represent the primary status swimlanes for chore instances.
+ */
+export type MatrixKanbanCategory = "TO_DO" | "IN_PROGRESS" | "COMPLETED";
 
 /**
  * Represents a custom Kanban column/swimlane configuration for a specific kid.

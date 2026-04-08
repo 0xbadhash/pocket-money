@@ -13,7 +13,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
  * @interface KanbanColumnProps
  * Props for the KanbanColumn component.
  */
-interface KanbanColumnProps {
+export interface KanbanColumnProps {
   /** The data for the column, including its ID, title, and the list of chores it contains. */
   column: KanbanColumnType;
   /**

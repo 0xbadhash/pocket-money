@@ -12,7 +12,10 @@ interface DateColumnViewProps {
   kidId?: string;
   selectedInstanceIds: string[];
   onToggleSelection: (instanceId: string, isSelected: boolean) => void;
+  getSwimlaneId?: (dateString: string, category: MatrixKanbanCategory) => string;
 }
+
+export type { DateColumnViewProps };
 
 const categoryDisplayTitles: Record<MatrixKanbanCategory, string> = {
   TO_DO: "To Do",
