@@ -6,6 +6,7 @@ import { useChoresContext } from '../contexts/ChoresContext';
 import KanbanView from './KanbanView';
 import type { Kid, User } from '../types'; // Added User type
 import { describe, it, expect, vi, beforeEach } from 'vitest'; // Removed unused imports
+import type { Mock } from 'vitest';
 
 // Mock KidKanbanBoard
 vi.mock('./kanban_components/KidKanbanBoard', () => ({
@@ -22,9 +23,9 @@ vi.mock('../contexts/UserContext');
 vi.mock('../contexts/ChoresContext');
 
 // Get typed access to the mocks
-const mockedUseUserContext = useUserContext as vi.Mock;
-const mockedUseChoresContext = useChoresContext as vi.Mock;
-const MockedKidKanbanBoard = (await import('./kanban_components/KidKanbanBoard')).default as vi.Mock;
+const mockedUseUserContext = useUserContext as Mock;
+const mockedUseChoresContext = useChoresContext as Mock;
+const MockedKidKanbanBoard = (await import('./kanban_components/KidKanbanBoard')).default as Mock;
 
 
 describe('KanbanView', () => {

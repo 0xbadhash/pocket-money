@@ -627,12 +627,8 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
               <AddChoreForm
                 defaultKidId={kidId}
                 defaultDueDate={addChoreDefaultDate || undefined}
-                defaultCategoryStatus="TO_DO"
                 onSuccess={handleChoreCreated}
                 onCancel={handleCloseAddChore}
-                enableSubtasks={true}
-                enableRecurrence={true}
-                defaultIsRecurring={false}
               />
             </div>
           </div>
@@ -646,8 +642,6 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
                 initialChore={editingChore}
                 onSuccess={handleCloseEditChore}
                 onCancel={handleCloseEditChore}
-                enableSubtasks={true}
-                enableRecurrence={true}
               />
             </div>
           </div>

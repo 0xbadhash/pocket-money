@@ -1,8 +1,8 @@
 // src/contexts/UserContext.test.tsx
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { UserProvider, useUserContext, User, UserContextType } from './UserContext';
-import type { Kid, KanbanColumnConfig } from '../types';
-import React, { ReactNode } from 'react';
+import { UserProvider, useUserContext } from './UserContext';
+import type { Kid, KanbanColumnConfig, User, UserContextType } from '../types';
+import React, { type ReactNode } from 'react';
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 
 const localStorageMockFactory = () => {

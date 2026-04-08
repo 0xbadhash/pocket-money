@@ -380,7 +380,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div style={{ background: '#fff', padding: 24, borderRadius: 8, minWidth: 320, boxShadow: '0 2px 16px rgba(0,0,0,0.2)' }}>
               <h3 style={{ marginTop: 0 }}>Assign New Chore</h3>
-              <AddChoreForm defaultKidId={kidId} defaultDueDate={addChoreDefaultDate || undefined} defaultCategoryStatus="TO_DO" onSuccess={handleChoreCreated} onCancel={handleCloseAddChore} enableSubtasks enableRecurrence defaultIsRecurring={false} />
+              <AddChoreForm defaultKidId={kidId} defaultDueDate={addChoreDefaultDate || undefined} onSuccess={handleChoreCreated} onCancel={handleCloseAddChore} />
             </div>
           </div>
         )}
@@ -388,7 +388,7 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div style={{ background: '#fff', padding: 24, borderRadius: 8, minWidth: 320, boxShadow: '0 2px 16px rgba(0,0,0,0.2)' }}>
               <h3 style={{ marginTop: 0 }}>Edit Chore</h3>
-              <AddChoreForm initialChore={editingChore} onSuccess={handleCloseEditChore} onCancel={handleCloseEditChore} enableSubtasks enableRecurrence />
+              <AddChoreForm initialChore={editingChore} onSuccess={handleCloseEditChore} onCancel={handleCloseEditChore} />
             </div>
           </div>
         )}
