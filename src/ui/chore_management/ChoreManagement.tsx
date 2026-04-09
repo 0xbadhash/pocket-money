@@ -12,11 +12,6 @@ import type { ChoreDefinition, ChoreInstance, KanbanPeriod, MatrixKanbanCategory
 import KanbanCard from './KanbanCard';
 import DateColumnView from './DateColumnView';
 
-// Types for filter and sort state
-type RewardFilterOption = 'any' | 'has_reward' | 'no_reward';
-type SortByOption = 'instanceDate' | 'title' | 'rewardAmount';
-type SortDirectionOption = 'asc' | 'desc';
-
 /**
  * @interface ActiveDragItem
  * Represents the data associated with the currently dragged Kanban card.

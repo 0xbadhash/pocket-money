@@ -5,7 +5,7 @@ import '@testing-library/jest-dom';
 import InstanceDetailModal from './InstanceDetailModal';
 import { ChoresContext, ChoresContextType } from '../../contexts/ChoresContext';
 import { UserContext, UserContextType } from '../../contexts/UserContext';
-import { ChoreInstance, ChoreDefinition, User, Kid, KanbanColumnConfig, SubTask } from '../../types';
+import { ChoreInstance, ChoreDefinition, User, Kid } from '../../types';
 
 // Mock data
 const mockChoreDefinition: ChoreDefinition = {
