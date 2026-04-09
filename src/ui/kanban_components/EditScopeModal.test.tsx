@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import EditScopeModal from './EditScopeModal'; // Adjust path as necessary
-import { describe, it, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 
 describe('EditScopeModal Component', () => {
   const mockOnClose = vi.fn();

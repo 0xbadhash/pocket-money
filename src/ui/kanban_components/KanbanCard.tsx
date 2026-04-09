@@ -134,7 +134,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
       try {
         await updateChoreDefinition(definition.id, { title: newTitle });
         addNotification({ message: 'Title updated!', type: 'success' });
-      } catch (_e) { addNotification({ message: 'Failed to update title.', type: 'error' }); }
+      } catch { addNotification({ message: 'Failed to update title.', type: 'error' }); }
       finally { setLoadingStates(prev => ({ ...prev, title: false }));}
     }
   };
@@ -256,7 +256,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
 
       <div style={{ fontSize: '0.9em', display: 'flex', gap: '5px', alignItems: 'center', marginTop: '4px' }} onClick={(e) => e.stopPropagation()}> {/* Priority */}
         <span>Priority:</span>
-        {isEditingPriority ? (<select value={editingPriorityValue} onChange={(e) => setEditingPriorityValue(e.target.value as any)} onBlur={handleSavePriority} onKeyDown={handlePrioritySelectKeyDown} autoFocus disabled={instance.isSkipped} onClick={(e) => e.stopPropagation()}><option value="">Default</option><option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option></select>) : (<><span style={getPriorityStyle(effectivePriority)}>{effectivePriority || 'Default'}</span>{!instance.isSkipped && <button onClick={(e) => { e.stopPropagation(); handleEditPriority();}} className="edit-icon-button">✏️</button>}</>)}
+        {isEditingPriority ? (<select value={editingPriorityValue} onChange={(e) => setEditingPriorityValue(e.target.value as 'Low' | 'Medium' | 'High' | '')} onBlur={handleSavePriority} onKeyDown={handlePrioritySelectKeyDown} autoFocus disabled={instance.isSkipped} onClick={(e) => e.stopPropagation()}><option value="">Default</option><option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option></select>) : (<><span style={getPriorityStyle(effectivePriority)}>{effectivePriority || 'Default'}</span>{!instance.isSkipped && <button onClick={(e) => { e.stopPropagation(); handleEditPriority();}} className="edit-icon-button">✏️</button>}</>)}
       </div>
       <div style={{ fontSize: '0.9em', display: 'flex', gap: '5px', alignItems: 'center', marginTop: '4px' }} onClick={(e) => e.stopPropagation()}> {/* Due Date */}
         <span>Due:</span>

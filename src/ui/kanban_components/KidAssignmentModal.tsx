@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import type { Kid } from '../../types';
 import { useUserContext } from '../../contexts/UserContext';
 import { useChoresContext } from '../../contexts/ChoresContext';
 

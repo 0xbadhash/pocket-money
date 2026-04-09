@@ -2,20 +2,36 @@
 # Dependencies
 node_modules/
 
-# Environment
+# Build artifacts
+dist/
+build/
+target/
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Environment variables
 .env
 .env.local
-.env.*
+*.env.*
 
 # Editors
 .vscode/
 .idea/
 
-# Logs and temp files
-*.log
-*.tmp
-*.swp
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
-# Original rules preserved
-*.log
+# Coverage reports
+coverage/
+htmlcov/
+.coverage
+
+# Testing
+.jest/
+.nyc_output/
 ```
