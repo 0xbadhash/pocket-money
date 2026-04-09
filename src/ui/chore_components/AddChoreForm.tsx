@@ -267,26 +267,24 @@ const AddChoreForm = ({
       )}
 
       {/* Sub-tasks Section */}
-      {enableSubtasks && (
-        <div className="sub-tasks-section" style={{ marginTop: '15px', borderTop: '1px solid #eee', paddingTop: '10px' }}>
-          <label>Sub-tasks (Optional):</label>
-          {subTasks.map((subTask, index) => (
-            <div key={subTask.id} className="sub-task-item" style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
-              <input
-                type="text"
-                placeholder={`Sub-task ${index + 1}`}
-                value={subTask.title}
-                onChange={(e) => handleSubTaskTitleChange(subTask.id, e.target.value)}
-                style={{ flexGrow: 1, marginRight: '5px' }}
-              />
-              <button type="button" onClick={() => handleRemoveSubTask(subTask.id)}>Remove</button>
-            </div>
-          ))}
-          <button type="button" onClick={handleAddSubTask} style={{ marginTop: '5px' }}>
-            + Add Sub-task
-          </button>
-        </div>
-      )}
+      <div className="sub-tasks-section" style={{ marginTop: '15px', borderTop: '1px solid #eee', paddingTop: '10px' }}>
+        <label>Sub-tasks (Optional):</label>
+        {subTasks.map((subTask, index) => (
+          <div key={subTask.id} className="sub-task-item" style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+            <input
+              type="text"
+              placeholder={`Sub-task ${index + 1}`}
+              value={subTask.title}
+              onChange={(e) => handleSubTaskTitleChange(subTask.id, e.target.value)}
+              style={{ flexGrow: 1, marginRight: '5px' }}
+            />
+            <button type="button" onClick={() => handleRemoveSubTask(subTask.id)}>Remove</button>
+          </div>
+        ))}
+        <button type="button" onClick={handleAddSubTask} style={{ marginTop: '5px' }}>
+          + Add Sub-task
+        </button>
+      </div>
 
       <button type="submit">{initialChore ? 'Update Chore' : 'Add Chore'}</button>
       {onCancel && (

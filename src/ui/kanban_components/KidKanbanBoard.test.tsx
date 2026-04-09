@@ -18,7 +18,7 @@ vi.mock('./DateColumnView', () => ({
 }));
 
 // Mock AddChoreForm
-vi.mock('../../components/AddChoreForm', () => ({
+vi.mock('../chore_components/AddChoreForm', () => ({
   default: vi.fn(() => <div data-testid="mock-add-chore-form">AddChoreForm</div>),
 }));
 

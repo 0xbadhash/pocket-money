@@ -24,7 +24,7 @@ import {
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { getWeekRange, getMonthRange } from '../../utils/dateUtils';
-import AddChoreForm from '../../components/AddChoreForm';
+import AddChoreForm from '../chore_components/AddChoreForm';
 
 interface ActiveDragItem {
   instance: ChoreInstance;
