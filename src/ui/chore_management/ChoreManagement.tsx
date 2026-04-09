@@ -8,9 +8,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { useUserContext } from '../../contexts/UserContext';
-import type { ChoreDefinition, ChoreInstance, KanbanPeriod, ColumnThemeOption } from '../../types';
-import KanbanCard from './KanbanCard';
-import DateColumnView from './DateColumnView';
+import type { ChoreDefinition, ChoreInstance, KanbanPeriod, ColumnThemeOption, MatrixKanbanCategory } from '../../types';
 import {
   DndContext,
   PointerSensor,

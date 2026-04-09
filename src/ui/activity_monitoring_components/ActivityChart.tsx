@@ -1,5 +1,4 @@
 // src/ui/activity_monitoring_components/ActivityChart.tsx
-import React from 'react';
 import type { Transaction } from '../../types'; // Assuming Transaction is exported
 
 interface ActivityChartProps {

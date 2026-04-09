@@ -1,8 +1,8 @@
 // src/contexts/AppNotificationContext.tsx
-import React, { createContext, useState, useContext, useCallback, useEffect, ReactNode } from 'react';
-import type { AppNotification } from '../types'; // Assuming AppNotification is in types.ts
-import { useChoresContext } from './ChoresContext'; // Dependency
-import { ChoreInstance, ChoreDefinition } from '../types';
+import React, { createContext, useState, useContext, useCallback, useEffect } from 'react';
+import type { ReactNode } from 'react';
+import type { AppNotification, ChoreInstance, ChoreDefinition } from '../types';
+import { useChoresContext } from './ChoresContext';
 
 interface AppNotificationContextType {
   appNotifications: AppNotification[];

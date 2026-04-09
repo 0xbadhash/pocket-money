@@ -3,39 +3,8 @@
 node_modules/
 
 # Build artifacts
-dist/
-build/
-target/
+node_modules/.tmp/
 
-# Python cache
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Testing
-.coverage
-coverage/
-htmlcov/
-
-# Environment
-.env
-.env.local
-.env.*
-
-# Editors
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Logs
-*.log
-
-# Temp files
-*.tmp
-
-# OS
-.DS_Store
-Thumbs.db
+# Backup files
+*.bak
 ```

@@ -1,5 +1,4 @@
 import React from 'react';
-
 interface BatchActionsToolbarProps {
   selectedCount: number;
   onClearSelection: () => void;

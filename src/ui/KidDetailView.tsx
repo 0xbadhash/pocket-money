@@ -1,5 +1,5 @@
 // src/ui/KidDetailView.tsx
-import React, { useContext } from 'react';
+import { useContext } from 'react';
 import { useParams, Link } from 'react-router-dom'; // Import Link for a back button
 import { UserContext } from '../contexts/UserContext';
 

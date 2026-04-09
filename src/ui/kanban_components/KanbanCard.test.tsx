@@ -3,9 +3,48 @@ import { render, screen, cleanup, fireEvent } from '@testing-library/react'; // 
 import userEvent from '@testing-library/user-event';
 import KanbanCard from './KanbanCard';
 import { ChoresContext, ChoresContextType } from '../../contexts/ChoresContext';
+import { UserContext, type UserContextType } from '../../contexts/UserContext';
 import type { ChoreInstance, ChoreDefinition } from '../../types';
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { useSortable } from '@dnd-kit/sortable'; // Import the actual hook
+
+// Mock UserContext
+const mockUserContextValue: UserContextType = {
+  user: {
+    id: 'user123',
+    username: 'TestUser',
+    email: 'test@example.com',
+    kids: [
+      {
+        id: 'kid_a',
+        name: 'Kid A',
+        totalFunds: 0,
+        kanbanColumnConfigs: [
+          { id: 'col1', kidId: 'kid_a', title: 'To Do', order: 0, color: '#FFDDC1', createdAt: '', updatedAt: '', isCompletedColumn: false },
+          { id: 'col2', kidId: 'kid_a', title: 'In Progress', order: 1, color: '#C1FFD7', createdAt: '', updatedAt: '', isCompletedColumn: false },
+          { id: 'col3', kidId: 'kid_a', title: 'Done', order: 2, color: '#C1D4FF', createdAt: '', updatedAt: '', isCompletedColumn: true }
+        ]
+      }
+    ],
+    settings: { theme: 'light' },
+    role: 'admin',
+    createdAt: '',
+    updatedAt: ''
+  },
+  loading: false,
+  error: null,
+  login: vi.fn(),
+  logout: vi.fn(),
+  updateUser: vi.fn(),
+  addKid: vi.fn(),
+  updateKid: vi.fn(),
+  deleteKid: vi.fn(),
+  getKanbanColumnConfigs: vi.fn(() => []),
+  addKanbanColumnConfig: vi.fn(),
+  updateKanbanColumnConfig: vi.fn(),
+  deleteKanbanColumnConfig: vi.fn(),
+  reorderKanbanColumnConfigs: vi.fn()
+} as UserContextType;
 
 // Mock the @dnd-kit/sortable module
 vi.mock('@dnd-kit/sortable', async (importOriginal) => {
@@ -111,16 +150,18 @@ const renderCardWithSpecificDndState = ({
   });
 
   return render(
-    <ChoresContext.Provider value={mockContextValue}>
-      <KanbanCard
-        instance={instance}
-        definition={definition}
-        isOverlay={isOverlay}
-        isSelected={isSelected}
-        onToggleSelection={onToggleSelection}
-        openDetailModal={openDetailModal} // Pass to KanbanCard
-      />
-    </ChoresContext.Provider>
+    <UserContext.Provider value={mockUserContextValue}>
+      <ChoresContext.Provider value={mockContextValue}>
+        <KanbanCard
+          instance={instance}
+          definition={definition}
+          isOverlay={isOverlay}
+          isSelected={isSelected}
+          onToggleSelection={onToggleSelection}
+          openDetailModal={openDetailModal} // Pass to KanbanCard
+        />
+      </ChoresContext.Provider>
+    </UserContext.Provider>
   );
 };
 

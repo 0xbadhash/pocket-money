@@ -1,5 +1,7 @@
-import React, { ReactElement, ReactNode } from 'react';
-import { render, RenderOptions } from '@testing-library/react';
+import React from 'react';
+import type { ReactElement, ReactNode } from 'react';
+import type { RenderOptions } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 
 // Import all your context providers

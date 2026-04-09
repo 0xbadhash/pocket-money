@@ -1,5 +1,4 @@
 // src/ui/kanban_components/CategorySwimlaneView.tsx
-import React from 'react';
 import type { MatrixKanbanCategory, ChoreInstance, ChoreDefinition } from '../../types';
 import KanbanCard from './KanbanCard';
 import { useChoresContext } from '../../contexts/ChoresContext';

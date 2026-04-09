@@ -1,7 +1,7 @@
 // src/types.ts
 
 // Re-export Transaction type directly from FinancialContext
-export { type Transaction } from './contexts/FinancialContext';
+export type { Transaction } from './contexts/FinancialContext';
 
 /**
  * Defines the fixed categories for the Matrix Kanban board.
@@ -9,15 +9,31 @@ export { type Transaction } from './contexts/FinancialContext';
  */
 export type MatrixKanbanCategory = "TO_DO" | "IN_PROGRESS" | "COMPLETED";
 
+/**
+ * Represents user information in the application.
+ */
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  kids: Kid[];
+  settings?: {
+    defaultView?: string;
+    theme?: 'light' | 'dark';
+  };
+  createdAt?: string;
+  updatedAt?: string;
+  role?: 'admin' | 'user';
+}
+
 export interface Kid {
   id: string;
   name: string;
   age?: number;
-  avatarFilename?: string; // Assuming this was added in UserContext or similar
-  totalFunds?: number;     // Assuming this was added
+  avatarFilename?: string;
+  totalFunds?: number;
   /** Optional list of custom Kanban swimlane configurations for this kid (UI term: swimlane). */
   kanbanColumnConfigs?: KanbanColumnConfig[];
-  // Add other kid-specific fields here if needed later
 }
 
 export interface SubTask {
@@ -32,72 +48,40 @@ export interface SubTask {
 
 // Renamed from Chore
 export interface ChoreDefinition {
-  id: string; // Unique ID for the chore definition
+  id: string;
   title: string;
   description?: string;
   assignedKidId?: string;
-  // For non-recurring, this is the due date.
-  // For recurring, this is the START date of recurrence.
   dueDate?: string;
-  /** Optional date before dueDate when instances should start appearing. */
   earlyStartDate?: string;
   rewardAmount?: number;
-  // isComplete for a definition might mean "archived" or "template no longer active"
   isComplete: boolean;
-  recurrenceType?: 'daily' | 'weekly' | 'monthly' | null; // 'none' can be represented by null
-  // For weekly: 0 (Sun) to 6 (Sat). For monthly: 1 to 31.
-  recurrenceDay?: number | null;
-  recurrenceEndDate?: string | null; // Date after which no more instances are generated
-  tags?: string[]; // New field for tags
-  subTasks?: SubTask[]; // New field for sub-tasks
+  recurrenceType?: 'daily' | 'weekly' | 'monthly' | null;
+  recurrenceDay?: number | number[] | null;
+  recurrenceEndDate?: string | null;
+  tags?: string[];
+  subTasks?: SubTask[];
   priority?: 'Low' | 'Medium' | 'High';
   definitionComments?: Array<{ id: string; userId: string; userName: string; text: string; createdAt: string; }>;
+  timeOfDay?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ChoreInstance {
-  /** Unique ID for this specific instance (e.g., `choreDefId + '_' + instanceDate`). */
   id: string;
-  /** The ID of the `ChoreDefinition` this instance is derived from. */
   choreDefinitionId: string;
-  /**
-   * The specific date (YYYY-MM-DD format) for which this chore instance is scheduled or relevant.
-   * This is crucial for positioning on the date axis of the Matrix Kanban.
-   */
   instanceDate: string;
-  /**
-   * Overall completion status of the chore instance.
-   * This is typically true if `categoryStatus` is "COMPLETED".
-   * It can also be updated if all subtasks are completed, potentially leading to an auto-move to "COMPLETED".
-   */
   isComplete: boolean;
-
-  // New/Modified for Matrix Kanban:
-  /**
-   * The current category (swimlane) of the chore instance in the Matrix Kanban.
-   * This will store the ID of a `KanbanColumnConfig`.
-   */
   categoryStatus: string;
-  /**
-   * Tracks the completion status of individual subtasks for this specific chore instance.
-   * Structure: A record where the key is the `subTaskId` (from `ChoreDefinition.subTasks`)
-   * and the value is a boolean indicating if that subtask is completed for this instance.
-   */
   subtaskCompletions: Record<string, boolean>;
-  /**
-   * Stores the state of `subtaskCompletions` before the chore instance was moved into the "COMPLETED" category.
-   * This is used to restore subtask states if the chore is moved back to "IN_PROGRESS" or "TO_DO",
-   * allowing users to uncheck previously completed subtasks if needed. Optional.
-   */
   previousSubtaskCompletions?: Record<string, boolean>;
-
-  // Optional: if reward is snapshotted per instance or can vary
-  overriddenRewardAmount?: number; // For instance-specific reward override
-  // kanbanColumnId?: string; // Removed in favor of categoryStatus for Matrix Kanban
-  priority?: 'Low' | 'Medium' | 'High'; // Can override definition's priority
+  overriddenRewardAmount?: number;
+  priority?: 'Low' | 'Medium' | 'High';
   instanceComments?: Array<{ id: string; userId: string; userName: string; text: string; createdAt: string; }>;
   isSkipped?: boolean;
   activityLog?: Array<{ timestamp: string; action: string; userId?: string; userName?: string; details?: string; }>;
-  instanceDescription?: string; // New field for instance-specific description
+  instanceDescription?: string;
 }
 
 /**

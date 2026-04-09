@@ -1,28 +1,15 @@
 // src/contexts/UserContext.tsx
-import React, { createContext, useState, useEffect, ReactNode, useContext, useMemo } from 'react';
-import type { User, Kid, KanbanColumnConfig } from '../types'; // Import Kid and KanbanColumnConfig types
-
-export interface User {
-  id: string;
-  username: string;
-  email: string;
-  kids: Kid[];
-  settings?: {
-    defaultView?: string;
-    theme?: 'light' | 'dark';
-  };
-  createdAt?: string;
-  updatedAt?: string;
-  role?: 'admin' | 'user';
-}
+import React, { createContext, useState, useEffect, useContext, useMemo } from 'react';
+import type { ReactNode } from 'react';
+import type { User as UserType, Kid, KanbanColumnConfig } from '../types';
 
 export interface UserContextType {
-  user: User | null;
+  user: UserType | null;
   loading: boolean;
   error: string | null;
-  login: (userData: User) => void;
+  login: (userData: UserType) => void;
   logout: () => void;
-  updateUser: (updatedUserData: Partial<User>) => void;
+  updateUser: (updatedUserData: Partial<UserType>) => void;
   addKid: (kidData: Omit<Kid, 'id' | 'kanbanColumnConfigs' | 'totalFunds'> & { totalFunds?: number }) => string | undefined;
   updateKid: (updatedKidData: Kid) => void;
   deleteKid: (kidId: string) => void;
@@ -49,7 +36,7 @@ interface UserProviderProps {
 
 export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserType | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,13 +64,13 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         ]
       },
     ];
-    const sampleUser: User = {
+    const sampleUser: UserType = {
       id: 'user123',
       username: 'MockUser',
       email: 'user@example.com',
       kids: sampleKids,
       settings: { theme: 'light' },
-      role: 'admin', // Added role
+      role: 'admin',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -97,15 +84,13 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     user,
     loading,
     error,
-    login: (userData: User) => {
+    login: (userData: UserType) => {
       setUser(userData);
-      // console.log('Mock login called with:', userData); // Optional: for debugging
     },
     logout: () => {
       setUser(null);
-      // console.log('Mock logout called'); // Optional: for debugging
     },
-    updateUser: (updatedUserData: Partial<User>) => {
+    updateUser: (updatedUserData: Partial<UserType>) => {
       // console.log('Mock updateUser called with:', updatedUserData); // Optional: for debugging
       if (user) {
         setUser({ ...user, ...updatedUserData });
@@ -114,17 +99,16 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     addKid: (kidData: Omit<Kid, 'id' | 'kanbanColumnConfigs' | 'totalFunds'> & { totalFunds?: number }) => {
       if (user) {
         const now = new Date().toISOString();
-        const kidIdBase = `kid_${Date.now()}`; // More robust base for unique IDs
+        const kidIdBase = `kid_${Date.now()}`;
 
         const newKid: Kid = {
           id: kidIdBase,
           name: kidData.name,
           totalFunds: kidData.totalFunds || 0,
-          // Default Kanban Column Configs
           kanbanColumnConfigs: [
-            { id: `${kidIdBase}_col_0`, kidId: kidIdBase, title: 'To Do', order: 0, color: '#FFAB91', createdAt: now, updatedAt: now, isCompletedColumn: false }, // Light Coral
-            { id: `${kidIdBase}_col_1`, kidId: kidIdBase, title: 'In Progress', order: 1, color: '#FFF59D', createdAt: now, updatedAt: now, isCompletedColumn: false }, // Light Yellow
-            { id: `${kidIdBase}_col_2`, kidId: kidIdBase, title: 'Done', order: 2, color: '#A5D6A7', createdAt: now, updatedAt: now, isCompletedColumn: true } // Light Green
+            { id: `${kidIdBase}_col_0`, kidId: kidIdBase, title: 'To Do', order: 0, color: '#FFAB91', createdAt: now, updatedAt: now, isCompletedColumn: false },
+            { id: `${kidIdBase}_col_1`, kidId: kidIdBase, title: 'In Progress', order: 1, color: '#FFF59D', createdAt: now, updatedAt: now, isCompletedColumn: false },
+            { id: `${kidIdBase}_col_2`, kidId: kidIdBase, title: 'Done', order: 2, color: '#A5D6A7', createdAt: now, updatedAt: now, isCompletedColumn: true }
           ],
         };
         setUser({ ...user, kids: [...user.kids, newKid] });
@@ -136,13 +120,13 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       if (user) {
         setUser({
           ...user,
-          kids: user.kids.map((kid: Kid) => kid.id === updatedKidData.id ? updatedKidData : kid),
+          kids: user.kids.map((kid) => kid.id === updatedKidData.id ? updatedKidData : kid),
         });
       }
     },
     deleteKid: (kidId: string) => {
       if (user) {
-        setUser({ ...user, kids: user.kids.filter((kid: Kid) => kid.id !== kidId) });
+        setUser({ ...user, kids: user.kids.filter((kid) => kid.id !== kidId) });
       }
     },
     getKanbanColumnConfigs: (kidId: string) => {

@@ -8,7 +8,7 @@ import { generateChoreInstances } from '../utils/choreUtils';
 
 export type KanbanChoreOrders = Record<string, string[]>;
 
-interface ChoresContextType {
+export interface ChoresContextType {
   choreDefinitions: ChoreDefinition[];
   choreInstances: ChoreInstance[];
   addChoreDefinition: (choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete' | 'definitionComments' | 'activityLog'>) => void; // activityLog not on definition
@@ -25,7 +25,7 @@ interface ChoresContextType {
   batchAssignChoreDefinitionsToKid: (definitionIds: string[], newKidId: string | null) => Promise<void>;
   updateChoreSeries: (
     definitionId: string,
-    updates: Partial<Pick<ChoreDefinition, 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'hour' | 'minute' | 'timeOfDay' | 'priority'>>,
+    updates: Partial<Pick<ChoreDefinition, 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'timeOfDay' | 'priority'>>,
     fromDate: string,
     fieldName: 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'timeOfDay' | 'priority'
   ) => Promise<void>;
@@ -343,7 +343,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
              const newReward = value !== undefined ? value : baseReward;
             updatedInst = logActivity(updatedInst, 'Reward Changed', currentUser?.id, currentUser?.username, `to $${Number(newReward).toFixed(2)}`);
           } else if (fieldName === 'instanceDescription') {
-            updatedInst = logActivity(updatedInst, 'Instance Description Updated', currentUser?.id, currentUser?.username, value ? `to "${value.substring(0,30)}..."` : 'cleared');
+            updatedInst = logActivity(updatedInst, 'Instance Description Updated', currentUser?.id, currentUser?.username, value ? `to "${String(value).substring(0,30)}..."` : 'cleared');
           }
           return updatedInst;
         }
@@ -452,13 +452,13 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
             text: commentText,
             createdAt: new Date().toISOString(),
           };
-          let updatedInst = {
+          const updatedInstWithComments = {
             ...inst,
-            instanceComments: [...(inst.instanceComments || []), newCommentEntry],
+            instanceComments: [...(inst.instanceComments || []), newCommentEntry] as typeof inst.instanceComments,
           };
           // Log the comment addition to activityLog
-          updatedInst = logActivity(updatedInst, 'Comment Added', userId, userName, `"${commentText.substring(0, 30)}..."`);
-          return updatedInst;
+          const updatedInst = logActivity(updatedInstWithComments, 'Comment Added', userId, userName, `"${commentText.substring(0, 30)}..."`);
+          return updatedInst as ChoreInstance;
         }
         return inst;
       })
@@ -469,7 +469,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     setChoreInstances(prevInstances =>
       prevInstances.map(inst => {
         if (inst.id === instanceId) {
-          let updatedInst = { ...inst, isSkipped: !inst.isSkipped };
+          let updatedInst = { ...inst, isSkipped: !inst.isSkipped } as ChoreInstance;
           updatedInst = logActivity(updatedInst, updatedInst.isSkipped ? 'Instance Skipped' : 'Instance Unskipped', currentUser?.id, currentUser?.username);
           return updatedInst;
         }
@@ -480,7 +480,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
 
   const updateChoreSeries = useCallback(async (
     definitionId: string,
-    updates: Partial<Pick<ChoreDefinition, 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'hour' | 'minute' | 'timeOfDay' | 'priority'>>,
+    updates: Partial<Pick<ChoreDefinition, 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'timeOfDay' | 'priority'>>,
     fromDate: string,
     fieldName: 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'timeOfDay' | 'priority'
   ) => {
@@ -491,7 +491,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       const originalDefinition = prevDefs[definitionIndex];
       const updatedDefinitionFields = { ...updates };
       if (updates.subTasks) {
-        updatedDefinitionFields.subTasks = updates.subTasks.map((st, index) => ({ id: st.id || `st_${Date.now()}_${index}`, ...st }));
+        updatedDefinitionFields.subTasks = updates.subTasks.map((st, index) => ({ ...st, id: st.id || `st_${Date.now()}_${index}` }));
       }
       const newDefinition: ChoreDefinition = { ...originalDefinition, ...updatedDefinitionFields, updatedAt: new Date().toISOString() };
       const newDefinitions = [...prevDefs];

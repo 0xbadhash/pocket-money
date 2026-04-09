@@ -1,5 +1,5 @@
 // src/ui/settings_components/KidAccountSettings.tsx
-import React, { useContext } from 'react'; // Import useContext
+import { useContext } from 'react'; // Import useContext
 import { Link } from 'react-router-dom'; // <-- New Import
 import { UserContext } from '../../contexts/UserContext'; // Adjust path as needed
 

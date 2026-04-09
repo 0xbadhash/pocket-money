@@ -1,5 +1,4 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AddChoreForm from './AddChoreForm'; // Assuming path is correct

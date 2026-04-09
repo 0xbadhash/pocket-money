@@ -1,5 +1,4 @@
 // src/ui/dashboard_components/TotalFundsSummary.tsx
-import React from 'react';
 import { useFinancialContext } from '../../contexts/FinancialContext'; // Adjust path as needed
 
 const TotalFundsSummary = () => {

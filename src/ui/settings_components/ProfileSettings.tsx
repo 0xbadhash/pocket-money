@@ -1,5 +1,5 @@
 // src/ui/settings_components/ProfileSettings.tsx
-import React, { useContext } from 'react';
+import { useContext } from 'react';
 import { UserContext } from '../../contexts/UserContext';
 
 const ProfileSettings = () => {
@@ -37,7 +37,7 @@ const ProfileSettings = () => {
     <div className="settings-section">
       <h2>Profile Management</h2>
       <div className="settings-item">
-        <label>Name:</label> <span>{user.name}</span>
+        <label>Username:</label> <span>{user.username}</span>
       </div>
       <div className="settings-item">
         <label>Email:</label> <span>{user.email}</span>

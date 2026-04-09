@@ -21,15 +21,21 @@ const ChoreList: React.FC<ChoreListProps> = ({ choresToDisplay }) => {
 
   // Format recurrence info and show both due/start date and recurrence
   const formatRecurrenceInfo = (chore: ChoreDefinition): string | null => {
-    if (!chore.recurrenceType || chore.recurrenceType === 'none' || chore.recurrenceType === null) {
+    if (!chore.recurrenceType || chore.recurrenceType === null) {
       return null;
     }
     let info = `Repeats ${chore.recurrenceType}`;
     if (chore.recurrenceType === 'weekly' && chore.recurrenceDay !== null && chore.recurrenceDay !== undefined) {
       const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-      info += ` on ${days[chore.recurrenceDay]}`;
+      const dayIndex = Array.isArray(chore.recurrenceDay) ? chore.recurrenceDay[0] : chore.recurrenceDay;
+      if (dayIndex !== null && dayIndex !== undefined) {
+        info += ` on ${days[dayIndex]}`;
+      }
     } else if (chore.recurrenceType === 'monthly' && chore.recurrenceDay) {
-      info += ` on day ${chore.recurrenceDay}`;
+      const dayValue = Array.isArray(chore.recurrenceDay) ? chore.recurrenceDay[0] : chore.recurrenceDay;
+      if (dayValue) {
+        info += ` on day ${dayValue}`;
+      }
     }
     if (chore.recurrenceEndDate) {
       info += ` until ${chore.recurrenceEndDate}`;
@@ -57,7 +63,7 @@ const ChoreList: React.FC<ChoreListProps> = ({ choresToDisplay }) => {
             {/* Show Due Date as Start Date for recurring chores */}
             {chore.dueDate && (
               <p>
-                {chore.recurrenceType && chore.recurrenceType !== 'none' && chore.recurrenceType !== null
+                {chore.recurrenceType && chore.recurrenceType !== null
                   ? `Start Date: ${chore.dueDate}`
                   : `Due Date: ${chore.dueDate}`}
               </p>

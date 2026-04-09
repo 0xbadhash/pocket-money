@@ -1,5 +1,4 @@
 import React from 'react';
-
 export type EditScope = 'instance' | 'series';
 
 interface EditScopeModalProps {

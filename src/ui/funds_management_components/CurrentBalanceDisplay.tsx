@@ -1,5 +1,5 @@
 // src/ui/funds_management_components/CurrentBalanceDisplay.tsx
-import React from 'react'; // useContext will be brought in by the custom hook
+// useContext will be brought in by the custom hook
 import { useFinancialContext } from '../../contexts/FinancialContext'; // Import custom hook
 
 const CurrentBalanceDisplay = () => {

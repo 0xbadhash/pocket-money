@@ -1,10 +1,64 @@
 // src/contexts/ChoresContext.test.tsx
 import { renderHook, act } from '@testing-library/react';
 import { ChoresProvider, useChoresContext } from './ChoresContext';
-import React, { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { FinancialContext, FinancialContextType } from './FinancialContext';
+import { FinancialContext, type FinancialContextType } from './FinancialContext';
 import type { ChoreInstance, ChoreDefinition } from '../types';
+import { UserContext, type UserContextType } from './UserContext';
+
+// Mock UserContext
+const mockUserContextValue: UserContextType = {
+  user: {
+    id: 'user123',
+    username: 'TestUser',
+    email: 'test@example.com',
+    kids: [
+      {
+        id: 'kid_a',
+        name: 'Kid A',
+        totalFunds: 0,
+        kanbanColumnConfigs: [
+          { id: 'col1', kidId: 'kid_a', title: 'To Do', order: 0, color: '#FFDDC1', createdAt: '', updatedAt: '', isCompletedColumn: false },
+          { id: 'col2', kidId: 'kid_a', title: 'In Progress', order: 1, color: '#C1FFD7', createdAt: '', updatedAt: '', isCompletedColumn: false },
+          { id: 'col3', kidId: 'kid_a', title: 'Done', order: 2, color: '#C1D4FF', createdAt: '', updatedAt: '', isCompletedColumn: true }
+        ]
+      },
+      {
+        id: 'kid_b',
+        name: 'Kid B',
+        totalFunds: 0,
+        kanbanColumnConfigs: []
+      }
+    ],
+    settings: { theme: 'light' },
+    role: 'admin',
+    createdAt: '',
+    updatedAt: ''
+  },
+  loading: false,
+  error: null,
+  login: vi.fn(),
+  logout: vi.fn(),
+  updateUser: vi.fn(),
+  addKid: vi.fn(),
+  updateKid: vi.fn(),
+  deleteKid: vi.fn(),
+  getKanbanColumnConfigs: vi.fn((kidId: string) => {
+    if (kidId === 'kid_a') {
+      return [
+        { id: 'col1', kidId: 'kid_a', title: 'To Do', order: 0, color: '#FFDDC1', createdAt: '', updatedAt: '', isCompletedColumn: false },
+        { id: 'col2', kidId: 'kid_a', title: 'In Progress', order: 1, color: '#C1FFD7', createdAt: '', updatedAt: '', isCompletedColumn: false },
+        { id: 'col3', kidId: 'kid_a', title: 'Done', order: 2, color: '#C1D4FF', createdAt: '', updatedAt: '', isCompletedColumn: true }
+      ];
+    }
+    return [];
+  }),
+  addKanbanColumnConfig: vi.fn(),
+  updateKanbanColumnConfig: vi.fn(),
+  deleteKanbanColumnConfig: vi.fn(),
+  reorderKanbanColumnConfigs: vi.fn()
+} as UserContextType;
 
 // Mock localStorage
 const localStorageMockFactory = () => {
@@ -21,19 +75,17 @@ let localStorageMock = localStorageMockFactory();
 // Mock FinancialContext as ChoresProvider uses it
 const mockAddKidReward = vi.fn();
 const mockFinancialContextValue: FinancialContextType = {
-  transactions: [],
+  financialData: { currentBalance: 0, transactions: [] },
   addTransaction: vi.fn(),
   addKidReward: mockAddKidReward,
-  getTransactionsForKid: vi.fn(() => []),
-  getFundsForKid: vi.fn(() => 0),
-  loading: false,
-  error: null,
-};
+} as FinancialContextType;
 
 const wrapper = ({ children }: { children: ReactNode }) => (
-  <FinancialContext.Provider value={mockFinancialContextValue}>
-    <ChoresProvider>{children}</ChoresProvider>
-  </FinancialContext.Provider>
+  <UserContext.Provider value={mockUserContextValue}>
+    <FinancialContext.Provider value={mockFinancialContextValue}>
+      <ChoresProvider>{children}</ChoresProvider>
+    </FinancialContext.Provider>
+  </UserContext.Provider>
 );
 
 const initialTestDefinitions: ChoreDefinition[] = [
@@ -476,9 +528,6 @@ describe('ChoresContext - Instance Description and Comments Activity Log', () =>
         if (key === 'choreInstances') return JSON.stringify(testInstances);
         return null;
     });
-     // Mock currentUser from UserContext for logActivity
-     const mockUserContextValue = { user: { id: testUserId, username: testUserName, kids:[], email:'' } };
-    (useUserContext as vi.Mock).mockReturnValue(mockUserContextValue);
   });
 
   test('generateInstancesForPeriod initializes instanceDescription as undefined', () => {
