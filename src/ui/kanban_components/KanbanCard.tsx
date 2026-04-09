@@ -81,7 +81,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   // Update pendingEdit type and logic to use 'overriddenRewardAmount' for instance-level reward override
   const [pendingEdit, setPendingEdit] = useState<{
     fieldName: 'instanceDate' | 'overriddenRewardAmount' | 'priority',
-    value: any,
+    value: unknown,
     definitionId: string,
     instanceId: string,
     fromDateForSeries: string
@@ -98,7 +98,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
       }
       // For reward, updateChoreSeries expects 'rewardAmount' as the key
       const defField = fieldName === 'overriddenRewardAmount' ? 'rewardAmount' : fieldName;
-      await updateChoreSeries(definitionId, { [defField]: value } as any, fromDateForSeries, defField as any);
+      await updateChoreSeries(definitionId, { [defField]: value }, fromDateForSeries, defField as keyof ChoreDefinition);
     }
     closeEditScopeModal();
   };
@@ -134,7 +134,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
       try {
         await updateChoreDefinition(definition.id, { title: newTitle });
         addNotification({ message: 'Title updated!', type: 'success' });
-      } catch (e) { addNotification({ message: 'Failed to update title.', type: 'error' }); }
+      } catch (_e) { addNotification({ message: 'Failed to update title.', type: 'error' }); }
       finally { setLoadingStates(prev => ({ ...prev, title: false }));}
     }
   };
@@ -175,7 +175,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   };
   const recurrenceInfo = formatRecurrenceInfoShort(definition);
   const effectivePriority = instance.priority || definition.priority;
-  const assignedKid = definition.assignedKidId && user?.kids ? user.kids.find((k: any) => k.id === definition.assignedKidId) : undefined;
+  const assignedKid = definition.assignedKidId && user?.kids ? user.kids.find((k: Kid) => k.id === definition.assignedKidId) : undefined;
   const [showMenu, setShowMenu] = useState(false);
   useEffect(() => { /* ... (menu closing logic from previous subtasks) ... */
       if (!showMenu) return;

@@ -50,7 +50,7 @@ const InstanceDetailModal: React.FC<InstanceDetailModalProps> = ({
     return null;
   }
 
-  const handleSaveField = async (fieldName: keyof ChoreInstance, value: any) => {
+  const handleSaveField = async (fieldName: keyof ChoreInstance, value: unknown) => {
     if (!choreInstance) return;
     try {
       await updateChoreInstanceField(choreInstance.id, fieldName, value);
@@ -243,7 +243,6 @@ const InstanceDetailModal: React.FC<InstanceDetailModalProps> = ({
     return ( <div style={overlayStyle} onClick={onClose}><div style={modalStyle}><div style={headerStyle}><h2 style={titleStyle}>Chore Details</h2><button onClick={onClose} style={closeButtonStyle}>&times;</button></div><p>Chore data not available.</p></div></div> );
   }
 
-  const effectivePriority = choreInstance.priority || choreDefinition.priority || 'N/A';
   const definitionSubtasks = choreDefinition.subTasks || [];
   const completedSubtasksCount = definitionSubtasks.filter(st => choreInstance.subtaskCompletions?.[st.id]).length;
   const totalSubtasksCount = definitionSubtasks.length;

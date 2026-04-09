@@ -2,7 +2,6 @@
 import React, { useContext } from 'react';
 import { useParams, Link } from 'react-router-dom'; // Import Link for a back button
 import { UserContext } from '../contexts/UserContext';
-import type { Kid } from '../types'; // Assuming Kid type is in ../types
 
 const KidDetailView = () => {
   const { kidId } = useParams<{ kidId: string }>();
