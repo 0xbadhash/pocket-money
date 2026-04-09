@@ -5,9 +5,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { useUserContext } from '../../contexts/UserContext';
-import type { ChoreDefinition, ChoreInstance, KanbanPeriod, Kid, ColumnThemeOption, MatrixKanbanCategory } from '../../types';
+import type { ChoreDefinition, ChoreInstance, KanbanPeriod, ColumnThemeOption } from '../../types';
 import KanbanCard from './KanbanCard';
 import DateColumnView from './DateColumnView';
+import { getTodayDateString, getWeekRange, getMonthRange } from '../../utils/dateUtils';
 import { useChoreSelection } from '../../hooks/useChoreSelection';
 import { useModalState } from '../../hooks/useModalState';
 import BatchActionsToolbar from './BatchActionsToolbar';
@@ -24,7 +25,6 @@ import {
 } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'; // Removed arrayMove as it's not used
-import { getTodayDateString, getWeekRange, getMonthRange } from '../../utils/dateUtils';
 import AddChoreForm from '../../components/AddChoreForm';
 
 interface ActiveDragItem {

@@ -2,11 +2,11 @@
 import { render, screen, act, waitFor, fireEvent } from '@testing-library/react'; // Added fireEvent
 import userEvent from '@testing-library/user-event';
 import KanbanSettingsView from './KanbanSettingsView'; // Uncommented import
-import { UserContext, UserContextType, User } from '../../contexts/UserContext';
+import { UserContext, UserContextType } from '../../contexts/UserContext';
 // ChoresContext is not directly used by KanbanSettingsView, so a minimal or no mock is needed unless UserProvider depends on it.
 // For now, assuming UserProvider is self-contained for these tests.
 import type { Kid, KanbanColumnConfig } from '../../types';
-import { describe, it, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { describe, expect, vi, beforeEach } from 'vitest';
 import type { DragEndEvent } from '@dnd-kit/core';
 import type { ReactNode } from 'react'; // Import as type only
 

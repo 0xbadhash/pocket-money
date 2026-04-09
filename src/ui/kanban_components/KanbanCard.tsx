@@ -84,7 +84,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
   };
   const [pendingEdit, setPendingEdit] = useState<{
     fieldName: 'instanceDate' | 'rewardAmount',
-    value: any,
+    value: unknown,
     definitionId: string,
     instanceId: string,
     fromDateForSeries: string // This is the instanceDate of the edited instance
@@ -304,7 +304,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({
     if (def.recurrenceEndDate) {
       try {
         info += ` until ${new Date(def.recurrenceEndDate).toISOString().split('T')[0]}`;
-      } catch (e) {
+      } catch {
         console.warn(`Invalid recurrenceEndDate format for chore definition ${def.id}: ${def.recurrenceEndDate}`);
         info += ` until (invalid date)`;
       }

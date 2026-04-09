@@ -85,7 +85,6 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   // const [error, setError] = useState<string | null>(null);
 
   // Define minimal state:
-  const [minimalTestValue, setMinimalTestValue] = useState('initialNuclearValue');
   // Minimal isLoading state, as it's part of UserContextType
   const [isLoading] = useState(false);
 
@@ -138,7 +137,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       // Include minimalTestValue if testing context propagation (optional for this step)
       // minimalTestValue: minimalTestValue
     };
-  }, [isLoading, minimalTestValue]); // minimalTestValue added if used in context
+  }, [isLoading]); // minimalTestValue added if used in context
 
   return (
     <UserContext.Provider value={contextValue}>

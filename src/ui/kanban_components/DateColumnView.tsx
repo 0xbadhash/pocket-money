@@ -2,10 +2,7 @@
 import React, { useMemo } from 'react';
 import KanbanCard from './KanbanCard';
 import { useChoresContext } from '../../contexts/ChoresContext';
-import { useUserContext } from '../../contexts/UserContext';
-import type { MatrixKanbanCategory, ChoreInstance, ChoreDefinition, KanbanColumnConfig } from '../../types';
-
-// Duplicate import removed by consolidation above
+import type { MatrixKanbanCategory, ChoreDefinition, KanbanColumnConfig } from '../../types';
 
 interface DateColumnViewProps {
   date: Date;
@@ -69,7 +66,7 @@ const DateColumnView: React.FC<DateColumnViewProps> = ({
       const b = parseInt(hexColor.slice(5, 7), 16);
       const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
       return luminance > 0.5 ? '#333333' : '#FFFFFF'; // Dark text on light bg, White text on dark bg
-    } catch (e) {
+    } catch {
       return '#333333'; // Fallback in case of parsing error
     }
   };

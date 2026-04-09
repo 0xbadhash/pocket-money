@@ -1,48 +1,23 @@
 import React from 'react';
-import { render, screen, fireEvent } from '../test-utils'; // Corrected import path
+import { render, screen } from '../test-utils'; // Corrected import path
 // Import hooks to mock their return values
-import { useUserContext } from '../contexts/UserContext';
 import { useChoresContext } from '../contexts/ChoresContext';
 import KanbanView from './KanbanView';
-import type { Kid } from '../types';
-import { describe, it, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { describe, expect, vi, beforeEach } from 'vitest';
 
 // Mock KidKanbanBoard - COMMENTED OUT FOR DIAGNOSTIC
 // vi.mock('./kanban_components/KidKanbanBoard', () => ({
 //   default: vi.fn(() => <div data-testid="kid-kanban-board">KidKanbanBoard Mock</div>)
 // }));
 
-const mockKids: Kid[] = [
-  { id: 'kid1', name: 'Alice', kanbanColumnConfigs: [] },
-  { id: 'kid2', name: 'Bob', kanbanColumnConfigs: [] },
-];
-
 // Mock context hooks
 // vi.mock('../contexts/UserContext'); // CRITICAL: Commented out for Nuclear Option test
 vi.mock('../contexts/ChoresContext');
 
 // Get typed access to the mocks
-const mockedUseUserContext = useUserContext as vi.Mock;
 const mockedUseChoresContext = useChoresContext as vi.Mock;
 
 describe('KanbanView', () => {
-  const comprehensiveUserContextMockValue = (kids: Kid[] | null, loading: boolean = false) => ({
-    user: kids ? { id: 'user1', username: 'Test User', email: 'test@example.com', kids: kids, settings: {}, createdAt: '', updatedAt: '' } : null,
-    loading: loading,
-    error: null,
-    login: vi.fn(),
-    logout: vi.fn(),
-    updateUser: vi.fn(),
-    addKid: vi.fn(() => 'new_kid_id'),
-    updateKid: vi.fn(),
-    deleteKid: vi.fn(),
-    getKanbanColumnConfigs: vi.fn(() => []),
-    addKanbanColumnConfig: vi.fn(async () => {}),
-    updateKanbanColumnConfig: vi.fn(async () => {}),
-    deleteKanbanColumnConfig: vi.fn(async () => {}),
-    reorderKanbanColumnConfigs: vi.fn(async () => {}),
-  });
-
   const comprehensiveChoresContextMockValue = {
     choreInstances: [],
     choreDefinitions: [],
@@ -63,15 +38,11 @@ describe('KanbanView', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // mockedUseUserContext.mockReturnValue(comprehensiveUserContextMockValue(mockKids, false)); // No longer mocking UserContext
     mockedUseChoresContext.mockReturnValue(comprehensiveChoresContextMockValue);
   });
 
   // Modified test for diagnostics
   it('diagnostic: renders minimal KanbanView shell', () => {
-    // Set up a specific state for this diagnostic test, e.g., loading state
-    // mockedUseUserContext.mockReturnValue(comprehensiveUserContextMockValue(null, true)); // No longer mocking UserContext
-
     render(<KanbanView />);
 
     // Primary assertion: Does the container render?

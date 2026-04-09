@@ -9,7 +9,7 @@ import type { Kid, KanbanColumnConfig } from '../../types';
 import type { ReactNode } from 'react'; // Import ReactNode for wrapper type
 
 // Mock dnd-kit
-let dndContextProps: any = {}; // To capture DndContext props like onDragEnd
+let dndContextProps: Record<string, unknown> = {}; // To capture DndContext props like onDragEnd
 vi.mock('@dnd-kit/core', async (importOriginal) => {
     const actual = await importOriginal() as object;
     return {
@@ -251,8 +251,8 @@ describe('KanbanSettingsView', () => {
     // Simulate drag end: move Column C (cfgC) to the position of Column A (cfgA)
     // Original order: A, B, C. New order: C, A, B
     const dragEndEvent: DragEndEvent = { // Type DragEndEvent from @dnd-kit/core
-      active: { id: 'cfgC', data: { current: { sortable: { index: 2, containerId: kid1Id } } } } as any,
-      over: { id: 'cfgA', data: { current: { sortable: { index: 0, containerId: kid1Id } } } } as any,
+      active: { id: 'cfgC', data: { current: { sortable: { index: 2, containerId: kid1Id } } } },
+      over: { id: 'cfgA', data: { current: { sortable: { index: 0, containerId: kid1Id } } } },
       delta: {x:0, y:0}, collisions: null,
     };
 

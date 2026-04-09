@@ -1,13 +1,13 @@
 // src/ui/kanban_components/KanbanColumn.test.tsx
 // mock declarations at the very top
-let mockKanbanCard: any;
-let mockSortableContextFn: any;
+let mockKanbanCard: unknown;
+let mockSortableContextFn: unknown;
 
 // mockKanbanCard and mockSortableContextFn must be declared before imports for Vitest hoisting
 import { render, screen } from '@testing-library/react';
 import KanbanColumn from './KanbanColumn';
 import type { KanbanColumn as KanbanColumnType, ChoreInstance, ChoreDefinition } from '../../types';
-import { describe, it, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { describe, test, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 const mockGetDefinitionForInstance = vi.fn((instance: ChoreInstance): ChoreDefinition | undefined => ({
@@ -38,13 +38,13 @@ const getDefMockMissing = vi.fn((instance: ChoreInstance): ChoreDefinition | und
 
 // Mock KanbanCard and SortableContext using functions that reference the current mock variable
 vi.mock('./KanbanCard', () => ({
-  default: (...args: any[]) => mockKanbanCard(...args),
+  default: (...args: unknown[]) => mockKanbanCard(...args),
 }));
 vi.mock('@dnd-kit/sortable', async (importOriginal) => {
   const actualSortable = await importOriginal() as object;
   return {
     ...actualSortable,
-    SortableContext: (...args: any[]) => mockSortableContextFn(...args),
+    SortableContext: (...args: unknown[]) => mockSortableContextFn(...args),
   };
 });
 

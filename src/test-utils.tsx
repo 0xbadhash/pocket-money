@@ -4,10 +4,6 @@ import { BrowserRouter } from 'react-router-dom';
 
 // Import all your context providers
 import { UserProvider } from './contexts/UserContext';
-import { FinancialProvider } from './contexts/FinancialContext';
-import { ChoresProvider } from './contexts/ChoresContext';
-import { NotificationProvider } from './contexts/NotificationContext';
-import { AppNotificationProvider } from './contexts/AppNotificationContext';
 
 // Define the wrapper component with all providers active
 const AllTheProviders: React.FC<{children: ReactNode}> = ({ children }) => {

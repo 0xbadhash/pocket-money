@@ -57,7 +57,7 @@ interface ChoresContextType {
   /** Updates specified fields of a chore definition. */
   updateChoreDefinition: (definitionId: string, updates: Partial<ChoreDefinition>) => Promise<void>;
   /** Updates a specific field of a chore instance. */
-  updateChoreInstanceField: (instanceId: string, fieldName: keyof ChoreInstance, value: any) => Promise<void>;
+  updateChoreInstanceField: (instanceId: string, fieldName: keyof ChoreInstance, value: unknown) => Promise<void>;
   /** Batch marks chore instances as complete or incomplete. */
   batchToggleCompleteChoreInstances: (instanceIds: string[], markAsComplete: boolean) => Promise<void>;
   /** Batch updates the category for multiple chore instances. */
@@ -246,7 +246,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
 
     const newInstancesWithMatrixFields = rawNewInstances.map(rawInstance => {
       const definition = choreDefinitions.find(def => def.id === rawInstance.choreDefinitionId);
-      let initialSubtaskCompletions: Record<string, boolean> = {};
+      const initialSubtaskCompletions: Record<string, boolean> = {};
       if (definition && definition.subTasks) {
         definition.subTasks.forEach(st => {
           initialSubtaskCompletions[st.id] = st.isComplete || false;
@@ -572,7 +572,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     );
   }, [setChoreDefinitions]);
 
-  const updateChoreInstanceField = useCallback(async (instanceId: string, fieldName: keyof ChoreInstance, value: any) => {
+  const updateChoreInstanceField = useCallback(async (instanceId: string, fieldName: keyof ChoreInstance, value: unknown) => {
     setChoreInstances(prevInstances =>
       prevInstances.map(inst => {
         if (inst.id === instanceId) {
@@ -656,7 +656,6 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     definitionId: string,
     updates: Partial<Pick<ChoreDefinition, 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'hour' | 'minute' | 'timeOfDay'>>,
     fromDate: string, // YYYY-MM-DD format
-    fieldName: 'rewardAmount' | 'dueDate' | 'description' | 'subTasks' | 'timeOfDay'
   ) => {
     setChoreDefinitions(prevDefs => {
       const definitionIndex = prevDefs.findIndex(d => d.id === definitionId);
@@ -666,7 +665,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       }
       const originalDefinition = prevDefs[definitionIndex];
 
-      let updatedDefinitionFields = { ...updates };
+      const updatedDefinitionFields = { ...updates };
 
       // If dueDate is being updated, it's the primary field in 'updates'.
       // Other fields are applied directly.
@@ -711,7 +710,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
             );
 
             newFutureInstances = rawNewFutureInstances.map(rawInstance => {
-                let initialSubtaskCompletions: Record<string, boolean> = {};
+                const initialSubtaskCompletions: Record<string, boolean> = {};
                 if (newDefinition.subTasks) {
                     newDefinition.subTasks.forEach(st => {
                     initialSubtaskCompletions[st.id] = st.isComplete || false;

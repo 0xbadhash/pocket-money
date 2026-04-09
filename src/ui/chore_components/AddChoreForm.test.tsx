@@ -1,4 +1,4 @@
-import { describe, it, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { describe, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -113,7 +113,6 @@ describe('AddChoreForm', () => {
   });
 
   test('earlyStartDate input has max attribute set by dueDate', async () => {
-    const user = userEvent.setup();
     renderAddChoreForm();
     const dueDateInput = screen.getByLabelText(/Due Date \(Optional, or Start Date for Recurring\):/i);
     const earlyStartDateInput = screen.getByLabelText(/Early Start Date \(Optional\):/i);
@@ -128,7 +127,6 @@ describe('AddChoreForm', () => {
   });
 
   test('shows warning if earlyStartDate is after dueDate (though HTML max should prevent)', async () => {
-    const user = userEvent.setup();
     // Mock console.warn
     const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     renderAddChoreForm();
