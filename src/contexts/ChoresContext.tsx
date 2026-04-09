@@ -382,7 +382,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
   }), [
     choreDefinitions, choreInstances, addChoreDefinition, toggleChoreInstanceComplete, getChoreDefinitionsForKid,
     generateInstancesForPeriod, toggleSubtaskCompletionOnInstance, toggleChoreDefinitionActiveState,
-    updateChoreInstanceCategory, updateChoreDefinition, updateChoreInstanceField,
+    updateChoreInstanceCategory, updateChoreInstanceField,
     batchToggleCompleteChoreInstances, batchUpdateChoreInstancesCategory, batchAssignChoreDefinitionsToKid,
     updateChoreSeries, addCommentToInstance, toggleSkipInstance,
   ]);
