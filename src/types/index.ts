@@ -56,6 +56,23 @@ export type {
   NotificationPreferences,
 } from './notification';
 
+// Context types
+export type {
+  // Context provider types
+  UserContextType,
+  UserProviderProps,
+  FinancialContextType,
+  FinancialData,
+  FinancialProviderProps,
+  ChoresContextType,
+  ChoresProviderProps,
+  NotificationContextType,
+  NotificationProviderProps,
+  AppNotificationContextType,
+  AppNotificationProviderProps,
+  KanbanChoreOrders,
+} from './context';
+
 // Re-export Transaction from FinancialContext
 export { type Transaction } from '../contexts/FinancialContext';
 
