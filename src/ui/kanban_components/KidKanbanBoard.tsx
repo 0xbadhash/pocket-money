@@ -6,6 +6,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom'; // Import Link
 import { useChoresContext } from '../../contexts/ChoresContext';
 import { useUserContext } from '../../contexts/UserContext';
+import { useKanbanColumns } from '../../hooks/useKanbanColumns';
 import type { ChoreDefinition, ChoreInstance, KanbanPeriod, ColumnThemeOption } from '../../types';
 import KanbanCard from './KanbanCard';
 import DateColumnView from './DateColumnView';
@@ -33,6 +34,11 @@ interface KidKanbanBoardProps {
   kidId: string;
 }
 
+interface ActiveDragItem {
+  instance: ChoreInstance;
+  definition: ChoreDefinition;
+}
+
 const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
   const {
     choreDefinitions,
@@ -43,7 +49,8 @@ const KidKanbanBoard: React.FC<KidKanbanBoardProps> = ({ kidId }) => {
     batchToggleCompleteChoreInstances,
     // batchUpdateChoreInstancesCategory, // This will be updated later if still needed with new types
   } = useChoresContext();
-  const { getKanbanColumnConfigs, user } = useUserContext(); // Ensure user is destructured
+  const { user } = useUserContext();
+  const { columns: getKanbanColumnConfigs } = useKanbanColumns(kidId);
   // const allKids = user?.kids || []; // allKids not needed for switcher
 
   // Custom Hooks for selection and modal states

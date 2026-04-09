@@ -1,10 +1,12 @@
 // src/contexts/ChoresContext.tsx
-import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import type { ChoreDefinition, ChoreInstance } from '../types';
 import { useFinancialContext } from '../contexts/FinancialContext';
 import { useUserContext } from './UserContext';
-import { generateChoreInstances } from '../utils/choreUtils';
+import { generateChoreInstances } from '../utils/choreUtils/instanceGenerator';
+import { useChoreDefinitions } from '../hooks/useChoreDefinitions';
+import { useChoreInstances } from '../hooks/useChoreInstances';
 
 export type KanbanChoreOrders = Record<string, string[]>;
 
@@ -47,22 +49,30 @@ interface ChoresProviderProps {
   children: ReactNode;
 }
 
-const defaultInitialDefinitions: ChoreDefinition[] = [
-  {
-    id: 'cd1_default', title: 'Clean Room (Daily) - Default', assignedKidId: 'kid_a_default', dueDate: '2023-12-01',
-    rewardAmount: 1, isComplete: false, recurrenceType: 'daily', recurrenceEndDate: '2023-12-05',
-    tags: ['cleaning', 'indoor'], subTasks: [ { id: 'st1_1', title: 'Make bed', isComplete: false } ],
-    priority: 'Medium', definitionComments: [],
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-  }
-];
-
 export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
-  const [choreDefinitions, setChoreDefinitions] = useState<ChoreDefinition[]>([]);
-  const [choreInstances, setChoreInstances] = useState<ChoreInstance[]>([]);
-  const { getKanbanColumnConfigs, user: currentUser } = useUserContext();
+  const { user: currentUser } = useUserContext();
   const { addKidReward } = useFinancialContext();
+  
+  // Use extracted hook for chore definitions management
+  const {
+    choreDefinitions,
+    addChoreDefinition,
+    getChoreDefinitionsForKid,
+    toggleChoreDefinitionActiveState,
+    updateChoreDefinition,
+    batchAssignChoreDefinitionsToKid,
+  } = useChoreDefinitions();
 
+  // Helper function to get Kanban columns for a kid
+  const getKanbanColumnConfigs = useCallback((kidId: string) => {
+    const kid = currentUser?.kids.find(k => k.id === kidId);
+    if (kid && kid.kanbanColumnConfigs) {
+      return [...kid.kanbanColumnConfigs].sort((a, b) => a.order - b.order);
+    }
+    return [];
+  }, [currentUser]);
+
+  // Activity logging helper
   const logActivity = useCallback((
     instance: ChoreInstance,
     action: string,
@@ -83,27 +93,6 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       activityLog: [logEntry, ...existingLog],
     };
   }, [currentUser]);
-
-  useEffect(() => {
-    try {
-      const storedDefinitions = localStorage.getItem('choreDefinitions');
-      setChoreDefinitions(storedDefinitions ? JSON.parse(storedDefinitions) : defaultInitialDefinitions);
-    } catch (error) { console.error("Error loading definitions:", error); setChoreDefinitions(defaultInitialDefinitions); }
-    try {
-      const storedInstances = localStorage.getItem('choreInstances');
-      setChoreInstances(storedInstances ? JSON.parse(storedInstances) : []);
-    } catch (error) { console.error("Error loading instances:", error); setChoreInstances([]); }
-  }, []);
-
-  useEffect(() => { localStorage.setItem('choreDefinitions', JSON.stringify(choreDefinitions)); }, [choreDefinitions]);
-  useEffect(() => { localStorage.setItem('choreInstances', JSON.stringify(choreInstances)); }, [choreInstances]);
-
-  const addChoreDefinition = useCallback((choreDefData: Omit<ChoreDefinition, 'id' | 'isComplete' | 'definitionComments'>) => {
-    const newChoreDef: ChoreDefinition = {
-      id: `cd${Date.now()}`, isComplete: false, ...choreDefData, definitionComments: []
-    };
-    setChoreDefinitions(prev => [newChoreDef, ...prev]);
-  }, []);
 
   const generateInstancesForPeriod = useCallback((startDate: string, endDate: string, defaultKanbanColumnId?: string) => {
     const activeDefs = choreDefinitions.filter(def => !def.isComplete);

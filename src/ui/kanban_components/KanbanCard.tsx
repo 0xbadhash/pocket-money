@@ -10,7 +10,11 @@ import { useNotification } from '../../contexts/NotificationContext';
 import EditScopeModal from './EditScopeModal';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { getTodayDateString } from '../../utils/dateUtils'; // For overdue calculation
+import { getTodayDateString } from '../../utils/dateUtils';
+import { CardHeader } from './subcomponents/CardHeader';
+import { ProgressBar } from './subcomponents/ProgressBar';
+import { CardMetadata } from './subcomponents/CardMetadata';
+import { SubtaskList } from './subcomponents/SubtaskList';
 
 interface KanbanCardProps {
   instance: ChoreInstance;
