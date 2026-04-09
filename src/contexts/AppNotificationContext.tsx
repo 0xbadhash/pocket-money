@@ -1,8 +1,9 @@
 // src/contexts/AppNotificationContext.tsx
-import React, { createContext, useState, useContext, useCallback, useEffect, ReactNode } from 'react';
-import type { AppNotification } from '../types'; // Assuming AppNotification is in types.ts
-import { useChoresContext } from './ChoresContext'; // Dependency
-import { ChoreInstance, ChoreDefinition } from '../types';
+import { createContext, useState, useContext, useCallback, useEffect } from 'react';
+import type { ReactNode } from 'react';
+import type { AppNotification } from '../types';
+import { useChoresContext } from './ChoresContext';
+import type { ChoreInstance, ChoreDefinition } from '../types';
 
 interface AppNotificationContextType {
   appNotifications: AppNotification[];
@@ -11,9 +12,13 @@ interface AppNotificationContextType {
   unreadCount: number;
 }
 
-const AppNotificationContext = createContext<AppNotificationContextType | undefined>(undefined);
+export const AppNotificationContext = createContext<AppNotificationContextType | undefined>(undefined);
 
-export const AppNotificationProvider: React.FC<{children: ReactNode}> = ({ children }) => {
+interface AppNotificationProviderProps {
+  children: ReactNode;
+}
+
+export const AppNotificationProvider: React.FC<AppNotificationProviderProps> = ({ children }) => {
   const [appNotifications, setAppNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const { choreInstances, choreDefinitions } = useChoresContext();
@@ -25,14 +30,12 @@ export const AppNotificationProvider: React.FC<{children: ReactNode}> = ({ child
   }, []);
 
   const fetchAppNotifications = useCallback(() => {
-    // More robust guard clause
     if (!choreInstances || !choreDefinitions || !Array.isArray(choreInstances) || !Array.isArray(choreDefinitions)) {
-      // console.warn('AppNotificationContext: choreInstances or choreDefinitions not available or not arrays yet.');
       return;
     }
 
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize to start of today
+    today.setHours(0, 0, 0, 0);
 
     const newNotifications: AppNotification[] = [];
 
@@ -42,8 +45,8 @@ export const AppNotificationProvider: React.FC<{children: ReactNode}> = ({ child
       const definition = choreDefinitions.find((def: ChoreDefinition) => def.id === instance.choreDefinitionId);
       if (!definition) return;
 
-      const instanceDueDate = new Date(instance.instanceDate + 'T00:00:00'); // Ensure local timezone interpretation
-      instanceDueDate.setHours(0,0,0,0); // Normalize
+      const instanceDueDate = new Date(instance.instanceDate + 'T00:00:00');
+      instanceDueDate.setHours(0, 0, 0, 0);
 
       let notificationType: AppNotification['type'] | null = null;
       let message = '';
@@ -73,24 +76,26 @@ export const AppNotificationProvider: React.FC<{children: ReactNode}> = ({ child
         }
       }
     });
+
     if (newNotifications.length > 0) {
       setAppNotifications(prev => {
         const currentUnreadIds = new Set(prev.filter(n => !n.isRead).map(n => `${n.type}-${n.choreInstanceId}`));
         const trulyNew = newNotifications.filter(nn => !currentUnreadIds.has(`${nn.type}-${nn.choreInstanceId}`));
         if (trulyNew.length > 0) {
-          return [...prev.filter(n => n.isRead), ...prev.filter(n => !n.isRead && !trulyNew.some(tn => tn.choreInstanceId === n.choreInstanceId && tn.type === n.type)), ...trulyNew];
+          return [
+            ...prev.filter(n => n.isRead),
+            ...prev.filter(n => !n.isRead && !trulyNew.some(tn => tn.choreInstanceId === n.choreInstanceId && tn.type === n.type)),
+            ...trulyNew
+          ];
         }
         return prev;
       });
     }
-  // Reduce re-runs by being specific about dependencies.
-  // choreInstances and choreDefinitions are primary. appNotifications is for deduping against current non-new ones.
   }, [choreInstances, choreDefinitions, appNotifications, setAppNotifications]);
 
   useEffect(() => {
-    // Initial fetch and re-fetch when chore data changes
-    if (choreInstances && choreDefinitions) { // Check if core data is loaded
-        fetchAppNotifications();
+    if (choreInstances && choreDefinitions) {
+      fetchAppNotifications();
     }
   }, [choreInstances, choreDefinitions, fetchAppNotifications]);
 

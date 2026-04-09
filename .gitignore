@@ -2,7 +2,7 @@
 # Dependencies
 node_modules/
 
-# Build artifacts
+# Build outputs
 dist/
 build/
 target/
@@ -13,29 +13,32 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Testing
-.coverage
-coverage/
-htmlcov/
-
-# Environment
+# Virtual environments
+venv/
+.venv/
 .env
 .env.local
 .env.*
 
-# Editors
+# IDE and editor files
 .vscode/
 .idea/
 *.swp
 *.swo
+*.tmp
 
 # Logs
 *.log
 
-# Temp files
-*.tmp
+# Coverage reports
+coverage/
+htmlcov/
+.coverage
 
-# OS
-.DS_Store
-Thumbs.db
+# TypeScript/JavaScript build artifacts
+*.js.map
+*.tsbuildinfo
+
+# Testing
+.vitest/
 ```

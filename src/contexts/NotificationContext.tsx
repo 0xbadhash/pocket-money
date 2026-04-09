@@ -1,6 +1,7 @@
 // src/contexts/NotificationContext.tsx
-import React, { createContext, useState, useContext, useCallback, ReactNode } from 'react';
-import type { NotificationMessage } from '../types'; // Assuming NotificationMessage is in types.ts
+import { createContext, useState, useContext, useCallback } from 'react';
+import type { ReactNode } from 'react';
+import type { NotificationMessage } from '../types';
 
 interface NotificationContextType {
   notifications: NotificationMessage[];
@@ -8,9 +9,16 @@ interface NotificationContextType {
   removeNotification: (id: string) => void;
 }
 
-const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
+export const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-export const NotificationProvider: React.FC<{children: ReactNode}> = ({ children }) => {
+interface NotificationProviderProps {
+  children: ReactNode;
+}
+
+const MAX_NOTIFICATIONS = 5;
+const DEFAULT_SUCCESS_INFO_DURATION = 5000;
+
+export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
   const [notifications, setNotifications] = useState<NotificationMessage[]>([]);
 
   const removeNotification = useCallback((id: string) => {
@@ -20,9 +28,13 @@ export const NotificationProvider: React.FC<{children: ReactNode}> = ({ children
   const addNotification = useCallback((notification: Omit<NotificationMessage, 'id'>) => {
     const id = Date.now().toString() + Math.random().toString(36).substring(2, 9);
     const fullNotification = { ...notification, id };
-    setNotifications(prev => [fullNotification, ...prev.slice(0, 4)]); // Keep max 5 notifications
+    setNotifications(prev => [fullNotification, ...prev.slice(0, MAX_NOTIFICATIONS - 1)]);
 
-    const duration = notification.duration || (notification.type === 'success' || notification.type === 'info' ? 5000 : undefined);
+    const duration = notification.duration ?? (
+      notification.type === 'success' || notification.type === 'info'
+        ? DEFAULT_SUCCESS_INFO_DURATION
+        : undefined
+    );
 
     if (duration) {
       setTimeout(() => {
