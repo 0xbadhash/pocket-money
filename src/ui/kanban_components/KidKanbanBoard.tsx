@@ -29,6 +29,14 @@ import { getTodayDateString, getWeekRange, getMonthRange } from '../../utils/dat
 import AddChoreForm from '../../components/AddChoreForm';
 import InstanceDetailModal from './InstanceDetailModal'; // Import the modal
 
+/**
+ * Represents the item being dragged in the DnD overlay.
+ */
+interface ActiveDragItem {
+  instance: ChoreInstance;
+  definition: ChoreDefinition;
+}
+
 interface KidKanbanBoardProps {
   kidId: string;
 }

@@ -1,5 +1,6 @@
 // src/contexts/FinancialContext.tsx
-import React, { createContext, useState, ReactNode, useContext, useCallback, useMemo } from 'react';
+import React, { createContext, useState, useContext, useCallback, useMemo } from 'react';
+import type { ReactNode } from 'react';
 
 // Define shapes for our financial data
 export interface Transaction { // Exporting for potential use in other files

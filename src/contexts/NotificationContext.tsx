@@ -1,5 +1,6 @@
 // src/contexts/NotificationContext.tsx
-import React, { createContext, useState, useContext, useCallback, ReactNode } from 'react';
+import React, { createContext, useState, useContext, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import type { NotificationMessage } from '../types'; // Assuming NotificationMessage is in types.ts
 
 interface NotificationContextType {
