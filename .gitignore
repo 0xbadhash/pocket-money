@@ -1,4 +1,22 @@
 ```
-# No build artifacts, dependencies, or temporary files detected in changes
-# Source files and documentation only
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+build/
+target/
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Editors
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.local
+.env.*
 ```
