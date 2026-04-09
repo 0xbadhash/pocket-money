@@ -19,7 +19,7 @@ interface ChoresContextType {
   toggleChoreDefinitionActiveState: (definitionId: string) => void;
   updateChoreInstanceCategory: (instanceId: string, newStatusId: string) => void;
   updateChoreDefinition: (definitionId: string, updates: Partial<ChoreDefinition>) => Promise<void>;
-  updateChoreInstanceField: (instanceId: string, fieldName: keyof ChoreInstance, value: any) => Promise<void>;
+  updateChoreInstanceField: (instanceId: string, fieldName: keyof ChoreInstance, value: ChoreInstance[keyof ChoreInstance] | string) => Promise<void>;
   batchToggleCompleteChoreInstances: (instanceIds: string[], markAsComplete: boolean) => Promise<void>;
   batchUpdateChoreInstancesCategory: (instanceIds: string[], newStatusId: string) => Promise<void>;
   batchAssignChoreDefinitionsToKid: (definitionIds: string[], newKidId: string | null) => Promise<void>;
@@ -135,7 +135,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     const rawNewInstances = generateChoreInstances(definitionsForGeneration, periodStartDate, periodEndDate);
     const newInstancesWithFields = rawNewInstances.map(rawInstance => {
       const definition = choreDefinitions.find(def => def.id === rawInstance.choreDefinitionId);
-      let initialSubtaskCompletions: Record<string, boolean> = {};
+      const initialSubtaskCompletions: Record<string, boolean> = {};
       if (definition?.subTasks) {
         definition.subTasks.forEach(st => { initialSubtaskCompletions[st.id] = st.isComplete || false; });
       }
@@ -327,7 +327,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     );
   }, [choreDefinitions, getKanbanColumnConfigs, logActivity, currentUser]);
 
-  const updateChoreInstanceField = useCallback(async (instanceId: string, fieldName: keyof ChoreInstance, value: any) => {
+  const updateChoreInstanceField = useCallback(async (instanceId: string, fieldName: keyof ChoreInstance, value: ChoreInstance[keyof ChoreInstance]) => {
     setChoreInstances(prevInstances =>
       prevInstances.map(inst => {
         if (inst.id === instanceId) {
@@ -342,7 +342,8 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
              const newReward = value !== undefined ? value : baseReward;
             updatedInst = logActivity(updatedInst, 'Reward Changed', currentUser?.id, currentUser?.username, `to $${Number(newReward).toFixed(2)}`);
           } else if (fieldName === 'instanceDescription') {
-            updatedInst = logActivity(updatedInst, 'Instance Description Updated', currentUser?.id, currentUser?.username, value ? `to "${value.substring(0,30)}..."` : 'cleared');
+            const descValue = typeof value === 'string' ? value : String(value ?? '');
+            updatedInst = logActivity(updatedInst, 'Instance Description Updated', currentUser?.id, currentUser?.username, descValue ? `to "${descValue.substring(0,30)}..."` : 'cleared');
           }
           return updatedInst;
         }
@@ -451,7 +452,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
             text: commentText,
             createdAt: new Date().toISOString(),
           };
-          let updatedInst = {
+          const updatedInst = {
             ...inst,
             instanceComments: [...(inst.instanceComments ?? []), newCommentEntry],
           };
@@ -468,7 +469,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
     setChoreInstances(prevInstances =>
       prevInstances.map(inst => {
         if (inst.id === instanceId) {
-          let updatedInst = { ...inst, isSkipped: !inst.isSkipped };
+          const updatedInst = { ...inst, isSkipped: !inst.isSkipped };
           updatedInst.isSkipped = !!updatedInst.isSkipped;
           const logged = logActivity(updatedInst, updatedInst.isSkipped ? 'Instance Skipped' : 'Instance Unskipped', currentUser?.id, currentUser?.username);
           return { ...logged, isSkipped: !!logged.isSkipped };
@@ -489,7 +490,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
       if (definitionIndex === -1) return prevDefs;
 
       const originalDefinition = prevDefs[definitionIndex];
-      let updatedDefinitionFields = { ...updates };
+      const updatedDefinitionFields = { ...updates };
       // Fix: Only assign id if not present, and don't duplicate id property
       if (updates.subTasks) {
         updatedDefinitionFields.subTasks = updates.subTasks.map((st, index) => {
@@ -513,7 +514,7 @@ export const ChoresProvider: React.FC<ChoresProviderProps> = ({ children }) => {
         if (newDefinition.recurrenceType && !newDefinition.isComplete) {
             const rawNewFutureInstances = generateChoreInstances([newDefinition], fromDate, regenerationEndDate);
             newFutureInstances = rawNewFutureInstances.map(rawInstance => {
-                let initialSubtaskCompletions: Record<string, boolean> = {};
+                const initialSubtaskCompletions: Record<string, boolean> = {};
                 if (newDefinition.subTasks) {
                     newDefinition.subTasks.forEach(st => { initialSubtaskCompletions[st.id] = st.isComplete || false; });
                 }

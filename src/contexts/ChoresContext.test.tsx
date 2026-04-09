@@ -2,9 +2,8 @@
 import { renderHook, act } from '@testing-library/react';
 import { ChoresProvider, useChoresContext } from './ChoresContext';
 import React, { ReactNode } from 'react';
-import { describe, it, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
-import { FinancialContext, FinancialContextType } from './FinancialContext';
-import type { ChoreInstance, ChoreDefinition, MatrixKanbanCategory } from '../types';
+import { describe, test, expect, vi, beforeEach } from 'vitest';
+import type { ChoreInstance, ChoreDefinition } from '../types';
 
 // Mock localStorage
 const localStorageMockFactory = () => {
